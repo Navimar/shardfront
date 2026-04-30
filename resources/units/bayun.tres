@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="UnitResource" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/resources/unit_resource.gd" id="1_resource"]
+[ext_resource type="Texture2D" path="res://assets/card_bayun.jpg" id="2_portrait"]
+
+[resource]
+script = ExtResource("1_resource")
+id = "type-36ef0198-a5f7-42f2-80aa-8accb04b2f02"
+name_key = "UNIT_BAYUN_NAME"
+description_key = "UNIT_BAYUN_DESCRIPTION"
+power = 7
+ability_symbols = "🃏"
+portrait = ExtResource("2_portrait")

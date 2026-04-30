@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="UnitResource" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/resources/unit_resource.gd" id="1_resource"]
+[ext_resource type="Texture2D" path="res://assets/card_zaklinatel.jpg" id="2_portrait"]
+
+[resource]
+script = ExtResource("1_resource")
+id = "type-f0af481f-54cb-4a14-9707-a2773bc60c5d"
+name_key = "UNIT_ZAKLINATEL_NAME"
+description_key = "UNIT_ZAKLINATEL_DESCRIPTION"
+power = 1
+ability_symbols = "🃏"
+portrait = ExtResource("2_portrait")

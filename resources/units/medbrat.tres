@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="UnitResource" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/resources/unit_resource.gd" id="1_resource"]
+[ext_resource type="Texture2D" path="res://assets/card_medbrat.jpg" id="2_portrait"]
+
+[resource]
+script = ExtResource("1_resource")
+id = "type-1b6b4328-87c0-45b5-919f-edb561bd7a34"
+name_key = "UNIT_MEDBRAT_NAME"
+description_key = "UNIT_MEDBRAT_DESCRIPTION"
+power = 4
+ability_symbols = "🃏"
+portrait = ExtResource("2_portrait")

@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="UnitResource" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/resources/unit_resource.gd" id="1_resource"]
+[ext_resource type="Texture2D" path="res://assets/card_feniks.jpg" id="2_portrait"]
+
+[resource]
+script = ExtResource("1_resource")
+id = "type-17d5e46e-fd71-49d3-8c6d-71ad1ca09e34"
+name_key = "UNIT_FENIKS_NAME"
+description_key = "UNIT_FENIKS_DESCRIPTION"
+power = 4
+ability_symbols = "☠️"
+portrait = ExtResource("2_portrait")

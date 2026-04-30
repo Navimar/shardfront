@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="UnitResource" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/resources/unit_resource.gd" id="1_resource"]
+[ext_resource type="Texture2D" path="res://assets/card_volk.jpg" id="2_portrait"]
+
+[resource]
+script = ExtResource("1_resource")
+id = "type-febcb1df-00bb-45b4-b9f9-f27d82212183"
+name_key = "UNIT_VOLK_NAME"
+description_key = "UNIT_VOLK_DESCRIPTION"
+power = 2
+ability_symbols = "❗"
+portrait = ExtResource("2_portrait")

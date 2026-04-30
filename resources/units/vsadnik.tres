@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="UnitResource" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/resources/unit_resource.gd" id="1_resource"]
+[ext_resource type="Texture2D" path="res://assets/card_vsadnik.jpg" id="2_portrait"]
+
+[resource]
+script = ExtResource("1_resource")
+id = "type-3076c447-3287-4179-b18a-5b2171f911c9"
+name_key = "UNIT_VSADNIK_NAME"
+description_key = "UNIT_VSADNIK_DESCRIPTION"
+power = 2
+ability_symbols = "🃏"
+portrait = ExtResource("2_portrait")
