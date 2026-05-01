@@ -15,12 +15,13 @@ const UNIT_DIR: String = "res://resources/units"
 const DECK_ALL_STATUSES: Array = []
 const DECK_IMPLEMENTED_UNTESTED_STATUSES: Array = [UnitResource.IMPLEMENTATION_IMPLEMENTED]
 const DECK_READY_STATUSES: Array = [UnitResource.IMPLEMENTATION_IMPLEMENTED, UnitResource.IMPLEMENTATION_TESTED]
-const DECK_UNIT_STATUSES: Array = DECK_IMPLEMENTED_UNTESTED_STATUSES
+const DECK_UNIT_STATUSES: Array = DECK_ALL_STATUSES
 const HUMAN_PLAYER_INDEX: int = 0
 const AI_PLAYERS: Array = [1]
 const AI_THINK_DELAY: float = 0.35
 const AI_SCORE_EPSILON: float = 0.0001
 const TEMPO_BAR_HEIGHT: int = 6
+const TEMPO_BAR_VERTICAL_WIDTH: int = 10
 const CARD_FLY_DURATION: float = 0.72
 const ACTION_DRAW_CARD: String = "draw_card"
 const ACTION_PLAY_HAND_CARD: String = "play_hand_card"
@@ -92,6 +93,25 @@ func _ready() -> void:
 	_setup_game()
 	_build_ui()
 	_refresh_ui()
+
+
+func _input(event: InputEvent) -> void:
+	if game_over or animation_running or ui_pending_action == "":
+		return
+	if _is_ai_player(current_player):
+		return
+	if not (event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT):
+		return
+
+	var cell: Vector2i = _get_board_cell_at_global_position(event.global_position)
+	if cell == Vector2i(-1, -1):
+		return
+
+	get_viewport().set_input_as_handled()
+	if ui_pending_action == "hand":
+		_try_play_hand_card(cell)
+	elif ui_pending_action == "deck_face_down":
+		_try_play_from_deck_face_down(cell)
 
 
 func _setup_game() -> void:
@@ -235,32 +255,16 @@ func _build_ui() -> void:
 	table_background.stretch_mode = TextureRect.STRETCH_SCALE
 	add_child(table_background)
 
-	tempo_bar = Control.new()
-	tempo_bar.set_anchors_preset(Control.PRESET_TOP_WIDE)
-	tempo_bar.offset_bottom = TEMPO_BAR_HEIGHT
-	tempo_bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	tempo_bar.z_index = 2048
-	tempo_bar.draw.connect(_on_tempo_bar_draw)
-	add_child(tempo_bar)
-
-	tempo_debug_label = Label.new()
-	tempo_debug_label.set_anchors_preset(Control.PRESET_TOP_LEFT)
-	tempo_debug_label.offset_left = 8
-	tempo_debug_label.offset_top = TEMPO_BAR_HEIGHT + 3
-	tempo_debug_label.offset_right = 760
-	tempo_debug_label.offset_bottom = TEMPO_BAR_HEIGHT + 28
-	tempo_debug_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	tempo_debug_label.z_index = 2049
-	tempo_debug_label.add_theme_color_override("font_color", Color(1.0, 0.96, 0.78))
-	tempo_debug_label.add_theme_color_override("font_shadow_color", Color(0.0, 0.0, 0.0))
-	tempo_debug_label.add_theme_constant_override("shadow_offset_x", 2)
-	tempo_debug_label.add_theme_constant_override("shadow_offset_y", 2)
-	tempo_debug_label.add_theme_font_size_override("font_size", 15)
-	add_child(tempo_debug_label)
-
-	var root = CenterContainer.new()
+	var root = MarginContainer.new()
 	root.set_anchors_preset(Control.PRESET_FULL_RECT)
+	root.add_theme_constant_override("margin_top", CELL_GAP)
 	add_child(root)
+
+	var main_column = VBoxContainer.new()
+	main_column.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	main_column.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
+	main_column.add_theme_constant_override("separation", 4)
+	root.add_child(main_column)
 
 	var main_row = HBoxContainer.new()
 	var board_size: Vector2 = _get_board_pixel_size()
@@ -270,43 +274,73 @@ func _build_ui() -> void:
 		board_size.y
 	)
 	main_row.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-	main_row.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	main_row.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
 	main_row.add_theme_constant_override("separation", 18)
-	root.add_child(main_row)
+	main_column.add_child(main_row)
 
 	var hand_panel = VBoxContainer.new()
 	hand_panel.custom_minimum_size = Vector2(CARD_WIDTH + 36, side_panel_height)
 	hand_panel.add_theme_constant_override("separation", 9)
 	main_row.add_child(hand_panel)
 
-	action_label = Label.new()
-	action_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	hand_panel.add_child(action_label)
+	var tempo_row = HBoxContainer.new()
+	tempo_row.custom_minimum_size = Vector2(CARD_WIDTH + 36, side_panel_height)
+	tempo_row.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	tempo_row.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	tempo_row.add_theme_constant_override("separation", 8)
+	hand_panel.add_child(tempo_row)
+
+	tempo_bar = Control.new()
+	tempo_bar.custom_minimum_size = Vector2(TEMPO_BAR_VERTICAL_WIDTH, side_panel_height)
+	tempo_bar.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+	tempo_bar.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	tempo_bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	tempo_bar.z_index = 2048
+	tempo_bar.draw.connect(_on_tempo_bar_draw)
+	tempo_row.add_child(tempo_bar)
+
+	var hand_content = VBoxContainer.new()
+	hand_content.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	hand_content.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	hand_content.add_theme_constant_override("separation", 9)
+	tempo_row.add_child(hand_content)
+
+	tempo_debug_label = Label.new()
+	tempo_debug_label.custom_minimum_size = Vector2(CARD_WIDTH + 36 - TEMPO_BAR_VERTICAL_WIDTH - 8, 22)
+	tempo_debug_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	tempo_debug_label.z_index = 2049
+	tempo_debug_label.add_theme_color_override("font_color", Color(1.0, 0.96, 0.78))
+	tempo_debug_label.add_theme_color_override("font_shadow_color", Color(0.0, 0.0, 0.0))
+	tempo_debug_label.add_theme_constant_override("shadow_offset_x", 2)
+	tempo_debug_label.add_theme_constant_override("shadow_offset_y", 2)
+	tempo_debug_label.add_theme_font_size_override("font_size", 15)
+	tempo_debug_label.visible = false
+	hand_content.add_child(tempo_debug_label)
 
 	draw_two_button = Button.new()
 	draw_two_button.text = _tr_text("UI_DRAW")
 	draw_two_button.tooltip_text = _tr_text("UI_TOOLTIP_DRAW")
 	draw_two_button.pressed.connect(_on_draw_two_pressed)
-	hand_panel.add_child(draw_two_button)
+	hand_content.add_child(draw_two_button)
 
 	deck_two_button = Button.new()
 	deck_two_button.text = _tr_text("UI_PATH")
 	deck_two_button.tooltip_text = _tr_text("UI_TOOLTIP_PATH")
 	deck_two_button.pressed.connect(_on_deck_two_pressed)
-	hand_panel.add_child(deck_two_button)
+	hand_content.add_child(deck_two_button)
 
 	replay_button = Button.new()
 	replay_button.text = _tr_text("UI_REPLAY")
 	replay_button.visible = false
 	replay_button.pressed.connect(_on_replay_pressed)
-	hand_panel.add_child(replay_button)
+	hand_content.add_child(replay_button)
 
 	var hand_scroll = ScrollContainer.new()
 	hand_scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	hand_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	hand_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	hand_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
-	hand_panel.add_child(hand_scroll)
+	hand_content.add_child(hand_scroll)
 
 	var hand_center = HBoxContainer.new()
 	hand_center.alignment = BoxContainer.ALIGNMENT_CENTER
@@ -324,7 +358,7 @@ func _build_ui() -> void:
 	discard_button.text = _tr_text("UI_DISCARD_BUTTON") % 0
 	discard_button.tooltip_text = _tr_text("UI_TOOLTIP_DISCARD")
 	discard_button.pressed.connect(_on_discard_pressed)
-	hand_panel.add_child(discard_button)
+	hand_content.add_child(discard_button)
 
 	board_area = Control.new()
 	board_area.custom_minimum_size = board_size
@@ -429,6 +463,18 @@ func _build_ui() -> void:
 			content.add_child(stack_container)
 			board_cell_stacks[Vector2i(x, y)] = stack_container
 
+	action_label = Label.new()
+	action_label.custom_minimum_size = Vector2(main_row.custom_minimum_size.x, 54)
+	action_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	action_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	action_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	action_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	action_label.add_theme_font_size_override("font_size", 32)
+	action_label.add_theme_color_override("font_color", Color.WHITE)
+	action_label.add_theme_color_override("font_outline_color", Color(0.0, 0.0, 0.0))
+	action_label.add_theme_constant_override("outline_size", 6)
+	main_column.add_child(action_label)
+
 	_build_discard_dialog()
 	_resize_board_to_available.call_deferred()
 
@@ -446,10 +492,13 @@ func _sync_base_visuals() -> void:
 
 
 func _sync_ui_chrome() -> void:
+	var status_text: String
 	if game_over:
-		action_label.text = game_over_message
+		status_text = game_over_message
 	else:
-		action_label.text = _get_action_text()
+		status_text = _get_action_text()
+	action_label.text = status_text
+	action_label.visible = status_text != ""
 
 	var playable_cells: Dictionary = _get_playable_cells_for_ui_pending_action()
 	for cell in board_cells.keys():
@@ -541,10 +590,10 @@ func _sync_opponent_hand_card_visual_state() -> void:
 	var opponent_index: int = _opponent(_get_view_player())
 	var hand: Array = players[opponent_index].hand
 	for card in hand:
-		var card_control: Control = card_views.get(int(card.id), null)
-		if card_control == null or not is_instance_valid(card_control):
-			continue
-		_configure_card_view(card_control, card, true, false, false)
+			var card_control: Control = card_views.get(int(card.id), null)
+			if card_control == null or not is_instance_valid(card_control):
+				continue
+			_configure_card_view(card_control, card, true, false, false)
 
 
 func _sync_after_state_change_without_card_layout() -> void:
@@ -555,6 +604,7 @@ func _sync_after_state_change_without_card_layout() -> void:
 func _refresh_tempo_bar() -> void:
 	if tempo_debug_label != null:
 		tempo_debug_label.text = _get_tempo_debug_text()
+		tempo_debug_label.visible = false
 	if tempo_bar != null:
 		tempo_bar.queue_redraw()
 
@@ -563,15 +613,15 @@ func _on_tempo_bar_draw() -> void:
 	if tempo_bar == null or players.size() < 2:
 		return
 
-	var rect: Rect2 = Rect2(Vector2.ZERO, Vector2(tempo_bar.size.x, TEMPO_BAR_HEIGHT))
+	var rect: Rect2 = Rect2(Vector2.ZERO, tempo_bar.size)
 	var wood_share: float = _get_tempo_bar_player_share(0)
-	var split_x: float = rect.size.x * wood_share
-	var wood_rect: Rect2 = Rect2(rect.position, Vector2(split_x, rect.size.y))
-	var metal_rect: Rect2 = Rect2(Vector2(split_x, 0.0), Vector2(rect.size.x - split_x, rect.size.y))
+	var split_y: float = rect.size.y * wood_share
+	var wood_rect: Rect2 = Rect2(rect.position, Vector2(rect.size.x, split_y))
+	var metal_rect: Rect2 = Rect2(Vector2(0.0, split_y), Vector2(rect.size.x, rect.size.y - split_y))
 	tempo_bar.draw_rect(wood_rect, WOOD_CARD_COLOR)
 	tempo_bar.draw_rect(metal_rect, METAL_CARD_COLOR)
-	tempo_bar.draw_line(Vector2(split_x, 0.0), Vector2(split_x, rect.size.y), Color(1.0, 0.95, 0.78, 0.85), 2.0)
-	tempo_bar.draw_line(Vector2(rect.size.x * 0.5, 0.0), Vector2(rect.size.x * 0.5, rect.size.y), Color(0.0, 0.0, 0.0, 0.45), 1.0)
+	tempo_bar.draw_line(Vector2(0.0, split_y), Vector2(rect.size.x, split_y), Color(1.0, 0.95, 0.78, 0.85), 2.0)
+	tempo_bar.draw_line(Vector2(0.0, rect.size.y * 0.5), Vector2(rect.size.x, rect.size.y * 0.5), Color(0.0, 0.0, 0.0, 0.45), 1.0)
 
 
 func _get_tempo_bar_score() -> float:
@@ -751,6 +801,7 @@ func _ensure_card_view(card: Dictionary) -> Control:
 
 
 func _configure_card_view(card_control: Control, card: Dictionary, force_face_down: bool, desaturate: bool, text_muted: bool) -> void:
+	_remove_selected_card_frame(card_control)
 	card_control.custom_minimum_size = Vector2(CARD_WIDTH, CARD_HEIGHT)
 	card_control.size = Vector2(CARD_WIDTH, CARD_HEIGHT)
 	card_control.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
@@ -789,6 +840,7 @@ func _hide_discard_card_views() -> void:
 
 
 func _add_selected_card_frame(card_control: Control) -> void:
+	_remove_selected_card_frame(card_control)
 	var frame = Panel.new()
 	frame.set_anchors_preset(Control.PRESET_FULL_RECT)
 	frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -796,6 +848,16 @@ func _add_selected_card_frame(card_control: Control) -> void:
 	frame.set_meta("selection_frame", true)
 	frame.add_theme_stylebox_override("panel", _make_selected_card_frame_style())
 	card_control.add_child(frame)
+
+
+func _remove_selected_card_frame(card_control: Control) -> void:
+	var frames: Array = []
+	for child in card_control.get_children():
+		if bool(child.get_meta("selection_frame", false)):
+			frames.append(child)
+	for frame in frames:
+		card_control.remove_child(frame)
+		frame.free()
 
 
 func _make_selected_card_frame_style() -> StyleBoxFlat:
@@ -2360,6 +2422,14 @@ func _on_board_cell_gui_input(event: InputEvent, cell_panel: PanelContainer) -> 
 		_try_play_hand_card(cell)
 	elif ui_pending_action == "deck_face_down":
 		_try_play_from_deck_face_down(cell)
+
+
+func _get_board_cell_at_global_position(global_position: Vector2) -> Vector2i:
+	for cell in board_cells.keys():
+		var cell_panel: Control = board_cells[cell]
+		if cell_panel.get_global_rect().has_point(global_position):
+			return cell
+	return Vector2i(-1, -1)
 
 
 func _try_play_hand_card(cell: Vector2i) -> void:
