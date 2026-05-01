@@ -2,45 +2,75 @@ extends Control
 
 const GRID_WIDTH: int = 7
 const GRID_HEIGHT: int = 5
-const CARD_INNER_WIDTH: int = 124
-const CARD_INNER_HEIGHT: int = 105
-const CARD_FRAME_WIDTH: int = 2
+const CARD_INNER_WIDTH: int = 186
+const CARD_INNER_HEIGHT: int = 158
+const CARD_FRAME_WIDTH: int = 3
 const CARD_WIDTH: int = CARD_INNER_WIDTH + CARD_FRAME_WIDTH * 2
 const CARD_HEIGHT: int = CARD_INNER_HEIGHT + CARD_FRAME_WIDTH * 2
 const CELL_SIZE: int = CARD_WIDTH
-const CELL_GAP: int = 8
+const CELL_GAP: int = 12
 const MAX_HAND: int = 7
 const TURN_MINOR_ACTIONS: int = 2
 const UNIT_DIR: String = "res://resources/units"
-const WOOD_CARD_COLOR: Color = Color(0.32, 0.21, 0.12)
-const METAL_CARD_COLOR: Color = Color(0.14, 0.22, 0.31)
+const DECK_ALL_STATUSES: Array = []
+const DECK_IMPLEMENTED_UNTESTED_STATUSES: Array = [UnitResource.IMPLEMENTATION_IMPLEMENTED]
+const DECK_READY_STATUSES: Array = [UnitResource.IMPLEMENTATION_IMPLEMENTED, UnitResource.IMPLEMENTATION_TESTED]
+const DECK_UNIT_STATUSES: Array = DECK_IMPLEMENTED_UNTESTED_STATUSES
+const HUMAN_PLAYER_INDEX: int = 0
+const AI_PLAYERS: Array = [1]
+const AI_THINK_DELAY: float = 0.35
+const AI_SCORE_EPSILON: float = 0.0001
+const TEMPO_BAR_HEIGHT: int = 6
+const CARD_FLY_DURATION: float = 0.72
+const ACTION_DRAW_CARD: String = "draw_card"
+const ACTION_PLAY_HAND_CARD: String = "play_hand_card"
+const ACTION_PLAY_DECK_FACE_DOWN: String = "play_deck_face_down"
+const ANIMATION_LAYOUT_STACK: String = "layout_stack"
+const RESULT_OK: String = "ok"
+const RESULT_INVALID: String = "invalid"
+const UNIT_ABBERATSIYA_NAME: String = "UNIT_ABBERATSIYA_NAME"
+const UNIT_BARON_NAME: String = "UNIT_BARON_NAME"
+const UNIT_DRAKON_NAME: String = "UNIT_DRAKON_NAME"
+const UNIT_DROVOSEK_NAME: String = "UNIT_DROVOSEK_NAME"
+const UNIT_GRIBNIK_NAME: String = "UNIT_GRIBNIK_NAME"
+const UNIT_KRYSA_NAME: String = "UNIT_KRYSA_NAME"
+const UNIT_LUCHNIK_NAME: String = "UNIT_LUCHNIK_NAME"
+const UNIT_MOZGOSHMYG_NAME: String = "UNIT_MOZGOSHMYG_NAME"
+const UNIT_RYTSAR_NAME: String = "UNIT_RYTSAR_NAME"
+const UNIT_VARVAR_NAME: String = "UNIT_VARVAR_NAME"
+const WOOD_CARD_COLOR: Color = Color(0.42, 0.25, 0.10)
+const METAL_CARD_COLOR: Color = Color(0.10, 0.30, 0.46)
+const BARRIER_FILL_COLOR: Color = Color(0.88, 0.69, 0.32)
 const TOOLTIP_BACKGROUND_COLOR: Color = Color(0.03, 0.025, 0.02)
 const SUPPLY_PIPE_WIDTH: float = float(CELL_GAP)
 const UnitScene: PackedScene = preload("res://scenes/unit.tscn")
 const WoodBaseTexture: Texture2D = preload("res://assets/bases/base_single.jpg")
 const MetalBaseTexture: Texture2D = preload("res://assets/bases/bases_pair.jpg")
-const WoodCardBackTexture: Texture2D = preload("res://assets/cards/card_back_red.jpeg")
-const MetalCardBackTexture: Texture2D = preload("res://assets/cards/card_back_blue.jpeg")
 const TableBackgroundTexture: Texture2D = preload("res://assets/backgrounds/table_stone_background.jpg")
 
 var board = []
 var barriers = {}
 var players = []
 var current_player: int = 0
-var selected_hand_index: int = -1
-var pending_action: String = ""
+var ui_selected_hand_card_id: int = -1
+var ui_pending_action: String = ""
 var minor_actions_spent: int = 0
 var game_over: bool = false
 var game_over_message: String = ""
 var animation_running: bool = false
+var ai_running: bool = false
+var next_card_id: int = 1
 
 var board_cells = {}
 var board_cell_labels = {}
 var board_cell_bases = {}
 var board_cell_stacks = {}
 var hand_card_controls = {}
+var card_views = {}
 
 var action_label: Label
+var tempo_bar: Control
+var tempo_debug_label: Label
 var hand_container: VBoxContainer
 var opponent_hand_container: VBoxContainer
 var board_area: Control
@@ -49,6 +79,11 @@ var supply_line_layer: Control
 var barrier_layer: Control
 var draw_two_button: Button
 var deck_two_button: Button
+var replay_button: Button
+var discard_button: Button
+var opponent_discard_button: Button
+var discard_dialog: AcceptDialog
+var discard_grid: GridContainer
 
 
 func _ready() -> void:
@@ -61,6 +96,8 @@ func _ready() -> void:
 
 func _setup_game() -> void:
 	board.clear()
+	next_card_id = 1
+	_clear_all_card_views()
 	for y in range(GRID_HEIGHT):
 		var row = []
 		for x in range(GRID_WIDTH):
@@ -70,16 +107,17 @@ func _setup_game() -> void:
 	barriers.clear()
 	_generate_initial_barriers()
 
-	var all_units = _load_units()
-	all_units.shuffle()
-	var midpoint: int = int(all_units.size() / 2)
-	var first_deck = all_units.slice(0, midpoint)
-	var second_deck = all_units.slice(midpoint, all_units.size())
+	var all_units: Array = _load_units(DECK_UNIT_STATUSES)
+	var first_deck: Array = _make_deck_from_units(all_units, 0)
+	var second_deck: Array = _make_deck_from_units(all_units, 1)
+	first_deck.shuffle()
+	second_deck.shuffle()
 
 	players = [
 		{
 			"name": "Древесный игрок",
 			"base": Vector2i(1, 1),
+			"deck_template": all_units.duplicate(),
 			"deck": first_deck,
 			"hand": [],
 			"discard": []
@@ -87,6 +125,7 @@ func _setup_game() -> void:
 		{
 			"name": "Металлический игрок",
 			"base": Vector2i(5, 3),
+			"deck_template": all_units.duplicate(),
 			"deck": second_deck,
 			"hand": [],
 			"discard": []
@@ -97,7 +136,44 @@ func _setup_game() -> void:
 	_draw_cards(1, 5)
 
 
-func _load_units() -> Array:
+func _clear_all_card_views() -> void:
+	for card_control in card_views.values():
+		if card_control != null and is_instance_valid(card_control):
+			card_control.queue_free()
+	card_views.clear()
+
+
+func _make_deck_from_units(units: Array, owner: int) -> Array:
+	var deck: Array = []
+	for unit in units:
+		deck.append(_make_card(unit, owner, false))
+	return deck
+
+
+func _make_card(unit: Resource, owner: int, face_down: bool = false) -> Dictionary:
+	var card: Dictionary = {
+		"id": next_card_id,
+		"unit": unit,
+		"owner": owner,
+		"face_down": face_down
+	}
+	next_card_id += 1
+	return card
+
+
+func _make_card_in_state(state: Dictionary, unit: Resource, owner: int, face_down: bool = false) -> Dictionary:
+	var id: int = int(state.get("next_card_id", next_card_id))
+	var card: Dictionary = {
+		"id": id,
+		"unit": unit,
+		"owner": owner,
+		"face_down": face_down
+	}
+	state.next_card_id = id + 1
+	return card
+
+
+func _load_units(status_filter: Array = []) -> Array:
 	var units: Array = []
 	var dir: DirAccess = DirAccess.open(UNIT_DIR)
 	if dir == null:
@@ -108,11 +184,18 @@ func _load_units() -> Array:
 	while file_name != "":
 		if not dir.current_is_dir() and file_name.ends_with(".tres"):
 			var unit = load("%s/%s" % [UNIT_DIR, file_name])
-			if unit is Resource:
+			if unit is Resource and _unit_matches_status_filter(unit, status_filter):
 				units.append(unit)
 		file_name = dir.get_next()
 	dir.list_dir_end()
 	return units
+
+
+func _unit_matches_status_filter(unit: Resource, status_filter: Array) -> bool:
+	if status_filter.is_empty():
+		return true
+	var implementation_status = unit.get("implementation_status")
+	return status_filter.has(implementation_status)
 
 
 func _make_ui_theme() -> Theme:
@@ -121,19 +204,19 @@ func _make_ui_theme() -> Theme:
 	var tooltip_style = StyleBoxFlat.new()
 	tooltip_style.bg_color = TOOLTIP_BACKGROUND_COLOR
 	tooltip_style.border_color = Color(0.72, 0.62, 0.46)
-	tooltip_style.set_border_width_all(2)
+	tooltip_style.set_border_width_all(3)
 	tooltip_style.set_corner_radius_all(0)
-	tooltip_style.content_margin_left = 10
-	tooltip_style.content_margin_top = 8
-	tooltip_style.content_margin_right = 10
-	tooltip_style.content_margin_bottom = 8
+	tooltip_style.content_margin_left = 15
+	tooltip_style.content_margin_top = 12
+	tooltip_style.content_margin_right = 15
+	tooltip_style.content_margin_bottom = 12
 
 	ui_theme.set_stylebox("panel", "TooltipPanel", tooltip_style)
 	ui_theme.set_color("font_color", "TooltipLabel", Color(0.96, 0.94, 0.88))
 	ui_theme.set_color("font_shadow_color", "TooltipLabel", Color(0.0, 0.0, 0.0))
-	ui_theme.set_constant("shadow_offset_x", "TooltipLabel", 1)
-	ui_theme.set_constant("shadow_offset_y", "TooltipLabel", 1)
-	ui_theme.set_font_size("font_size", "TooltipLabel", 14)
+	ui_theme.set_constant("shadow_offset_x", "TooltipLabel", 2)
+	ui_theme.set_constant("shadow_offset_y", "TooltipLabel", 2)
+	ui_theme.set_font_size("font_size", "TooltipLabel", 21)
 	return ui_theme
 
 
@@ -152,6 +235,29 @@ func _build_ui() -> void:
 	table_background.stretch_mode = TextureRect.STRETCH_SCALE
 	add_child(table_background)
 
+	tempo_bar = Control.new()
+	tempo_bar.set_anchors_preset(Control.PRESET_TOP_WIDE)
+	tempo_bar.offset_bottom = TEMPO_BAR_HEIGHT
+	tempo_bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	tempo_bar.z_index = 2048
+	tempo_bar.draw.connect(_on_tempo_bar_draw)
+	add_child(tempo_bar)
+
+	tempo_debug_label = Label.new()
+	tempo_debug_label.set_anchors_preset(Control.PRESET_TOP_LEFT)
+	tempo_debug_label.offset_left = 8
+	tempo_debug_label.offset_top = TEMPO_BAR_HEIGHT + 3
+	tempo_debug_label.offset_right = 760
+	tempo_debug_label.offset_bottom = TEMPO_BAR_HEIGHT + 28
+	tempo_debug_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	tempo_debug_label.z_index = 2049
+	tempo_debug_label.add_theme_color_override("font_color", Color(1.0, 0.96, 0.78))
+	tempo_debug_label.add_theme_color_override("font_shadow_color", Color(0.0, 0.0, 0.0))
+	tempo_debug_label.add_theme_constant_override("shadow_offset_x", 2)
+	tempo_debug_label.add_theme_constant_override("shadow_offset_y", 2)
+	tempo_debug_label.add_theme_font_size_override("font_size", 15)
+	add_child(tempo_debug_label)
+
 	var root = CenterContainer.new()
 	root.set_anchors_preset(Control.PRESET_FULL_RECT)
 	add_child(root)
@@ -160,17 +266,17 @@ func _build_ui() -> void:
 	var board_size: Vector2 = _get_board_pixel_size()
 	var side_panel_height: float = board_size.y
 	main_row.custom_minimum_size = Vector2(
-		CARD_WIDTH + 24 + board_size.x + 150 + 24,
+		CARD_WIDTH + 36 + board_size.x + 225 + 36,
 		board_size.y
 	)
 	main_row.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	main_row.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	main_row.add_theme_constant_override("separation", 12)
+	main_row.add_theme_constant_override("separation", 18)
 	root.add_child(main_row)
 
 	var hand_panel = VBoxContainer.new()
-	hand_panel.custom_minimum_size = Vector2(CARD_WIDTH + 24, side_panel_height)
-	hand_panel.add_theme_constant_override("separation", 6)
+	hand_panel.custom_minimum_size = Vector2(CARD_WIDTH + 36, side_panel_height)
+	hand_panel.add_theme_constant_override("separation", 9)
 	main_row.add_child(hand_panel)
 
 	action_label = Label.new()
@@ -189,6 +295,12 @@ func _build_ui() -> void:
 	deck_two_button.pressed.connect(_on_deck_two_pressed)
 	hand_panel.add_child(deck_two_button)
 
+	replay_button = Button.new()
+	replay_button.text = _tr_text("UI_REPLAY")
+	replay_button.visible = false
+	replay_button.pressed.connect(_on_replay_pressed)
+	hand_panel.add_child(replay_button)
+
 	var hand_scroll = ScrollContainer.new()
 	hand_scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	hand_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -205,8 +317,14 @@ func _build_ui() -> void:
 	hand_container = VBoxContainer.new()
 	hand_container.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	hand_container.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
-	hand_container.add_theme_constant_override("separation", 8)
+	hand_container.add_theme_constant_override("separation", 12)
 	hand_center.add_child(hand_container)
+
+	discard_button = Button.new()
+	discard_button.text = _tr_text("UI_DISCARD_BUTTON") % 0
+	discard_button.tooltip_text = _tr_text("UI_TOOLTIP_DISCARD")
+	discard_button.pressed.connect(_on_discard_pressed)
+	hand_panel.add_child(discard_button)
 
 	board_area = Control.new()
 	board_area.custom_minimum_size = board_size
@@ -241,8 +359,8 @@ func _build_ui() -> void:
 	board_area.add_child(barrier_layer)
 
 	var opponent_hand_panel = VBoxContainer.new()
-	opponent_hand_panel.custom_minimum_size = Vector2(150, side_panel_height)
-	opponent_hand_panel.add_theme_constant_override("separation", 6)
+	opponent_hand_panel.custom_minimum_size = Vector2(225, side_panel_height)
+	opponent_hand_panel.add_theme_constant_override("separation", 9)
 	main_row.add_child(opponent_hand_panel)
 
 	var opponent_hand_scroll = ScrollContainer.new()
@@ -261,8 +379,14 @@ func _build_ui() -> void:
 	opponent_hand_container = VBoxContainer.new()
 	opponent_hand_container.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	opponent_hand_container.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
-	opponent_hand_container.add_theme_constant_override("separation", 8)
+	opponent_hand_container.add_theme_constant_override("separation", 12)
 	opponent_hand_center.add_child(opponent_hand_container)
+
+	opponent_discard_button = Button.new()
+	opponent_discard_button.text = _tr_text("UI_DISCARD_BUTTON") % 0
+	opponent_discard_button.tooltip_text = _tr_text("UI_TOOLTIP_OPPONENT_DISCARD")
+	opponent_discard_button.pressed.connect(_on_opponent_discard_pressed)
+	opponent_hand_panel.add_child(opponent_discard_button)
 
 	for y in range(GRID_HEIGHT):
 		for x in range(GRID_WIDTH):
@@ -305,16 +429,29 @@ func _build_ui() -> void:
 			content.add_child(stack_container)
 			board_cell_stacks[Vector2i(x, y)] = stack_container
 
+	_build_discard_dialog()
 	_resize_board_to_available.call_deferred()
 
 
 func _refresh_ui() -> void:
+	_sync_base_visuals()
+	_sync_ui_chrome()
+	_sync_all_card_views()
+	_queue_ai_turn_if_needed()
+
+
+func _sync_base_visuals() -> void:
+	for cell in board_cell_bases.keys():
+		_refresh_base_visual(cell, board_cell_bases[cell])
+
+
+func _sync_ui_chrome() -> void:
 	if game_over:
 		action_label.text = game_over_message
 	else:
 		action_label.text = _get_action_text()
 
-	var playable_cells: Dictionary = _get_playable_cells_for_pending_action()
+	var playable_cells: Dictionary = _get_playable_cells_for_ui_pending_action()
 	for cell in board_cells.keys():
 		var cell_panel: PanelContainer = board_cells[cell]
 		var label: Label = board_cell_labels[cell]
@@ -327,9 +464,6 @@ func _refresh_ui() -> void:
 		base_container.visible = base_owner != -1
 		stack_container.visible = base_owner == -1 and has_stack
 		label.text = _get_cell_text(cell)
-		_refresh_base_visual(cell, base_container)
-		if stack_container.visible:
-			_refresh_board_stack_visual(cell, stack_container)
 		if base_owner != -1:
 			cell_panel.add_theme_stylebox_override("panel", _make_base_cell_style(base_owner))
 			label.modulate = Color(1.0, 1.0, 1.0)
@@ -341,92 +475,363 @@ func _refresh_ui() -> void:
 			label.modulate = Color(1.0, 1.0, 1.0)
 
 	_queue_barrier_redraw()
-	_refresh_hand()
-	_refresh_opponent_hand()
+	_refresh_discard_button()
 	_set_action_buttons_enabled(_can_press_minor_action_button())
+	replay_button.visible = game_over
+	_refresh_tempo_bar()
+	_sync_visible_card_visual_state()
 
 
-func _refresh_hand() -> void:
+func _sync_all_card_views() -> void:
+	for cell in board_cell_stacks.keys():
+		var stack_container: Control = board_cell_stacks[cell]
+		if stack_container.visible:
+			_sync_board_stack_card_views(cell, stack_container)
+	_sync_hand_card_views()
+	_sync_opponent_hand_card_views()
+	_hide_discard_card_views()
+
+
+func _sync_visible_card_visual_state() -> void:
+	_sync_board_card_visual_state()
+	_sync_hand_card_visual_state()
+	_sync_opponent_hand_card_visual_state()
+
+
+func _sync_board_card_visual_state() -> void:
+	for y in range(GRID_HEIGHT):
+		for x in range(GRID_WIDTH):
+			var cell: Vector2i = Vector2i(x, y)
+			_sync_board_stack_card_visual_state(cell)
+
+
+func _sync_board_stack_card_visual_state(cell: Vector2i) -> void:
+	var stack: Array = _get_stack(cell)
+	for i in range(stack.size()):
+		var card: Dictionary = stack[i]
+		var card_control: Control = card_views.get(int(card.id), null)
+		if card_control == null or not is_instance_valid(card_control):
+			continue
+		var is_covered: bool = i < stack.size() - 1
+		var is_unsupplied: bool = not _is_card_supplied(card, cell)
+		_configure_card_view(card_control, card, bool(card.face_down), is_unsupplied, is_unsupplied or is_covered)
+
+
+func _sync_hand_card_visual_state() -> void:
+	var view_player: int = _get_view_player()
+	var hand: Array = players[view_player].hand
 	hand_card_controls.clear()
-	for child in hand_container.get_children():
-		child.queue_free()
-
-	var hand: Array = players[current_player].hand
 	for i in range(hand.size()):
-		var unit_control: Control = UnitScene.instantiate()
-		unit_control.custom_minimum_size = Vector2(CARD_WIDTH, CARD_HEIGHT)
-		unit_control.size = Vector2(CARD_WIDTH, CARD_HEIGHT)
-		unit_control.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-		unit_control.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
-		unit_control.unit = hand[i]
-		unit_control.player_index = current_player
-		unit_control.tooltip_text = _get_unit_tooltip(hand[i])
+		var card: Dictionary = hand[i]
+		var card_control: Control = card_views.get(int(card.id), null)
+		if card_control == null or not is_instance_valid(card_control):
+			continue
+		card_control.set_meta("hand_index", i)
+		hand_card_controls[i] = card_control
+		_configure_card_view(card_control, card, false, false, false)
+		_connect_hand_card_input(card_control)
+		if current_player == view_player and minor_actions_spent > 0:
+			card_control.set_portrait_desaturated(true)
+			card_control.set_text_muted(true)
+		elif current_player == view_player and int(card.id) == ui_selected_hand_card_id:
+			_add_selected_card_frame(card_control)
+
+
+func _sync_opponent_hand_card_visual_state() -> void:
+	var opponent_index: int = _opponent(_get_view_player())
+	var hand: Array = players[opponent_index].hand
+	for card in hand:
+		var card_control: Control = card_views.get(int(card.id), null)
+		if card_control == null or not is_instance_valid(card_control):
+			continue
+		_configure_card_view(card_control, card, true, false, false)
+
+
+func _sync_after_state_change_without_card_layout() -> void:
+	_sync_ui_chrome()
+	_queue_ai_turn_if_needed()
+
+
+func _refresh_tempo_bar() -> void:
+	if tempo_debug_label != null:
+		tempo_debug_label.text = _get_tempo_debug_text()
+	if tempo_bar != null:
+		tempo_bar.queue_redraw()
+
+
+func _on_tempo_bar_draw() -> void:
+	if tempo_bar == null or players.size() < 2:
+		return
+
+	var rect: Rect2 = Rect2(Vector2.ZERO, Vector2(tempo_bar.size.x, TEMPO_BAR_HEIGHT))
+	var wood_share: float = _get_tempo_bar_player_share(0)
+	var split_x: float = rect.size.x * wood_share
+	var wood_rect: Rect2 = Rect2(rect.position, Vector2(split_x, rect.size.y))
+	var metal_rect: Rect2 = Rect2(Vector2(split_x, 0.0), Vector2(rect.size.x - split_x, rect.size.y))
+	tempo_bar.draw_rect(wood_rect, WOOD_CARD_COLOR)
+	tempo_bar.draw_rect(metal_rect, METAL_CARD_COLOR)
+	tempo_bar.draw_line(Vector2(split_x, 0.0), Vector2(split_x, rect.size.y), Color(1.0, 0.95, 0.78, 0.85), 2.0)
+	tempo_bar.draw_line(Vector2(rect.size.x * 0.5, 0.0), Vector2(rect.size.x * 0.5, rect.size.y), Color(0.0, 0.0, 0.0, 0.45), 1.0)
+
+
+func _get_tempo_bar_score() -> float:
+	var state: Dictionary = _capture_game_state()
+	var human_tempo: float = _evaluate_win_tempo(state, 0)
+	var ai_tempo: float = _evaluate_win_tempo(state, 1)
+	if human_tempo <= 0.0 and ai_tempo <= 0.0:
+		return 0.0
+	if human_tempo <= 0.0:
+		return -INF
+	if ai_tempo <= 0.0:
+		return INF
+	return human_tempo - ai_tempo
+
+
+func _get_tempo_bar_player_share(player_index: int) -> float:
+	var state: Dictionary = _capture_game_state()
+	var player_tempo: float = _evaluate_win_tempo(state, player_index)
+	var opponent_tempo: float = _evaluate_win_tempo(state, _opponent(player_index))
+	if player_tempo <= 0.0 and opponent_tempo <= 0.0:
+		return 0.5
+	if player_tempo <= 0.0:
+		return 1.0
+	if opponent_tempo <= 0.0:
+		return 0.0
+	var total: float = player_tempo + opponent_tempo
+	if total <= 0.0:
+		return 0.5
+	return clamp(opponent_tempo / total, 0.0, 1.0)
+
+
+func _get_tempo_debug_text() -> String:
+	if players.size() < 2:
+		return ""
+	var state: Dictionary = _capture_game_state()
+	var human_tempo: float = _evaluate_win_tempo(state, 0)
+	var ai_tempo: float = _evaluate_win_tempo(state, 1)
+	var tempo_diff: float = _get_tempo_bar_score()
+	var wood_share: float = _get_tempo_bar_player_share(0) * 100.0
+	return "tempo wood=%s metal=%s | ratio=%s%%/%s%% | diff=%s" % [
+		_format_tempo_debug_float(human_tempo),
+		_format_tempo_debug_float(ai_tempo),
+		_format_tempo_debug_float(wood_share),
+		_format_tempo_debug_float(100.0 - wood_share),
+		_format_tempo_debug_float(tempo_diff)
+	]
+
+
+func _format_tempo_debug_float(value: float) -> String:
+	if value != value:
+		return "nan"
+	if value == INF:
+		return "+inf"
+	if value == -INF:
+		return "-inf"
+	return "%.2f" % value
+
+
+func _build_discard_dialog() -> void:
+	discard_dialog = AcceptDialog.new()
+	discard_dialog.title = _tr_text("UI_DISCARD_DIALOG_TITLE")
+	discard_dialog.min_size = Vector2(780, 630)
+	discard_dialog.visibility_changed.connect(_on_discard_dialog_visibility_changed)
+	add_child(discard_dialog)
+
+	var scroll = ScrollContainer.new()
+	scroll.custom_minimum_size = Vector2(750, 510)
+	scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
+	discard_dialog.add_child(scroll)
+
+	discard_grid = GridContainer.new()
+	discard_grid.columns = 3
+	discard_grid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	discard_grid.add_theme_constant_override("h_separation", 12)
+	discard_grid.add_theme_constant_override("v_separation", 12)
+	scroll.add_child(discard_grid)
+
+
+func _refresh_discard_button() -> void:
+	var view_player: int = _get_view_player()
+	var discard: Array = players[view_player].discard
+	discard_button.text = _tr_text("UI_DISCARD_BUTTON") % discard.size()
+	discard_button.disabled = discard.is_empty()
+
+	var opponent_discard: Array = players[_opponent(view_player)].discard
+	opponent_discard_button.text = _tr_text("UI_DISCARD_BUTTON") % opponent_discard.size()
+	opponent_discard_button.disabled = opponent_discard.is_empty()
+
+
+func _on_discard_pressed() -> void:
+	_refresh_discard_dialog(_get_view_player())
+	discard_dialog.popup_centered()
+
+
+func _on_opponent_discard_pressed() -> void:
+	_refresh_discard_dialog(_opponent(_get_view_player()))
+	discard_dialog.popup_centered()
+
+
+func _refresh_discard_dialog(player_index: int) -> void:
+	for child in discard_grid.get_children():
+		if child.has_meta("card_id"):
+			discard_grid.remove_child(child)
+		else:
+			child.queue_free()
+
+	discard_dialog.title = _tr_text("UI_DISCARD_DIALOG_TITLE")
+	var discard: Array = players[player_index].discard
+	if discard.is_empty():
+		var empty_label = Label.new()
+		empty_label.text = _tr_text("UI_DISCARD_EMPTY")
+		discard_grid.add_child(empty_label)
+		return
+
+	for card in discard:
+		var unit_control: Control = _ensure_card_view(card)
+		_configure_card_view(unit_control, card, false, false, false)
+		_attach_card_view_to_container(unit_control, discard_grid)
+		unit_control.visible = true
+
+
+func _on_discard_dialog_visibility_changed() -> void:
+	if discard_dialog.visible:
+		return
+	_hide_discard_card_views()
+
+
+func _sync_hand_card_views() -> void:
+	hand_card_controls.clear()
+
+	var view_player: int = _get_view_player()
+	var hand: Array = players[view_player].hand
+	for i in range(hand.size()):
+		var card: Dictionary = hand[i]
+		var unit_control: Control = _ensure_card_view(card)
+		_configure_card_view(unit_control, card, false, false, false)
 		unit_control.set_meta("hand_index", i)
-		_prepare_hand_card_input(unit_control)
-		unit_control.gui_input.connect(_on_hand_card_gui_input.bind(unit_control))
+		_connect_hand_card_input(unit_control)
 		hand_card_controls[i] = unit_control
-		if minor_actions_spent > 0:
+		if current_player == view_player and minor_actions_spent > 0:
 			unit_control.set_portrait_desaturated(true)
 			unit_control.set_text_muted(true)
-		elif i == selected_hand_index:
-			unit_control.modulate = Color(1.0, 0.92, 0.55)
-		hand_container.add_child(unit_control)
+		elif current_player == view_player and int(card.id) == ui_selected_hand_card_id:
+			_add_selected_card_frame(unit_control)
+		_attach_card_view_to_container(unit_control, hand_container)
+		hand_container.move_child(unit_control, i)
 
 
-func _refresh_opponent_hand() -> void:
-	for child in opponent_hand_container.get_children():
-		child.queue_free()
-
-	var opponent_index: int = _opponent(current_player)
+func _sync_opponent_hand_card_views() -> void:
+	var opponent_index: int = _opponent(_get_view_player())
 	var hand: Array = players[opponent_index].hand
 	for i in range(hand.size()):
-		var path_card: Control = _make_face_down_card(opponent_index)
-		path_card.mouse_filter = Control.MOUSE_FILTER_STOP
+		var card: Dictionary = hand[i]
+		var path_card: Control = _ensure_card_view(card)
+		_configure_card_view(path_card, card, true, false, false)
 		path_card.tooltip_text = _tr_text("UI_TOOLTIP_OPPONENT_PATH_HAND")
-		path_card.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-		path_card.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
-		opponent_hand_container.add_child(path_card)
+		_attach_card_view_to_container(path_card, opponent_hand_container)
+		opponent_hand_container.move_child(path_card, i)
+
+
+func _ensure_card_view(card: Dictionary) -> Control:
+	var card_id: int = int(card.id)
+	var existing: Control = card_views.get(card_id, null)
+	if existing != null and is_instance_valid(existing):
+		return existing
+
+	var unit_control: Control = UnitScene.instantiate()
+	unit_control.custom_minimum_size = Vector2(CARD_WIDTH, CARD_HEIGHT)
+	unit_control.size = Vector2(CARD_WIDTH, CARD_HEIGHT)
+	unit_control.set_meta("card_id", card_id)
+	card_views[card_id] = unit_control
+	add_child(unit_control)
+	return unit_control
+
+
+func _configure_card_view(card_control: Control, card: Dictionary, force_face_down: bool, desaturate: bool, text_muted: bool) -> void:
+	card_control.custom_minimum_size = Vector2(CARD_WIDTH, CARD_HEIGHT)
+	card_control.size = Vector2(CARD_WIDTH, CARD_HEIGHT)
+	card_control.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	card_control.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
+	card_control.visible = true
+	card_control.modulate = Color(1.0, 1.0, 1.0, 1.0)
+	card_control.unit = card.unit
+	card_control.player_index = int(card.owner)
+	card_control.face_down = force_face_down or bool(card.face_down)
+	card_control.tooltip_text = _get_card_tooltip(card)
+	card_control.reset_visual_modifiers()
+	if card_control.face_down:
+		card_control.set_back_desaturated(desaturate)
+	else:
+		card_control.set_portrait_desaturated(desaturate)
+		card_control.set_text_muted(text_muted)
+
+func _attach_card_view_to_container(card_control: Control, container: Node) -> void:
+	var parent: Node = card_control.get_parent()
+	if parent != container:
+		if parent != null:
+			parent.remove_child(card_control)
+		container.add_child(card_control)
+	card_control.set_as_top_level(false)
+	card_control.z_index = 0
+	card_control.visible = true
+
+
+func _hide_discard_card_views() -> void:
+	for player in players:
+		for card in player.discard:
+			var card_id: int = int(card.id)
+			var card_control: Control = card_views.get(card_id, null)
+			if card_control != null and is_instance_valid(card_control) and card_control.get_parent() != discard_grid:
+				card_control.visible = false
+
+
+func _add_selected_card_frame(card_control: Control) -> void:
+	var frame = Panel.new()
+	frame.set_anchors_preset(Control.PRESET_FULL_RECT)
+	frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	frame.z_index = 4096
+	frame.set_meta("selection_frame", true)
+	frame.add_theme_stylebox_override("panel", _make_selected_card_frame_style())
+	card_control.add_child(frame)
+
+
+func _make_selected_card_frame_style() -> StyleBoxFlat:
+	var style = StyleBoxFlat.new()
+	style.bg_color.a = 0.0
+	style.border_color = BARRIER_FILL_COLOR
+	style.set_border_width_all(max(2, CARD_FRAME_WIDTH * 2))
+	style.set_corner_radius_all(0)
+	style.content_margin_left = 0
+	style.content_margin_top = 0
+	style.content_margin_right = 0
+	style.content_margin_bottom = 0
+	return style
 
 
 func _get_action_text() -> String:
-	if pending_action == "hand":
+	if _is_ai_player(current_player):
+		return "%s думает..." % players[current_player].name
+	if ui_pending_action == "hand":
 		return _tr_text("UI_STATUS_CHOOSE_HAND_CELL")
-	if pending_action == "deck_face_down":
+	if ui_pending_action == "deck_face_down":
 		return _tr_text("UI_STATUS_CHOOSE_PATH_CELL")
 	if minor_actions_spent > 0:
 		return _tr_text("UI_STATUS_MINOR_ACTIONS_LEFT")
 	return _tr_text("UI_STATUS_CHOOSE_ACTION")
 
 
-func _get_playable_cells_for_pending_action() -> Dictionary:
+func _get_playable_cells_for_ui_pending_action() -> Dictionary:
 	var playable = {}
-	var card: Dictionary = {}
-	if pending_action == "hand":
-		var hand: Array = players[current_player].hand
-		if selected_hand_index < 0 or selected_hand_index >= hand.size():
-			return playable
-		card = {
-			"unit": hand[selected_hand_index],
-			"owner": current_player,
-			"face_down": false
-		}
-	elif pending_action == "deck_face_down":
-		var deck: Array = players[current_player].deck
-		if deck.is_empty():
-			return playable
-		card = {
-			"unit": deck[deck.size() - 1],
-			"owner": current_player,
-			"face_down": true
-		}
-	else:
-		return playable
-
-	for y in range(GRID_HEIGHT):
-		for x in range(GRID_WIDTH):
-			var cell: Vector2i = Vector2i(x, y)
-			if _can_play_card(card, cell):
-				playable[cell] = true
+	if ui_pending_action == "hand":
+		var hand_index: int = _get_ui_selected_hand_index()
+		for variant in _get_play_hand_variants_for_state(_get_live_game_state(), current_player, hand_index):
+			playable[variant.cell] = true
+	elif ui_pending_action == "deck_face_down":
+		for variant in _get_deck_face_down_variants_for_state(_get_live_game_state(), current_player):
+			playable[variant.cell] = true
 	return playable
 
 
@@ -474,10 +879,7 @@ func _make_cell_style(fill_color: Color, border_color: Color, border_width: int 
 func _make_base_cell_style(base_owner: int) -> StyleBoxFlat:
 	var style = StyleBoxFlat.new()
 	style.bg_color = Color(0.12, 0.12, 0.12)
-	if base_owner == 0:
-		style.border_color = Color(0.25, 0.16, 0.09)
-	else:
-		style.border_color = Color(0.10, 0.16, 0.23)
+	style.border_color = _get_player_card_color(base_owner)
 	style.set_border_width_all(CARD_FRAME_WIDTH)
 	style.set_corner_radius_all(0)
 	style.content_margin_left = CARD_FRAME_WIDTH
@@ -508,7 +910,7 @@ func _get_base_tooltip(base_owner: int) -> String:
 
 func _get_card_tooltip(card: Dictionary) -> String:
 	if card.face_down:
-		if card.owner == current_player:
+		if card.owner == _get_view_player():
 			return _tr_text("UI_TOOLTIP_PATH_CARD")
 		return _tr_text("UI_TOOLTIP_OPPONENT_PATH_CARD")
 
@@ -561,132 +963,23 @@ func _refresh_base_visual(cell: Vector2i, base_container: VBoxContainer) -> void
 	base_container.add_child(base_image)
 
 
-func _refresh_board_stack_visual(cell: Vector2i, stack_container: Control) -> void:
-	for child in stack_container.get_children():
-		child.queue_free()
-
+func _sync_board_stack_card_views(cell: Vector2i, stack_container: Control) -> void:
 	var stack: Array = _get_stack(cell)
-	var overlap_offset: int = CELL_SIZE - CARD_HEIGHT
-	var single_card_y: float = (CELL_SIZE - CARD_HEIGHT) * 0.5
 	for i in range(stack.size()):
 		var card = stack[i]
-		var card_control: Control
+		var card_control: Control = _ensure_card_view(card)
 		var is_covered: bool = i < stack.size() - 1
-		if card.face_down:
-			card_control = _make_face_down_board_card(card, cell)
-		else:
-			card_control = _make_board_unit_card(card, cell, is_covered)
-		card_control.mouse_filter = Control.MOUSE_FILTER_PASS
+		var is_unsupplied: bool = not _is_card_supplied(card, cell)
+		_configure_card_view(card_control, card, bool(card.face_down), is_unsupplied, is_unsupplied or is_covered)
 		card_control.tooltip_text = _get_card_tooltip(card)
-		var visual_index: int = stack.size() - 1 - i
-		if stack.size() == 1:
-			card_control.position = Vector2(0, single_card_y)
-		else:
-			card_control.position = Vector2(0, visual_index * overlap_offset)
-		stack_container.add_child(card_control)
-
-
-func _make_board_unit_card(card: Dictionary, cell: Vector2i, is_covered: bool) -> Control:
-	var unit_control: Control = UnitScene.instantiate()
-	unit_control.unit = card.unit
-	unit_control.player_index = card.owner
-	unit_control.custom_minimum_size = Vector2(CARD_WIDTH, CARD_HEIGHT)
-	unit_control.size = Vector2(CARD_WIDTH, CARD_HEIGHT)
-	unit_control.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var is_unsupplied: bool = not _is_card_supplied(card, cell)
-	if is_unsupplied:
-		unit_control.set_portrait_desaturated(true)
-	if is_unsupplied or is_covered:
-		unit_control.set_text_muted(true)
-	_disable_child_mouse_input(unit_control)
-	return unit_control
+		_attach_card_view_to_container(card_control, stack_container)
+		card_control.position = _get_board_stack_card_local_position(stack.size(), i)
+		stack_container.move_child(card_control, i)
 
 
 func _is_card_supplied(card: Dictionary, cell: Vector2i) -> bool:
 	var supplied_cells: Dictionary = _get_supplied_cells(card.owner)
 	return supplied_cells.has(cell)
-
-
-func _make_face_down_board_card(card: Dictionary, cell: Vector2i) -> Control:
-	return _make_face_down_card(card.owner, not _is_card_supplied(card, cell))
-
-
-func _make_face_down_card(owner: int, desaturate_back: bool = false) -> Control:
-	var card_control = Control.new()
-	card_control.custom_minimum_size = Vector2(CARD_WIDTH, CARD_HEIGHT)
-	card_control.size = Vector2(CARD_WIDTH, CARD_HEIGHT)
-	card_control.mouse_filter = Control.MOUSE_FILTER_IGNORE
-
-	var background = Panel.new()
-	background.set_anchors_preset(Control.PRESET_FULL_RECT)
-	background.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	background.add_theme_stylebox_override("panel", _make_card_background_style(owner))
-	card_control.add_child(background)
-
-	var card_back = TextureRect.new()
-	card_back.set_anchors_preset(Control.PRESET_FULL_RECT)
-	card_back.offset_left = CARD_FRAME_WIDTH
-	card_back.offset_top = CARD_FRAME_WIDTH
-	card_back.offset_right = -CARD_FRAME_WIDTH
-	card_back.offset_bottom = -CARD_FRAME_WIDTH
-	card_back.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	card_back.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	card_back.stretch_mode = TextureRect.STRETCH_SCALE
-	if owner == 0:
-		card_back.texture = WoodCardBackTexture
-	else:
-		card_back.texture = MetalCardBackTexture
-	if desaturate_back:
-		card_back.material = _make_desaturation_material()
-	card_control.add_child(card_back)
-
-	var frame = Panel.new()
-	frame.set_anchors_preset(Control.PRESET_FULL_RECT)
-	frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	frame.add_theme_stylebox_override("panel", _make_card_frame_style(owner))
-	card_control.add_child(frame)
-	return card_control
-
-
-func _make_desaturation_material() -> ShaderMaterial:
-	var shader = Shader.new()
-	shader.code = "
-shader_type canvas_item;
-
-void fragment() {
-	vec4 color = texture(TEXTURE, UV);
-	float gray = dot(color.rgb, vec3(0.299, 0.587, 0.114));
-	vec3 muted = mix(color.rgb, vec3(gray), 0.65);
-	COLOR = vec4(muted, color.a);
-}
-"
-	var shader_material = ShaderMaterial.new()
-	shader_material.shader = shader
-	return shader_material
-
-
-func _make_card_background_style(owner: int) -> StyleBoxFlat:
-	var style = StyleBoxFlat.new()
-	style.bg_color = _get_player_card_color(owner)
-	style.set_corner_radius_all(0)
-	style.content_margin_left = 0
-	style.content_margin_top = 0
-	style.content_margin_right = 0
-	style.content_margin_bottom = 0
-	return style
-
-
-func _make_card_frame_style(owner: int) -> StyleBoxFlat:
-	var style = StyleBoxFlat.new()
-	style.bg_color.a = 0.0
-	style.border_color = _get_player_card_color(owner)
-	style.set_border_width_all(CARD_FRAME_WIDTH)
-	style.set_corner_radius_all(0)
-	style.content_margin_left = 0
-	style.content_margin_top = 0
-	style.content_margin_right = 0
-	style.content_margin_bottom = 0
-	return style
 
 
 func _get_player_card_color(player_index: int) -> Color:
@@ -697,31 +990,268 @@ func _get_player_card_color(player_index: int) -> Color:
 	return Color(0.16, 0.16, 0.16)
 
 
-func _animate_unit_to_cell(unit: Resource, source_control: Control, cell: Vector2i, player_index: int) -> void:
-	if source_control == null:
+func _animate_action_result(result: Dictionary) -> void:
+	var events: Array = result.get("events", [])
+	if events.is_empty():
 		return
 
-	source_control.visible = false
+	animation_running = true
+	for event in events:
+		await _animate_action_event(event)
+	animation_running = false
 
-	var source_rect: Rect2 = source_control.get_global_rect()
-	var target_position: Vector2 = _get_card_target_global_position(cell)
-	var flying_unit: Control = UnitScene.instantiate()
-	flying_unit.unit = unit
-	flying_unit.player_index = player_index
-	flying_unit.custom_minimum_size = source_rect.size
-	flying_unit.size = source_rect.size
-	flying_unit.global_position = source_rect.position
-	flying_unit.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	flying_unit.set_as_top_level(true)
-	flying_unit.z_index = 4096
-	add_child(flying_unit)
 
+func _animate_action_event(event: Dictionary) -> void:
+	var event_type: String = String(event.type)
+	if event_type == "play_card":
+		await _animate_play_card_event(event)
+	elif event_type == "draw_card":
+		await _animate_draw_event(event)
+	elif event_type == "discard_card":
+		await _animate_discard_event(event)
+	elif event_type == ANIMATION_LAYOUT_STACK:
+		await _animate_layout_stack_event(event)
+
+
+func _animate_play_card_event(event: Dictionary) -> void:
+	var cell: Vector2i = event.cell
+	var card_id: int = int(event.card_id)
+	var target_position: Vector2 = _get_board_card_target_global_position_for_event(event, cell, card_id)
+	var card_control: Control = _get_or_create_event_card_view(event)
+	await _animate_card_view_to(card_control, target_position, false)
+	_finish_play_card_animation(card_control, event)
+
+
+func _animate_draw_event(event: Dictionary) -> void:
+	var player_index: int = int(event.player_index)
+	var card_id: int = int(event.card_id)
+	var target_position: Vector2 = _get_hand_card_target_global_position(player_index, card_id)
+	var card_control: Control = _get_or_create_event_card_view(event)
+	await _animate_card_view_to(card_control, target_position, false)
+	_finish_draw_card_animation(card_control, player_index, card_id)
+
+
+func _animate_discard_event(event: Dictionary) -> void:
+	var player_index: int = int(event.player_index)
+	var target_position: Vector2 = _get_discard_target_position(player_index)
+	var card_control: Control = _get_or_create_event_card_view(event)
+	await _animate_card_view_to(card_control, target_position, true)
+	_finish_discard_card_animation(card_control)
+
+
+func _animate_layout_stack_event(event: Dictionary) -> void:
+	var cell: Vector2i = event.cell
+	var stack_container: Control = board_cell_stacks[cell]
+	var stack: Array = _get_event_stack_cards(event, cell)
+	stack_container.visible = not stack.is_empty()
+	var tween: Tween = create_tween()
+	tween.set_parallel(true)
+	tween.set_trans(Tween.TRANS_CUBIC)
+	tween.set_ease(Tween.EASE_OUT)
+	var has_motion: bool = false
+	for i in range(stack.size()):
+		var card: Dictionary = stack[i]
+		var card_control: Control = _ensure_card_view(card)
+		var is_covered: bool = i < stack.size() - 1
+		var is_unsupplied: bool = not _is_card_supplied(card, cell)
+		_configure_card_view(card_control, card, bool(card.face_down), is_unsupplied, is_unsupplied or is_covered)
+		card_control.tooltip_text = _get_card_tooltip(card)
+		_attach_card_view_to_container(card_control, stack_container)
+		stack_container.move_child(card_control, i)
+		var target_position: Vector2 = _get_board_stack_card_local_position(stack.size(), i)
+		if card_control.position.distance_squared_to(target_position) > 0.25:
+			tween.tween_property(card_control, "position", target_position, CARD_FLY_DURATION * 0.35)
+			has_motion = true
+		else:
+			card_control.position = target_position
+	if has_motion:
+		await tween.finished
+	else:
+		tween.kill()
+
+
+func _finish_play_card_animation(card_control: Control, event: Dictionary) -> void:
+	var cell: Vector2i = event.cell
+	var card_id: int = int(event.card_id)
+	var card: Dictionary = _find_card_by_id_on_board(cell, card_id)
+	if card.is_empty():
+		card = _get_card_from_event(event)
+	var stack_container: Control = board_cell_stacks[cell]
+	stack_container.visible = true
+	_configure_card_view(card_control, card, bool(card.face_down), not _is_card_supplied(card, cell), false)
+	_attach_card_view_to_container(card_control, stack_container)
+	var stack: Array = _get_event_stack_cards(event, cell)
+	var stack_index: int = _find_card_index_in_array(stack, card_id)
+	if stack_index < 0:
+		stack_index = stack.size() - 1
+	card_control.position = _get_board_stack_card_local_position(stack.size(), stack_index)
+	stack_container.move_child(card_control, stack_index)
+
+
+func _finish_draw_card_animation(card_control: Control, player_index: int, card_id: int) -> void:
+	var card: Dictionary = _find_card_by_id_in_array(players[player_index].hand, card_id)
+	if card.is_empty():
+		return
+	var target_container: Control = hand_container
+	var force_face_down: bool = false
+	if player_index != _get_view_player():
+		target_container = opponent_hand_container
+		force_face_down = true
+	_configure_card_view(card_control, card, force_face_down, false, false)
+	if player_index == _get_view_player():
+		_connect_hand_card_input(card_control)
+	_attach_card_view_to_container(card_control, target_container)
+	var hand_index: int = _find_card_index_in_array(players[player_index].hand, card_id)
+	target_container.move_child(card_control, hand_index)
+
+
+func _finish_discard_card_animation(card_control: Control) -> void:
+	if card_control == null or not is_instance_valid(card_control):
+		return
+	var parent: Node = card_control.get_parent()
+	if parent != self:
+		if parent != null:
+			parent.remove_child(card_control)
+		add_child(card_control)
+	card_control.set_as_top_level(false)
+	card_control.visible = false
+
+
+func _get_or_create_event_card_view(event: Dictionary) -> Control:
+	var card_id: int = int(event.get("card_id", -1))
+	var source: Dictionary = event.get("source", {})
+	var player_index: int = int(event.player_index)
+	var should_show_back: bool = bool(event.get("face_down", false)) or bool(source.get("face_down", false))
+	if String(event.type) == "draw_card" and player_index != _get_view_player():
+		should_show_back = true
+	var existing: Control = card_views.get(card_id, null)
+	if existing != null and is_instance_valid(existing):
+		_configure_event_card_view(existing, event, should_show_back)
+		_lift_card_view_for_animation(existing)
+		return existing
+
+	if not _can_create_missing_event_card_view(event):
+		push_warning("Missing card view for animated card_id=%d" % card_id)
+		return null
+
+	var card_control: Control = UnitScene.instantiate()
+	card_control.custom_minimum_size = Vector2(CARD_WIDTH, CARD_HEIGHT)
+	card_control.size = Vector2(CARD_WIDTH, CARD_HEIGHT)
+	card_control.global_position = _get_event_fallback_source_position(event)
+	card_control.set_meta("card_id", card_id)
+	card_views[card_id] = card_control
+	add_child(card_control)
+	_configure_event_card_view(card_control, event, should_show_back)
+	_lift_card_view_for_animation(card_control)
+	return card_control
+
+
+func _can_create_missing_event_card_view(event: Dictionary) -> bool:
+	var source: Dictionary = event.get("source", {})
+	var source_type: String = String(source.get("type", "base"))
+	return source_type == "base"
+
+
+func _lift_card_view_for_animation(card_control: Control) -> void:
+	var rect: Rect2 = card_control.get_global_rect()
+	card_control.set_as_top_level(true)
+	card_control.global_position = rect.position
+	card_control.size = rect.size
+	card_control.z_index = 4096
+
+
+func _configure_event_card_view(card_control: Control, event: Dictionary, face_down: bool) -> void:
+	card_control.custom_minimum_size = Vector2(CARD_WIDTH, CARD_HEIGHT)
+	card_control.size = Vector2(CARD_WIDTH, CARD_HEIGHT)
+	card_control.visible = true
+	card_control.modulate = Color(1.0, 1.0, 1.0, 1.0)
+	card_control.unit = event.unit
+	card_control.player_index = int(event.player_index)
+	card_control.face_down = face_down
+	card_control.reset_visual_modifiers()
+
+
+func _animate_card_view_to(card_control: Control, target_position: Vector2, fade_out: bool) -> void:
+	if card_control == null or not is_instance_valid(card_control):
+		await get_tree().create_timer(CARD_FLY_DURATION).timeout
+		return
 	var tween: Tween = create_tween()
 	tween.set_trans(Tween.TRANS_CUBIC)
 	tween.set_ease(Tween.EASE_OUT)
-	tween.tween_property(flying_unit, "global_position", target_position, 0.32)
+	if fade_out:
+		tween.set_parallel(true)
+	tween.tween_property(card_control, "global_position", target_position, CARD_FLY_DURATION)
+	if fade_out:
+		tween.tween_property(card_control, "modulate:a", 0.0, CARD_FLY_DURATION)
 	await tween.finished
-	flying_unit.queue_free()
+	if fade_out:
+		card_control.visible = false
+		card_control.modulate = Color(1.0, 1.0, 1.0, 1.0)
+
+
+func _get_event_fallback_source_position(event: Dictionary) -> Vector2:
+	var player_index: int = int(event.player_index)
+	var event_type: String = String(event.type)
+	if event_type == "draw_card":
+		return _get_player_base_card_source_position(player_index)
+
+	var source: Dictionary = event.get("source", {})
+	var source_type: String = String(source.get("type", "base"))
+	if source_type == "board":
+		var cell: Vector2i = source.get("cell", players[player_index].base)
+		return _get_card_target_global_position(cell)
+	return _get_player_base_card_source_position(player_index)
+
+
+func _get_discard_target_position(player_index: int) -> Vector2:
+	var target_button: Control
+	if player_index == _get_view_player():
+		target_button = discard_button
+	else:
+		target_button = opponent_discard_button
+	var target_rect: Rect2 = target_button.get_global_rect()
+	return target_rect.get_center() - Vector2(CARD_WIDTH, CARD_HEIGHT) * 0.5
+
+
+func _get_player_base_card_source_position(player_index: int) -> Vector2:
+	var base_cell: Vector2i = players[player_index].base
+	var base_panel: Control = board_cells.get(base_cell, null)
+	if base_panel == null:
+		return Vector2.ZERO
+	var base_rect: Rect2 = base_panel.get_global_rect()
+	return base_rect.get_center() - Vector2(CARD_WIDTH, CARD_HEIGHT) * 0.5
+
+
+func _get_player_hand_draw_target_position(player_index: int) -> Vector2:
+	var target_container: Control
+	if player_index == _get_view_player():
+		target_container = hand_container
+	else:
+		target_container = opponent_hand_container
+
+	if target_container.get_child_count() > 0:
+		var last_card: Control = target_container.get_child(target_container.get_child_count() - 1)
+		return last_card.get_global_rect().position + Vector2(0.0, CARD_HEIGHT * 0.35)
+
+	var target_rect: Rect2 = target_container.get_global_rect()
+	return target_rect.position
+
+
+func _get_hand_card_target_global_position(player_index: int, card_id: int) -> Vector2:
+	var target_container: Control
+	if player_index == _get_view_player():
+		target_container = hand_container
+	else:
+		target_container = opponent_hand_container
+
+	var hand: Array = players[player_index].hand
+	var hand_index: int = _find_card_index_in_array(hand, card_id)
+	if hand_index < 0:
+		return _get_player_hand_draw_target_position(player_index)
+
+	var separation: int = target_container.get_theme_constant("separation")
+	var target_rect: Rect2 = target_container.get_global_rect()
+	return target_rect.position + Vector2(0.0, float(hand_index * (CARD_HEIGHT + separation)))
 
 
 func _get_card_target_global_position(cell: Vector2i) -> Vector2:
@@ -736,6 +1266,78 @@ func _get_card_target_global_position(cell: Vector2i) -> Vector2:
 	return target_rect.position
 
 
+func _get_board_card_target_global_position(cell: Vector2i, card_id: int) -> Vector2:
+	var stack_container: Control = board_cell_stacks.get(cell, null)
+	if stack_container == null:
+		return _get_card_target_global_position(cell)
+
+	var stack: Array = _get_stack(cell)
+	var stack_index: int = _find_card_index_in_array(stack, card_id)
+	if stack_index < 0:
+		return _get_card_target_global_position(cell)
+
+	var local_position: Vector2 = _get_board_stack_card_local_position(stack.size(), stack_index)
+	return stack_container.get_global_rect().position + local_position
+
+
+func _get_board_card_target_global_position_for_event(event: Dictionary, cell: Vector2i, card_id: int) -> Vector2:
+	var stack_container: Control = board_cell_stacks.get(cell, null)
+	if stack_container == null:
+		return _get_card_target_global_position(cell)
+
+	var stack: Array = _get_event_stack_cards(event, cell)
+	var stack_index: int = _find_card_index_in_array(stack, card_id)
+	if stack_index < 0:
+		return _get_board_card_target_global_position(cell, card_id)
+
+	var local_position: Vector2 = _get_board_stack_card_local_position(stack.size(), stack_index)
+	return stack_container.get_global_rect().position + local_position
+
+
+func _get_board_stack_card_local_position(stack_size: int, stack_index: int) -> Vector2:
+	var overlap_offset: int = CELL_SIZE - CARD_HEIGHT
+	var single_card_y: float = (CELL_SIZE - CARD_HEIGHT) * 0.5
+	if stack_size <= 1:
+		return Vector2(0.0, single_card_y)
+	var visual_index: int = stack_size - 1 - stack_index
+	return Vector2(0.0, float(visual_index * overlap_offset))
+
+
+func _find_card_index_in_array(cards: Array, card_id: int) -> int:
+	for i in range(cards.size()):
+		if int(cards[i].id) == card_id:
+			return i
+	return -1
+
+
+func _find_card_by_id_in_array(cards: Array, card_id: int) -> Dictionary:
+	var index: int = _find_card_index_in_array(cards, card_id)
+	if index < 0:
+		return {}
+	return cards[index]
+
+
+func _find_card_by_id_on_board(cell: Vector2i, card_id: int) -> Dictionary:
+	if not _is_inside(cell):
+		return {}
+	return _find_card_by_id_in_array(_get_stack(cell), card_id)
+
+
+func _get_event_stack_cards(event: Dictionary, cell: Vector2i) -> Array:
+	if event.has("stack_cards"):
+		return event.stack_cards
+	return _get_stack(cell)
+
+
+func _get_card_from_event(event: Dictionary) -> Dictionary:
+	return {
+		"id": int(event.card_id),
+		"unit": event.unit,
+		"owner": int(event.player_index),
+		"face_down": bool(event.get("face_down", false))
+	}
+
+
 func _queue_barrier_redraw() -> void:
 	if supply_line_layer != null:
 		supply_line_layer.queue_redraw()
@@ -745,12 +1347,12 @@ func _queue_barrier_redraw() -> void:
 
 func _on_supply_line_layer_draw() -> void:
 	_draw_supply_networks()
-	var playable_cells: Dictionary = _get_playable_cells_for_pending_action()
+	var playable_cells: Dictionary = _get_playable_cells_for_ui_pending_action()
 	_draw_playable_supply_lines(playable_cells)
 
 
 func _on_barrier_layer_draw() -> void:
-	var playable_cells: Dictionary = _get_playable_cells_for_pending_action()
+	var playable_cells: Dictionary = _get_playable_cells_for_ui_pending_action()
 	_draw_playable_arrow_heads(playable_cells)
 
 	for y in range(GRID_HEIGHT):
@@ -919,24 +1521,24 @@ func _draw_supply_arrow_head_for_path(path: Array) -> void:
 	var to_rect: Rect2 = _get_cell_rect_on_layer(path[path.size() - 1], barrier_layer)
 	var direction: Vector2 = (to_rect.get_center() - from_rect.get_center()).normalized()
 	var color: Color = Color(0.88, 0.08, 0.06, 1.0)
-	var tip: Vector2 = _get_rect_edge_point(to_rect, -direction) + direction * 10.0
+	var tip: Vector2 = _get_rect_edge_point(to_rect, -direction) + direction * 15.0
 	_draw_arrow_head(tip, direction, color)
 
 
 func _draw_arrow_head(tip: Vector2, direction: Vector2, color: Color) -> void:
 	var side: Vector2 = Vector2(-direction.y, direction.x)
-	var length: float = 14.0
-	var width: float = 8.0
+	var length: float = 21.0
+	var width: float = SUPPLY_PIPE_WIDTH
 	var outline_color: Color = Color(0.22, 0.03, 0.02, 1.0)
-	var outline_length: float = length + 2.0
-	var outline_width: float = width + 2.0
+	var outline_length: float = length + 3.0
+	var outline_width: float = width + 3.0
 	var outline_points: PackedVector2Array = PackedVector2Array([
-		tip + direction * 9.0,
+		tip + direction * 14.0,
 		tip - direction * outline_length + side * outline_width,
 		tip - direction * outline_length - side * outline_width
 	])
 	var points: PackedVector2Array = PackedVector2Array([
-		tip + direction * 8.0,
+		tip + direction * 12.0,
 		tip - direction * length + side * width,
 		tip - direction * length - side * width
 	])
@@ -969,11 +1571,11 @@ func _draw_barrier_between(first: Vector2i, second: Vector2i) -> void:
 	var first_rect: Rect2 = first_panel.get_global_rect()
 	var second_rect: Rect2 = second_panel.get_global_rect()
 	var layer_position: Vector2 = barrier_layer.get_global_rect().position
-	var thickness: float = 12.0
-	var frame_width: float = 2.0
-	var inset: float = 6.0
+	var thickness: float = 18.0
+	var frame_width: float = 3.0
+	var inset: float = 9.0
 	var frame_color: Color = Color(0.02, 0.015, 0.01)
-	var fill_color: Color = Color(0.88, 0.69, 0.32)
+	var fill_color: Color = BARRIER_FILL_COLOR
 	var shine_color: Color = Color(1.0, 0.86, 0.48, 0.55)
 
 	if first.y == second.y:
@@ -1009,59 +1611,754 @@ func _short_player_name(index: int) -> String:
 	return "М"
 
 
+func _get_view_player() -> int:
+	return HUMAN_PLAYER_INDEX
+
+
 func _on_hand_card_gui_input(event: InputEvent, unit_control: Control) -> void:
 	if game_over or animation_running:
+		return
+	if _is_ai_player(current_player):
 		return
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
 		if minor_actions_spent > 0:
 			return
-		if pending_action != "" and pending_action != "hand":
+		if ui_pending_action != "" and ui_pending_action != "hand":
 			return
-		selected_hand_index = int(unit_control.get_meta("hand_index"))
-		pending_action = "hand"
-		_refresh_ui()
+		ui_selected_hand_card_id = int(unit_control.get_meta("card_id"))
+		ui_pending_action = "hand"
+		_sync_after_state_change_without_card_layout()
 
 
-func _prepare_hand_card_input(card_control: Control) -> void:
-	card_control.mouse_filter = Control.MOUSE_FILTER_STOP
-	for child in card_control.get_children():
-		_disable_child_mouse_input(child)
+func _get_ui_selected_hand_index() -> int:
+	if ui_selected_hand_card_id == -1:
+		return -1
+	return _find_card_index_in_array(players[_get_view_player()].hand, ui_selected_hand_card_id)
 
 
-func _disable_child_mouse_input(node: Node) -> void:
-	if node is Control:
-		node.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	for child in node.get_children():
-		_disable_child_mouse_input(child)
+func _connect_hand_card_input(card_control: Control) -> void:
+	if bool(card_control.get_meta("hand_input_connected", false)):
+		return
+	card_control.gui_input.connect(_on_hand_card_gui_input.bind(card_control))
+	card_control.set_meta("hand_input_connected", true)
+
+
+func _is_ai_player(player_index: int) -> bool:
+	return AI_PLAYERS.has(player_index)
+
+
+func _queue_ai_turn_if_needed() -> void:
+	if ai_running or game_over or animation_running:
+		return
+	if not _is_ai_player(current_player):
+		return
+	_run_ai_turn_step.call_deferred()
+
+
+func _run_ai_turn_step() -> void:
+	if ai_running or game_over or animation_running:
+		return
+	if not _is_ai_player(current_player):
+		return
+
+	ai_running = true
+	await get_tree().create_timer(AI_THINK_DELAY).timeout
+	if game_over or animation_running or not _is_ai_player(current_player):
+		ai_running = false
+		return
+
+	_clear_pending()
+	var state: Dictionary = _capture_game_state()
+	var variant: Dictionary = _choose_ai_action_variant(state, current_player)
+	if variant.is_empty():
+		var live_state: Dictionary = _get_live_game_state()
+		live_state.events = []
+		_apply_end_turn_rules_to_state(live_state)
+		_restore_game_state(live_state)
+		await _animate_action_result(live_state)
+	else:
+		var result: Dictionary = _apply_action_variant_to_current_state(variant)
+		await _animate_action_result(result)
+
+	ai_running = false
+	_sync_after_state_change_without_card_layout()
+
+
+func _choose_ai_action_variant(state: Dictionary, player_index: int) -> Dictionary:
+	var variants: Array = _get_turn_variants_for_state(state, player_index)
+	if variants.is_empty():
+		return {}
+
+	var best_variant: Dictionary = {}
+	var best_score: float = -INF
+	var best_tiebreak: float = -INF
+	var has_best_variant: bool = false
+	for variant in variants:
+		var candidate_state: Dictionary = _duplicate_game_state(state)
+		var result: Dictionary = _apply_action_variant_to_state(candidate_state, variant)
+		if result.status != RESULT_OK:
+			continue
+		if _is_state_won_by_player(candidate_state, player_index):
+			return variant
+		var score: float = _score_tempo_race(candidate_state, player_index)
+		var tiebreak: float = _score_ai_variant_tiebreak(state, candidate_state, variant, player_index)
+		if not has_best_variant or score > best_score + AI_SCORE_EPSILON or (abs(score - best_score) <= AI_SCORE_EPSILON and tiebreak > best_tiebreak):
+			has_best_variant = true
+			best_score = score
+			best_tiebreak = tiebreak
+			best_variant = variant
+	return best_variant
+
+
+func _score_ai_variant_tiebreak(before_state: Dictionary, after_state: Dictionary, variant: Dictionary, player_index: int) -> float:
+	var before_tempo: float = _evaluate_win_tempo(before_state, player_index)
+	var after_tempo: float = _evaluate_win_tempo(after_state, player_index)
+	var tempo_gain: float = before_tempo - after_tempo
+	return tempo_gain * 100.0 + _get_ai_action_tiebreak_priority(variant)
+
+
+func _get_ai_action_tiebreak_priority(variant: Dictionary) -> float:
+	var action_type: String = String(variant.type)
+	if action_type == ACTION_PLAY_HAND_CARD:
+		return 30.0
+	if action_type == ACTION_PLAY_DECK_FACE_DOWN:
+		return 20.0
+	if action_type == ACTION_DRAW_CARD:
+		return 10.0
+	return 0.0
+
+
+func _score_tempo_race(state: Dictionary, player_index: int) -> float:
+	var opponent_index: int = _opponent(player_index)
+	if bool(state.game_over):
+		if _is_state_won_by_player(state, player_index):
+			return INF
+		return -INF
+
+	var own_tempo: float = _evaluate_win_tempo(state, player_index)
+	var opponent_tempo: float = _evaluate_win_tempo(state, opponent_index)
+	if own_tempo <= 0.0 and opponent_tempo <= 0.0:
+		return 0.0
+	if own_tempo <= 0.0:
+		return INF
+	if opponent_tempo <= 0.0:
+		return -INF
+	return opponent_tempo - own_tempo
+
+
+func _is_state_won_by_player(state: Dictionary, player_index: int) -> bool:
+	if not bool(state.game_over):
+		return false
+	var message: String = String(state.game_over_message)
+	return message.find(String(state.players[player_index].name)) != -1
+
+
+func _evaluate_win_tempo(state: Dictionary, player_index: int) -> float:
+	if _can_finish_now_in_state(state, player_index):
+		return 0.0
+
+	var opponent_index: int = _opponent(player_index)
+	var target: Vector2i = state.players[opponent_index].base
+	var path_result: Dictionary = _get_path_tempo_result(state, player_index, target, true)
+	var path_cost: float = float(path_result.cost)
+	if path_cost >= 99.0:
+		return 99.0
+
+	var weak_link_penalty: float = _get_weak_link_penalty(state, player_index, path_cost, path_result.path)
+	var own_hand_size: int = state.players[player_index].hand.size()
+	var opponent_hand_size: int = state.players[opponent_index].hand.size()
+	var opponent_hand_advantage: int = max(0, opponent_hand_size - own_hand_size)
+	var turn_penalty: int = 0
+	if int(state.current_player) != player_index:
+		turn_penalty = 1
+	return path_cost + weak_link_penalty + float(opponent_hand_advantage) + float(turn_penalty)
+
+
+func _get_min_path_actions_to_supply_enemy_base(state: Dictionary, player_index: int) -> float:
+	var opponent_index: int = _opponent(player_index)
+	var target: Vector2i = state.players[opponent_index].base
+	var result: Dictionary = _get_path_tempo_result(state, player_index, target, true)
+	return float(result.cost)
+
+
+func _get_path_tempo_result(
+	state: Dictionary,
+	player_index: int,
+	target: Vector2i,
+	target_is_enemy_base: bool,
+	override_cell: Vector2i = Vector2i(-1, -1),
+	override_cost: float = -1.0
+) -> Dictionary:
+	var distances = {}
+	var parents = {}
+	var unvisited: Array = []
+	var own_base: Vector2i = state.players[player_index].base
+
+	distances[own_base] = 0.0
+	parents[own_base] = own_base
+	unvisited.append(own_base)
+
+	while not unvisited.is_empty():
+		var current: Vector2i = _pop_lowest_tempo_cell(unvisited, distances)
+		var current_cost: float = float(distances[current])
+		for direction in [Vector2i.UP, Vector2i.DOWN, Vector2i.LEFT, Vector2i.RIGHT]:
+			var next: Vector2i = current + direction
+			if not _is_inside(next):
+				continue
+			if _has_barrier_in_state(state, current, next):
+				continue
+
+			var step_cost: float
+			if target_is_enemy_base and next == target:
+				step_cost = 0.0
+			else:
+				step_cost = _get_cell_supply_card_cost(state, player_index, next, override_cell, override_cost)
+
+			var new_cost: float = current_cost + step_cost
+			if not distances.has(next) or new_cost < float(distances[next]):
+				distances[next] = new_cost
+				parents[next] = current
+				if not unvisited.has(next):
+					unvisited.append(next)
+
+	if distances.has(target):
+		return {
+			"cost": float(distances[target]),
+			"path": _build_tempo_path(target, parents)
+		}
+	return {
+		"cost": 99.0,
+		"path": []
+	}
+
+
+func _build_tempo_path(target: Vector2i, parents: Dictionary) -> Array:
+	if not parents.has(target):
+		return []
+	var path: Array = []
+	var current: Vector2i = target
+	while true:
+		path.push_front(current)
+		var parent: Vector2i = parents[current]
+		if parent == current:
+			break
+		current = parent
+	return path
+
+
+func _pop_lowest_tempo_cell(cells: Array, distances: Dictionary) -> Vector2i:
+	var best_array_index: int = 0
+	var best_cell: Vector2i = cells[0]
+	var best_distance: float = float(distances[best_cell])
+	for i in range(1, cells.size()):
+		var cell: Vector2i = cells[i]
+		var distance: float = float(distances[cell])
+		if distance < best_distance:
+			best_distance = distance
+			best_cell = cell
+			best_array_index = i
+	cells.remove_at(best_array_index)
+	return best_cell
+
+
+func _get_cell_supply_card_cost(
+	state: Dictionary,
+	player_index: int,
+	cell: Vector2i,
+	override_cell: Vector2i = Vector2i(-1, -1),
+	override_cost: float = -1.0
+) -> float:
+	if cell == override_cell and override_cost >= 0.0:
+		return override_cost
+
+	var owner: int = _top_owner_in_state(state, cell)
+	if owner == player_index:
+		return 0.0
+	if owner == -1:
+		return 1.0
+	if _top_face_down_in_state(state, cell):
+		return 3.0
+
+	var power: int = _top_power_in_state(state, cell)
+	return 2.0 + float(power)
+
+
+func _get_weak_link_penalty(state: Dictionary, player_index: int, base_path_cost: float, path: Array) -> float:
+	var opponent_index: int = _opponent(player_index)
+	var target: Vector2i = state.players[opponent_index].base
+	var best_penalty: float = 0.0
+	for cell in path:
+		if cell == state.players[player_index].base:
+			continue
+		if cell == target:
+			continue
+		if _top_owner_in_state(state, cell) != player_index:
+			continue
+
+		var opponent_break_result: Dictionary = _get_path_tempo_result(state, opponent_index, cell, false)
+		var opponent_break_cost: float = float(opponent_break_result.cost)
+		if opponent_break_cost >= base_path_cost:
+			continue
+
+		var broken_cell_cost: float = 10.0
+		var broken_path_result: Dictionary = _get_path_tempo_result(state, player_index, target, true, cell, broken_cell_cost)
+		var broken_path_cost: float = float(broken_path_result.cost)
+		var penalty: float = max(0.0, broken_path_cost - base_path_cost)
+		best_penalty = max(best_penalty, penalty)
+	return best_penalty
+
+
+func _can_finish_now_in_state(state: Dictionary, player_index: int) -> bool:
+	if int(state.current_player) != player_index:
+		return false
+	if int(state.minor_actions_spent) != 0:
+		return false
+	return _can_finish_with_hand_in_state(state, player_index)
+
+
+func _can_finish_with_hand_in_state(state: Dictionary, player_index: int) -> bool:
+	var hand: Array = state.players[player_index].hand
+	var target: Vector2i = state.players[_opponent(player_index)].base
+	for hand_index in range(hand.size()):
+		var card: Dictionary = hand[hand_index].duplicate(true)
+		card.face_down = false
+		if _can_play_card_in_state(state, card, target):
+			return true
+	return false
+
+
+func _get_live_game_state() -> Dictionary:
+	return {
+		"board": board,
+		"barriers": barriers,
+		"players": players,
+		"current_player": current_player,
+		"minor_actions_spent": minor_actions_spent,
+		"game_over": game_over,
+		"game_over_message": game_over_message,
+		"next_card_id": next_card_id
+	}
+
+
+func _capture_game_state() -> Dictionary:
+	return _duplicate_game_state(_get_live_game_state())
+
+
+func _duplicate_game_state(state: Dictionary) -> Dictionary:
+	return {
+		"board": _duplicate_board(state.board),
+		"barriers": state.barriers.duplicate(true),
+		"players": _duplicate_players(state.players),
+		"current_player": int(state.current_player),
+		"minor_actions_spent": int(state.minor_actions_spent),
+		"game_over": bool(state.game_over),
+		"game_over_message": String(state.game_over_message),
+		"next_card_id": int(state.get("next_card_id", next_card_id))
+	}
+
+
+func _restore_game_state(state: Dictionary) -> void:
+	board = state.board
+	barriers = state.barriers
+	players = state.players
+	current_player = int(state.current_player)
+	minor_actions_spent = int(state.minor_actions_spent)
+	game_over = bool(state.game_over)
+	game_over_message = String(state.game_over_message)
+	next_card_id = int(state.get("next_card_id", next_card_id))
+
+
+func _duplicate_board(source_board: Array) -> Array:
+	var new_board: Array = []
+	for y in range(source_board.size()):
+		var row: Array = []
+		for x in range(source_board[y].size()):
+			row.append(source_board[y][x].duplicate(true))
+		new_board.append(row)
+	return new_board
+
+
+func _duplicate_players(source_players: Array) -> Array:
+	var new_players: Array = []
+	for player in source_players:
+		var deck_template: Array = player.deck_template
+		new_players.append({
+			"name": player.name,
+			"base": player.base,
+			"deck_template": deck_template.duplicate(),
+			"deck": player.deck.duplicate(true),
+			"hand": player.hand.duplicate(true),
+			"discard": player.discard.duplicate(true)
+		})
+	return new_players
+
+
+func _make_action_variant(action_type: String, player_index: int, payload: Dictionary = {}) -> Dictionary:
+	var variant = {
+		"type": action_type,
+		"player_index": player_index,
+		"hand_index": -1,
+		"cell": Vector2i(-1, -1),
+		"payload": payload
+	}
+	if payload.has("hand_index"):
+		variant.hand_index = int(payload.hand_index)
+	if payload.has("cell"):
+		variant.cell = payload.cell
+	return variant
+
+
+func _get_turn_variants_for_state(state: Dictionary, player_index: int) -> Array:
+	var variants: Array = []
+	if bool(state.game_over):
+		return variants
+	if int(state.current_player) != player_index:
+		return variants
+
+	if _can_draw_card_variant_in_state(state, player_index):
+		variants.append(_make_action_variant(ACTION_DRAW_CARD, player_index))
+
+	if _can_play_minor_action_in_state(state):
+		variants.append_array(_get_deck_face_down_variants_for_state(state, player_index))
+
+	if int(state.minor_actions_spent) == 0:
+		var hand: Array = state.players[player_index].hand
+		for hand_index in range(hand.size()):
+			variants.append_array(_get_play_hand_variants_for_state(state, player_index, hand_index))
+	return variants
+
+
+func _get_play_hand_variants_for_state(state: Dictionary, player_index: int, hand_index: int) -> Array:
+	var variants: Array = []
+	if bool(state.game_over):
+		return variants
+	if int(state.current_player) != player_index:
+		return variants
+	if int(state.minor_actions_spent) > 0:
+		return variants
+
+	var hand: Array = state.players[player_index].hand
+	if hand_index < 0 or hand_index >= hand.size():
+		return variants
+
+	var card: Dictionary = hand[hand_index].duplicate(true)
+	card.face_down = false
+	for y in range(GRID_HEIGHT):
+		for x in range(GRID_WIDTH):
+			var cell: Vector2i = Vector2i(x, y)
+			if _can_play_card_in_state(state, card, cell):
+				variants.append(_make_action_variant(ACTION_PLAY_HAND_CARD, player_index, {
+					"hand_index": hand_index,
+					"cell": cell
+				}))
+	return variants
+
+
+func _get_deck_face_down_variants_for_state(state: Dictionary, player_index: int) -> Array:
+	var variants: Array = []
+	if bool(state.game_over):
+		return variants
+	if int(state.current_player) != player_index:
+		return variants
+	if not _can_play_minor_action_in_state(state):
+		return variants
+
+	var preview_state: Dictionary = _duplicate_game_state(state)
+	if not _refill_deck_if_empty_in_state(preview_state, player_index):
+		return variants
+
+	var deck: Array = preview_state.players[player_index].deck
+	if deck.is_empty():
+		return variants
+
+	var card: Dictionary = deck[deck.size() - 1].duplicate(true)
+	card.face_down = true
+	for y in range(GRID_HEIGHT):
+		for x in range(GRID_WIDTH):
+			var cell: Vector2i = Vector2i(x, y)
+			if _can_play_card_in_state(state, card, cell):
+				variants.append(_make_action_variant(ACTION_PLAY_DECK_FACE_DOWN, player_index, {
+					"cell": cell
+				}))
+	return variants
+
+
+func _simulate_action_variant(variant: Dictionary) -> Dictionary:
+	var state: Dictionary = _capture_game_state()
+	var result: Dictionary = _apply_action_variant_to_state(state, variant)
+	return {
+		"state": state,
+		"result": result
+	}
+
+
+func _apply_action_variant_to_current_state(variant: Dictionary) -> Dictionary:
+	var state: Dictionary = _get_live_game_state()
+	var result: Dictionary = _apply_action_variant_to_state(state, variant)
+	_restore_game_state(state)
+	return result
+
+
+func _apply_action_variant_to_state(state: Dictionary, variant: Dictionary) -> Dictionary:
+	state.events = []
+	var result: Dictionary = _apply_action_core_to_state(state, variant)
+	if result.status != RESULT_OK:
+		result.events = state.events
+		return result
+
+	_apply_after_action_rules_to_state(state, result)
+	if bool(result.get("end_turn", false)):
+		_apply_end_turn_rules_to_state(state)
+	result.events = state.events
+	return result
+
+
+func _apply_action_core_to_state(state: Dictionary, variant: Dictionary) -> Dictionary:
+	var action_type: String = String(variant.type)
+	var player_index: int = int(variant.player_index)
+	if int(state.current_player) != player_index:
+		return _make_action_result(RESULT_INVALID, "wrong_player")
+	if bool(state.game_over):
+		return _make_action_result(RESULT_INVALID, "game_over")
+
+	if action_type == ACTION_DRAW_CARD:
+		if not _can_draw_card_variant_in_state(state, player_index):
+			return _make_action_result(RESULT_INVALID, "cannot_draw")
+		_draw_cards_in_state(state, player_index, 1)
+		var draw_result: Dictionary = _make_action_result(RESULT_OK, "")
+		draw_result.end_turn = _spend_minor_action_in_state(state)
+		return draw_result
+
+	if action_type == ACTION_PLAY_HAND_CARD:
+		return _apply_play_hand_card_to_state(state, variant)
+
+	if action_type == ACTION_PLAY_DECK_FACE_DOWN:
+		return _apply_play_deck_face_down_to_state(state, variant)
+
+	return _make_action_result(RESULT_INVALID, "unknown_action")
+
+
+func _apply_play_hand_card_to_state(state: Dictionary, variant: Dictionary) -> Dictionary:
+	var player_index: int = int(variant.player_index)
+	var hand_index: int = int(variant.hand_index)
+	var cell: Vector2i = variant.cell
+	var hand: Array = state.players[player_index].hand
+	if hand_index < 0 or hand_index >= hand.size():
+		return _make_action_result(RESULT_INVALID, "bad_hand_index")
+
+	var card: Dictionary = hand[hand_index]
+	card.face_down = false
+	if not _can_play_card_in_state(state, card, cell):
+		return _make_action_result(RESULT_INVALID, "cannot_play_card")
+
+	hand.remove_at(hand_index)
+	_place_card_in_state(state, card, cell)
+	_record_action_event_in_state(state, {
+		"type": "play_card",
+		"card_id": int(card.id),
+		"player_index": player_index,
+		"unit": card.unit,
+		"cell": cell,
+		"face_down": false,
+		"stack_cards": _get_stack_card_snapshots_in_state(state, cell),
+		"source": {
+			"type": "hand",
+			"hand_index": hand_index
+		}
+	})
+	_record_layout_stack_event_in_state(state, cell)
+	var result: Dictionary = _make_action_result(RESULT_OK, "")
+	result.card = card
+	result.cell = cell
+	result.played_card = true
+	result.end_turn = true
+	return result
+
+
+func _apply_play_deck_face_down_to_state(state: Dictionary, variant: Dictionary) -> Dictionary:
+	var player_index: int = int(variant.player_index)
+	var cell: Vector2i = variant.cell
+	_refill_deck_if_empty_in_state(state, player_index)
+	var deck: Array = state.players[player_index].deck
+	if deck.is_empty():
+		return _make_action_result(RESULT_INVALID, "empty_deck")
+
+	var card: Dictionary = deck[deck.size() - 1]
+	card.face_down = true
+	if not _can_play_card_in_state(state, card, cell):
+		return _make_action_result(RESULT_INVALID, "cannot_play_path")
+
+	card = deck.pop_back()
+	card.face_down = true
+	_refill_deck_if_empty_in_state(state, player_index)
+	_place_card_in_state(state, card, cell)
+	_record_action_event_in_state(state, {
+		"type": "play_card",
+		"card_id": int(card.id),
+		"player_index": player_index,
+		"unit": card.unit,
+		"cell": cell,
+		"face_down": true,
+		"stack_cards": _get_stack_card_snapshots_in_state(state, cell),
+		"source": {
+			"type": "base"
+		}
+	})
+	_record_layout_stack_event_in_state(state, cell)
+	var result: Dictionary = _make_action_result(RESULT_OK, "")
+	result.card = card
+	result.cell = cell
+	result.played_card = true
+	result.keep_path_pending = not deck.is_empty()
+	result.end_turn = _spend_minor_action_in_state(state)
+	return result
+
+
+func _apply_after_action_rules_to_state(state: Dictionary, result: Dictionary) -> void:
+	if not bool(result.get("played_card", false)):
+		return
+
+	_apply_played_card_effect_rules_to_state(state, result)
+
+	var cell: Vector2i = result.cell
+	var player_index: int = int(state.current_player)
+	if _get_base_owner_in_state(state, cell) == _opponent(player_index):
+		state.game_over = true
+		state.game_over_message = _tr_text("UI_GAME_OVER") % state.players[player_index].name
+		result.end_turn = false
+
+
+func _apply_played_card_effect_rules_to_state(state: Dictionary, result: Dictionary) -> void:
+	var card: Dictionary = result.card
+	if bool(card.face_down):
+		return
+
+	var player_index: int = int(card.owner)
+	var opponent_index: int = _opponent(player_index)
+	var unit: Resource = card.unit
+	var name_key: String = String(unit.name_key)
+
+	if name_key == UNIT_RYTSAR_NAME:
+		_draw_cards_in_state(state, player_index, 1)
+	elif name_key == UNIT_GRIBNIK_NAME:
+		_draw_cards_in_state(state, player_index, 2)
+	elif name_key == UNIT_ABBERATSIYA_NAME:
+		_draw_cards_in_state(state, opponent_index, 2)
+	elif name_key == UNIT_DRAKON_NAME:
+		_discard_cards_from_hand_end_in_state(state, player_index, 2)
+	elif name_key == UNIT_BARON_NAME:
+		_draw_cards_in_state(state, player_index, 2)
+		_discard_cards_from_hand_end_in_state(state, player_index, 1)
+	elif name_key == UNIT_DROVOSEK_NAME:
+		_draw_then_discard_drawn_cards_in_state(state, player_index, 3, 2)
+	elif name_key == UNIT_KRYSA_NAME:
+		_discard_cards_from_hand_end_in_state(state, opponent_index, 1)
+	elif name_key == UNIT_LUCHNIK_NAME:
+		_discard_random_cards_from_hand_in_state(state, opponent_index, 1)
+	elif name_key == UNIT_MOZGOSHMYG_NAME:
+		_redraw_hand_in_state(state, opponent_index)
+	elif name_key == UNIT_VARVAR_NAME:
+		_draw_until_power_at_least_in_state(state, player_index, 5)
+
+
+func _apply_end_turn_rules_to_state(state: Dictionary) -> void:
+	if bool(state.game_over):
+		return
+	_trim_stacks_and_hands_in_state(state)
+	state.minor_actions_spent = 0
+	state.current_player = _opponent(int(state.current_player))
+
+
+func _make_action_result(status: String, error: String) -> Dictionary:
+	return {
+		"status": status,
+		"error": error,
+		"end_turn": false,
+		"keep_path_pending": false,
+		"played_card": false,
+		"events": []
+	}
+
+
+func _can_draw_card_variant_in_state(state: Dictionary, player_index: int) -> bool:
+	if not _can_play_minor_action_in_state(state):
+		return false
+	if state.players[player_index].deck.is_empty() and not state.players[player_index].deck_template.is_empty():
+		return true
+	var deck: Array = state.players[player_index].deck
+	return not deck.is_empty()
+
+
+func _can_play_minor_action_in_state(state: Dictionary) -> bool:
+	if bool(state.game_over):
+		return false
+	return int(state.minor_actions_spent) < TURN_MINOR_ACTIONS
+
+
+func _spend_minor_action_in_state(state: Dictionary) -> bool:
+	state.minor_actions_spent = int(state.minor_actions_spent) + 1
+	return int(state.minor_actions_spent) >= TURN_MINOR_ACTIONS
 
 
 func _on_draw_two_pressed() -> void:
 	if not _can_press_minor_action_button():
 		return
+	if _is_ai_player(current_player):
+		return
 	_clear_pending()
-	_draw_cards(current_player, 1)
-	_finish_minor_action()
+	var variant: Dictionary = _make_action_variant(ACTION_DRAW_CARD, current_player)
+	var simulation: Dictionary = _simulate_action_variant(variant)
+	if simulation.result.status != RESULT_OK:
+		action_label.text = _tr_text("UI_ERROR_EMPTY_DECK")
+		return
+	animation_running = true
+	_set_action_buttons_enabled(false)
+	var result: Dictionary = _apply_action_variant_to_current_state(variant)
+	if result.status != RESULT_OK:
+		animation_running = false
+		action_label.text = _tr_text("UI_ERROR_EMPTY_DECK")
+		return
+	await _animate_action_result(result)
+	animation_running = false
+	_clear_pending()
+	_sync_after_state_change_without_card_layout()
 
 
 func _on_deck_two_pressed() -> void:
 	if not _can_press_minor_action_button():
 		return
+	if _is_ai_player(current_player):
+		return
 	_clear_pending()
-	pending_action = "deck_face_down"
-	selected_hand_index = -1
+	ui_pending_action = "deck_face_down"
+	ui_selected_hand_card_id = -1
+	_sync_after_state_change_without_card_layout()
+
+
+func _on_replay_pressed() -> void:
+	animation_running = false
+	ai_running = false
+	_clear_pending()
+	minor_actions_spent = 0
+	current_player = 0
+	game_over = false
+	game_over_message = ""
+	_setup_game()
 	_refresh_ui()
 
 
 func _on_board_cell_gui_input(event: InputEvent, cell_panel: PanelContainer) -> void:
-	if game_over or animation_running or pending_action == "":
+	if game_over or animation_running or ui_pending_action == "":
+		return
+	if _is_ai_player(current_player):
 		return
 	if not (event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT):
 		return
 
 	var cell: Vector2i = cell_panel.get_meta("cell")
-	if pending_action == "hand":
+	if ui_pending_action == "hand":
 		_try_play_hand_card(cell)
-	elif pending_action == "deck_face_down":
+	elif ui_pending_action == "deck_face_down":
 		_try_play_from_deck_face_down(cell)
 
 
@@ -1070,98 +2367,352 @@ func _try_play_hand_card(cell: Vector2i) -> void:
 		return
 
 	var hand: Array = players[current_player].hand
-	if selected_hand_index < 0 or selected_hand_index >= hand.size():
+	var hand_index: int = _get_ui_selected_hand_index()
+	if hand_index < 0 or hand_index >= hand.size():
 		_clear_pending()
 		return
 
-	var unit: Resource = hand[selected_hand_index]
-	var card = {
-		"unit": unit,
-		"owner": current_player,
-		"face_down": false
-	}
-
-	if not _can_play_card(card, cell):
+	var variant: Dictionary = _make_action_variant(ACTION_PLAY_HAND_CARD, current_player, {
+		"hand_index": hand_index,
+		"cell": cell
+	})
+	var simulation: Dictionary = _simulate_action_variant(variant)
+	if simulation.result.status != RESULT_OK:
 		action_label.text = _tr_text("UI_ERROR_CANNOT_PLAY_CARD")
 		return
 
-	var source_control: Control = hand_card_controls.get(selected_hand_index, null)
-	hand.remove_at(selected_hand_index)
 	animation_running = true
 	_set_action_buttons_enabled(false)
-	await _animate_unit_to_cell(unit, source_control, cell, current_player)
-	_place_card(card, cell)
+	var result: Dictionary = _apply_action_variant_to_current_state(variant)
+	if result.status != RESULT_OK:
+		animation_running = false
+		action_label.text = _tr_text("UI_ERROR_CANNOT_PLAY_CARD")
+		_sync_after_state_change_without_card_layout()
+		return
+	await _animate_action_result(result)
 	animation_running = false
-	_after_successful_play(cell)
+	_clear_pending()
+	_sync_after_state_change_without_card_layout()
 
 
 func _try_play_from_deck_face_down(cell: Vector2i) -> void:
-	var deck: Array = players[current_player].deck
-	if deck.is_empty():
-		action_label.text = _tr_text("UI_ERROR_EMPTY_DECK")
-		return
-
-	var unit: Resource = deck[deck.size() - 1]
-	var card = {
-		"unit": unit,
-		"owner": current_player,
-		"face_down": true
-	}
-
-	if not _can_play_card(card, cell):
+	var variant: Dictionary = _make_action_variant(ACTION_PLAY_DECK_FACE_DOWN, current_player, {
+		"cell": cell
+	})
+	var simulation: Dictionary = _simulate_action_variant(variant)
+	if simulation.result.status != RESULT_OK:
 		action_label.text = _tr_text("UI_ERROR_CANNOT_PLAY_PATH")
 		return
-
-	deck.pop_back()
-	_place_card(card, cell)
-	_finish_minor_action(not deck.is_empty())
-
-
-func _after_successful_play(cell: Vector2i) -> void:
-	if _get_base_owner(cell) == _opponent(current_player):
-		game_over = true
-		game_over_message = _tr_text("UI_GAME_OVER") % players[current_player].name
-		_clear_pending()
-		_refresh_ui()
+	animation_running = true
+	_set_action_buttons_enabled(false)
+	var result: Dictionary = _apply_action_variant_to_current_state(variant)
+	if result.status != RESULT_OK:
+		animation_running = false
+		action_label.text = _tr_text("UI_ERROR_CANNOT_PLAY_PATH")
 		return
+	await _animate_action_result(result)
+	animation_running = false
 
-	_end_turn()
+	if bool(result.keep_path_pending) and not bool(result.end_turn):
+		ui_pending_action = "deck_face_down"
+		ui_selected_hand_card_id = -1
+	else:
+		_clear_pending()
+	_sync_after_state_change_without_card_layout()
 
 
 func _can_play_card(card: Dictionary, cell: Vector2i) -> bool:
+	return _can_play_card_in_state(_get_live_game_state(), card, cell)
+
+
+func _can_play_card_in_state(state: Dictionary, card: Dictionary, cell: Vector2i) -> bool:
 	if not _is_inside(cell):
 		return false
-	if _get_base_owner(cell) == current_player:
+	var player_index: int = int(card.owner)
+	if _get_base_owner_in_state(state, cell) == player_index:
 		return false
-	if not _get_supplied_cells(current_player).has(cell):
+	if not _get_supplied_cells_in_state(state, player_index).has(cell):
 		return false
 
-	var stack: Array = _get_stack(cell)
-	var base_owner: int = _get_base_owner(cell)
+	var stack: Array = _get_stack_in_state(state, cell)
+	var base_owner: int = _get_base_owner_in_state(state, cell)
 	if card.face_down:
 		if base_owner != -1:
 			return false
 		if stack.is_empty():
 			return true
-		return _top_owner(cell) == current_player
+		return _top_owner_in_state(state, cell) == player_index
 
-	if base_owner == _opponent(current_player):
+	if base_owner == _opponent(player_index):
 		return true
 	if stack.is_empty():
 		return true
-	if _top_owner(cell) == current_player:
+	if _top_owner_in_state(state, cell) == player_index:
 		return true
-	if _top_face_down(cell):
+	if _top_face_down_in_state(state, cell):
 		return true
 
 	var attack_power: int = card.unit.power
-	var defense_power: int = _top_power(cell)
+	var defense_power: int = _top_power_in_state(state, cell)
 	return attack_power >= defense_power
 
 
 func _place_card(card: Dictionary, cell: Vector2i) -> void:
-	var stack: Array = _get_stack(cell)
+	_place_card_in_state(_get_live_game_state(), card, cell)
+
+
+func _place_card_in_state(state: Dictionary, card: Dictionary, cell: Vector2i) -> void:
+	var stack: Array = _get_stack_in_state(state, cell)
 	stack.append(card)
+
+
+func _record_action_event_in_state(state: Dictionary, event: Dictionary) -> void:
+	if not state.has("events"):
+		return
+	state.events.append(event)
+
+
+func _get_stack_card_snapshots_in_state(state: Dictionary, cell: Vector2i) -> Array:
+	var snapshots: Array = []
+	for card in _get_stack_in_state(state, cell):
+		snapshots.append(card.duplicate(true))
+	return snapshots
+
+
+func _record_layout_stack_event_in_state(state: Dictionary, cell: Vector2i) -> void:
+	_record_action_event_in_state(state, {
+		"type": ANIMATION_LAYOUT_STACK,
+		"cell": cell,
+		"stack_cards": _get_stack_card_snapshots_in_state(state, cell)
+	})
+
+
+func _discard_card_in_state(state: Dictionary, player_index: int, card: Dictionary, source: Dictionary = {}) -> void:
+	card.owner = player_index
+	state.players[player_index].discard.append(card)
+	_record_action_event_in_state(state, {
+		"type": "discard_card",
+		"card_id": int(card.id),
+		"player_index": player_index,
+		"unit": card.unit,
+		"source": source
+	})
+	if String(source.get("type", "")) == "board":
+		_record_layout_stack_event_in_state(state, source.cell)
+
+
+func _record_draw_event_in_state(state: Dictionary, player_index: int, card: Dictionary) -> void:
+	_record_action_event_in_state(state, {
+		"type": "draw_card",
+		"card_id": int(card.id),
+		"player_index": player_index,
+		"unit": card.unit,
+		"source": {
+			"type": "base"
+		}
+	})
+
+
+func _trim_stacks_and_hands_in_state(state: Dictionary) -> void:
+	for y in range(GRID_HEIGHT):
+		for x in range(GRID_WIDTH):
+			var stack: Array = state.board[y][x]
+			while stack.size() > 2:
+				var removed = stack.pop_front()
+				_discard_card_in_state(state, removed.owner, removed, {
+					"type": "board",
+					"cell": Vector2i(x, y),
+					"face_down": bool(removed.face_down)
+				})
+
+	for i in range(state.players.size()):
+		while state.players[i].hand.size() > MAX_HAND:
+			var discarded = state.players[i].hand.pop_back()
+			_discard_card_in_state(state, i, discarded, {
+				"type": "hand",
+				"hand_index": state.players[i].hand.size()
+			})
+
+
+func _draw_cards_in_state(state: Dictionary, player_index: int, count: int) -> void:
+	var deck: Array = state.players[player_index].deck
+	var hand: Array = state.players[player_index].hand
+	for i in range(count):
+		_refill_deck_if_empty_in_state(state, player_index)
+		if deck.is_empty():
+			return
+		var card: Dictionary = deck.pop_back()
+		card.owner = player_index
+		card.face_down = false
+		hand.append(card)
+		_record_draw_event_in_state(state, player_index, card)
+	_refill_deck_if_empty_in_state(state, player_index)
+
+
+func _refill_deck_if_empty_in_state(state: Dictionary, player_index: int) -> bool:
+	var deck: Array = state.players[player_index].deck
+	if not deck.is_empty():
+		return true
+
+	var deck_template: Array = state.players[player_index].deck_template
+	if deck_template.is_empty():
+		return false
+
+	for unit in deck_template:
+		deck.append(_make_card_in_state(state, unit, player_index, false))
+	deck.shuffle()
+	return true
+
+
+func _discard_cards_from_hand_end_in_state(state: Dictionary, player_index: int, count: int) -> void:
+	var hand: Array = state.players[player_index].hand
+	for i in range(count):
+		if hand.is_empty():
+			return
+		var hand_index: int = hand.size() - 1
+		var card: Dictionary = hand.pop_back()
+		_discard_card_in_state(state, player_index, card, {
+			"type": "hand",
+			"hand_index": hand_index
+		})
+
+
+func _discard_random_cards_from_hand_in_state(state: Dictionary, player_index: int, count: int) -> void:
+	var hand: Array = state.players[player_index].hand
+	for i in range(count):
+		if hand.is_empty():
+			return
+		var hand_index: int = randi_range(0, hand.size() - 1)
+		var card: Dictionary = hand[hand_index]
+		hand.remove_at(hand_index)
+		_discard_card_in_state(state, player_index, card, {
+			"type": "hand",
+			"hand_index": hand_index
+		})
+
+
+func _draw_then_discard_drawn_cards_in_state(state: Dictionary, player_index: int, draw_count: int, discard_count: int) -> void:
+	var deck: Array = state.players[player_index].deck
+	var hand: Array = state.players[player_index].hand
+	var drawn_cards: Array = []
+	for i in range(draw_count):
+		_refill_deck_if_empty_in_state(state, player_index)
+		if deck.is_empty():
+			break
+		drawn_cards.append(deck.pop_back())
+	_refill_deck_if_empty_in_state(state, player_index)
+
+	while drawn_cards.size() > 0 and discard_count > 0:
+		var discarded_card: Dictionary = drawn_cards.pop_back()
+		_discard_card_in_state(state, player_index, discarded_card, {
+			"type": "base"
+		})
+		discard_count -= 1
+
+	for card in drawn_cards:
+		card.owner = player_index
+		card.face_down = false
+		hand.append(card)
+		_record_draw_event_in_state(state, player_index, card)
+
+
+func _redraw_hand_in_state(state: Dictionary, player_index: int) -> void:
+	var hand: Array = state.players[player_index].hand
+	var card_count: int = hand.size()
+	while not hand.is_empty():
+		var hand_index: int = hand.size() - 1
+		var card: Dictionary = hand.pop_back()
+		_discard_card_in_state(state, player_index, card, {
+			"type": "hand",
+			"hand_index": hand_index
+		})
+	_draw_cards_in_state(state, player_index, card_count)
+
+
+func _draw_until_power_at_least_in_state(state: Dictionary, player_index: int, minimum_power: int) -> void:
+	var deck: Array = state.players[player_index].deck
+	var hand: Array = state.players[player_index].hand
+	var checked_count: int = 0
+	var max_checks: int = state.players[player_index].deck_template.size()
+	while checked_count < max_checks:
+		_refill_deck_if_empty_in_state(state, player_index)
+		if deck.is_empty():
+			return
+		var card: Dictionary = deck.pop_back()
+		checked_count += 1
+		if int(card.unit.power) >= minimum_power:
+			card.owner = player_index
+			card.face_down = false
+			hand.append(card)
+			_record_draw_event_in_state(state, player_index, card)
+			_refill_deck_if_empty_in_state(state, player_index)
+			return
+		_discard_card_in_state(state, player_index, card, {
+			"type": "base"
+		})
+	_refill_deck_if_empty_in_state(state, player_index)
+
+
+func _get_supplied_cells_in_state(state: Dictionary, player_index: int) -> Dictionary:
+	var supplied = {}
+	var base: Vector2i = state.players[player_index].base
+	var queue: Array = [base]
+	supplied[base] = true
+
+	while not queue.is_empty():
+		var current: Vector2i = queue.pop_front()
+		for direction in [Vector2i.UP, Vector2i.DOWN, Vector2i.LEFT, Vector2i.RIGHT]:
+			var next: Vector2i = current + direction
+			if not _is_inside(next):
+				continue
+			if supplied.has(next):
+				continue
+			if _has_barrier_in_state(state, current, next):
+				continue
+			supplied[next] = true
+			if _top_owner_in_state(state, next) == player_index:
+				queue.append(next)
+
+	return supplied
+
+
+func _get_stack_in_state(state: Dictionary, cell: Vector2i) -> Array:
+	return state.board[cell.y][cell.x]
+
+
+func _top_owner_in_state(state: Dictionary, cell: Vector2i) -> int:
+	var stack: Array = _get_stack_in_state(state, cell)
+	if stack.is_empty():
+		return -1
+	return int(stack[stack.size() - 1].owner)
+
+
+func _top_power_in_state(state: Dictionary, cell: Vector2i) -> int:
+	var stack: Array = _get_stack_in_state(state, cell)
+	if stack.is_empty():
+		return 0
+	var card: Dictionary = stack[stack.size() - 1]
+	if card.face_down:
+		return 0
+	return int(card.unit.power)
+
+
+func _top_face_down_in_state(state: Dictionary, cell: Vector2i) -> bool:
+	var stack: Array = _get_stack_in_state(state, cell)
+	if stack.is_empty():
+		return false
+	return bool(stack[stack.size() - 1].face_down)
+
+
+func _get_base_owner_in_state(state: Dictionary, cell: Vector2i) -> int:
+	for i in range(state.players.size()):
+		if state.players[i].base == cell:
+			return i
+	return -1
+
+
+func _has_barrier_in_state(state: Dictionary, a: Vector2i, b: Vector2i) -> bool:
+	return state.barriers.has(_edge_key(a, b))
 
 
 func _trim_stacks_and_hands() -> void:
@@ -1170,7 +2721,7 @@ func _trim_stacks_and_hands() -> void:
 			var stack: Array = board[y][x]
 			while stack.size() > 2:
 				var removed = stack.pop_front()
-				players[removed.owner].discard.append(removed.unit)
+				players[removed.owner].discard.append(removed)
 
 	for i in range(players.size()):
 		while players[i].hand.size() > MAX_HAND:
@@ -1182,26 +2733,28 @@ func _end_turn() -> void:
 	if animation_running:
 		return
 	if game_over:
-		_refresh_ui()
+		_sync_after_state_change_without_card_layout()
 		return
 	_trim_stacks_and_hands()
 	_clear_pending()
 	minor_actions_spent = 0
 	current_player = _opponent(current_player)
-	_refresh_ui()
+	_sync_after_state_change_without_card_layout()
 
 
 func _clear_pending() -> void:
-	pending_action = ""
-	selected_hand_index = -1
+	ui_pending_action = ""
+	ui_selected_hand_card_id = -1
 
 
 func _can_press_minor_action_button() -> bool:
 	if game_over or animation_running:
 		return false
+	if _is_ai_player(current_player):
+		return false
 	if minor_actions_spent >= TURN_MINOR_ACTIONS:
 		return false
-	return pending_action == "" or pending_action == "hand" or pending_action == "deck_face_down"
+	return ui_pending_action == "" or ui_pending_action == "hand" or ui_pending_action == "deck_face_down"
 
 
 func _finish_minor_action(keep_path_pending: bool = false) -> void:
@@ -1211,11 +2764,11 @@ func _finish_minor_action(keep_path_pending: bool = false) -> void:
 		_end_turn()
 	else:
 		if keep_path_pending:
-			pending_action = "deck_face_down"
-			selected_hand_index = -1
+			ui_pending_action = "deck_face_down"
+			ui_selected_hand_card_id = -1
 		else:
 			_clear_pending()
-		_refresh_ui()
+		_sync_after_state_change_without_card_layout()
 
 
 func _minor_actions_left() -> int:
@@ -1223,12 +2776,7 @@ func _minor_actions_left() -> int:
 
 
 func _draw_cards(player_index: int, count: int) -> void:
-	var deck: Array = players[player_index].deck
-	var hand: Array = players[player_index].hand
-	for i in range(count):
-		if deck.is_empty():
-			return
-		hand.append(deck.pop_back())
+	_draw_cards_in_state(_get_live_game_state(), player_index, count)
 
 
 func _get_supplied_cells(player_index: int) -> Dictionary:

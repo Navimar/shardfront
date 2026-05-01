@@ -10,4 +10,5 @@ name_key = "UNIT_LAGER_NAME"
 description_key = "UNIT_LAGER_DESCRIPTION"
 power = 6
 ability_symbols = "❗"
+implementation_status = "unimplemented"
 portrait = ExtResource("2_portrait")

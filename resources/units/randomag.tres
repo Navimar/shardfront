@@ -10,4 +10,5 @@ name_key = "UNIT_RANDOMAG_NAME"
 description_key = "UNIT_RANDOMAG_DESCRIPTION"
 power = 1
 ability_symbols = "🃏"
+implementation_status = "unimplemented"
 portrait = ExtResource("2_portrait")

@@ -10,4 +10,5 @@ name_key = "UNIT_GRIBNIK_NAME"
 description_key = "UNIT_GRIBNIK_DESCRIPTION"
 power = 2
 ability_symbols = "🃏"
+implementation_status = "implemented"
 portrait = ExtResource("2_portrait")

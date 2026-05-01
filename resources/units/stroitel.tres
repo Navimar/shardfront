@@ -10,4 +10,5 @@ name_key = "UNIT_STROITEL_NAME"
 description_key = "UNIT_STROITEL_DESCRIPTION"
 power = 2
 ability_symbols = "🃏"
+implementation_status = "unimplemented"
 portrait = ExtResource("2_portrait")

@@ -10,4 +10,5 @@ name_key = "UNIT_EVAKUATOR_NAME"
 description_key = "UNIT_EVAKUATOR_DESCRIPTION"
 power = 5
 ability_symbols = "🃏"
+implementation_status = "unimplemented"
 portrait = ExtResource("2_portrait")

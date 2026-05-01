@@ -10,4 +10,5 @@ name_key = "UNIT_KLADENETS_NAME"
 description_key = "UNIT_KLADENETS_DESCRIPTION"
 power = 1
 ability_symbols = "❗"
+implementation_status = "unimplemented"
 portrait = ExtResource("2_portrait")

@@ -6,8 +6,9 @@
 [node name="Unit" type="Control"]
 layout_mode = 3
 anchors_preset = 0
-offset_right = 128.0
-offset_bottom = 109.0
+offset_right = 192.0
+offset_bottom = 164.0
+mouse_filter = 1
 script = ExtResource("1_unit")
 
 [node name="Background" type="Panel" parent="."]
@@ -25,17 +26,19 @@ layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
-offset_left = 2.0
-offset_top = 2.0
-offset_right = -2.0
-offset_bottom = -2.0
+offset_left = 3.0
+offset_top = 3.0
+offset_right = -3.0
+offset_bottom = -3.0
 grow_horizontal = 2
 grow_vertical = 2
+mouse_filter = 2
 theme_override_constants/separation = 0
 
 [node name="PortraitArea" type="Control" parent="Content"]
 layout_mode = 2
 size_flags_vertical = 3
+mouse_filter = 2
 
 [node name="Portrait" type="TextureRect" parent="Content/PortraitArea"]
 unique_name_in_owner = true
@@ -47,15 +50,16 @@ grow_horizontal = 2
 grow_vertical = 2
 expand_mode = 1
 stretch_mode = 0
+mouse_filter = 2
 
 [node name="PowerBadge" type="Panel" parent="Content/PortraitArea"]
 unique_name_in_owner = true
 layout_mode = 1
 anchors_preset = 0
-offset_left = -2.0
+offset_left = -3.0
 offset_top = 0.0
-offset_right = 23.0
-offset_bottom = 23.0
+offset_right = 32.0
+offset_bottom = 35.0
 mouse_filter = 2
 
 [node name="PowerLabel" type="Label" parent="Content/PortraitArea/PowerBadge"]
@@ -68,21 +72,25 @@ grow_horizontal = 2
 grow_vertical = 2
 theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
 theme_override_fonts/font = ExtResource("2_font")
-theme_override_font_sizes/font_size = 20
-theme_override_constants/outline_size = 3
+theme_override_font_sizes/font_size = 30
+theme_override_constants/outline_size = 5
 text = ""
 horizontal_alignment = 1
 vertical_alignment = 1
+mouse_filter = 2
 
 [node name="Header" type="MarginContainer" parent="Content"]
 layout_mode = 2
-theme_override_constants/margin_top = 2
+mouse_filter = 2
+theme_override_constants/margin_top = 3
 
 [node name="NameLabel" type="Label" parent="Content/Header"]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
+mouse_filter = 2
 theme_override_fonts/font = ExtResource("2_font")
+theme_override_font_sizes/font_size = 24
 text = ""
 clip_text = true
 horizontal_alignment = 1
@@ -92,6 +100,7 @@ unique_name_in_owner = true
 visible = false
 layout_mode = 2
 size_flags_vertical = 3
+mouse_filter = 2
 text = ""
 autowrap_mode = 3
 

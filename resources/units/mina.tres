@@ -10,4 +10,5 @@ name_key = "UNIT_MINA_NAME"
 description_key = "UNIT_MINA_DESCRIPTION"
 power = 3
 ability_symbols = "❗"
+implementation_status = "unimplemented"
 portrait = ExtResource("2_portrait")

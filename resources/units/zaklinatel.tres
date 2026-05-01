@@ -10,4 +10,5 @@ name_key = "UNIT_ZAKLINATEL_NAME"
 description_key = "UNIT_ZAKLINATEL_DESCRIPTION"
 power = 1
 ability_symbols = "🃏"
+implementation_status = "unimplemented"
 portrait = ExtResource("2_portrait")

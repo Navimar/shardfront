@@ -10,4 +10,5 @@ name_key = "UNIT_STRATEG_NAME"
 description_key = "UNIT_STRATEG_DESCRIPTION"
 power = 3
 ability_symbols = "🃏"
+implementation_status = "unimplemented"
 portrait = ExtResource("2_portrait")
