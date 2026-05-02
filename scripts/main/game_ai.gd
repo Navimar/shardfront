@@ -1,6 +1,8 @@
 extends RefCounted
 
 const AI_SCORE_EPSILON: float = 0.0001
+const HAND_DISADVANTAGE_TEMPO_PENALTY: float = 1.2
+const HAND_ADVANTAGE_TEMPO_BONUS: float = 0.2
 
 var game: Node
 
@@ -41,11 +43,12 @@ func evaluate_win_tempo(state: Dictionary, player_index: int) -> float:
 
 
 func get_tempo_breakdown(state: Dictionary, player_index: int) -> Dictionary:
-	if _can_finish_with_hand_in_state(state, player_index):
-		if int(state.current_player) == player_index and int(state.minor_actions_spent) == 0:
-			return _make_tempo_breakdown(0.0, 0.0, 0.0, 0.0)
-		if int(state.current_player) != player_index:
-			return _get_next_turn_finish_threat_breakdown()
+	if (
+		int(state.current_player) == player_index
+		and int(state.minor_actions_spent) == 0
+		and _can_finish_with_hand_in_state(state, player_index)
+	):
+		return _make_tempo_breakdown(0.0, 0.0, 0.0, 0.0)
 
 	var opponent_index: int = game._opponent(player_index)
 	var target: Vector2i = state.players[opponent_index].base
@@ -56,11 +59,15 @@ func get_tempo_breakdown(state: Dictionary, player_index: int) -> Dictionary:
 
 	var own_hand_size: int = _get_tempo_hand_size(state, player_index)
 	var opponent_hand_size: int = _get_tempo_hand_size(state, opponent_index)
-	var opponent_hand_advantage: int = max(0, opponent_hand_size - own_hand_size)
+	var hand_delta: int = opponent_hand_size - own_hand_size
 	var turn_penalty: int = 0
 	if int(state.current_player) != player_index:
 		turn_penalty = 1
-	var hand_penalty: float = float(opponent_hand_advantage)
+	var hand_penalty: float = 0.0
+	if hand_delta > 0:
+		hand_penalty = float(hand_delta) * HAND_DISADVANTAGE_TEMPO_PENALTY
+	elif hand_delta < 0:
+		hand_penalty = float(hand_delta) * HAND_ADVANTAGE_TEMPO_BONUS
 	var tempo: float = path_cost + hand_penalty + float(turn_penalty)
 	return _make_tempo_breakdown(tempo, path_cost, hand_penalty, float(turn_penalty))
 
@@ -132,11 +139,6 @@ func _is_state_won_by_player(state: Dictionary, player_index: int) -> bool:
 		return false
 	var message: String = String(state.game_over_message)
 	return message.find(String(state.players[player_index].name)) != -1
-
-
-func _get_next_turn_finish_threat_breakdown() -> Dictionary:
-	var path_cost: float = 1.0
-	return _make_tempo_breakdown(path_cost, path_cost, 0.0, 0.0)
 
 
 func _make_tempo_breakdown(
