@@ -19,14 +19,10 @@ const DECK_UNIT_STATUSES: Array = DECK_ALL_STATUSES
 const HUMAN_PLAYER_INDEX: int = 0
 const AI_PLAYERS: Array = [1]
 const AI_THINK_DELAY: float = 0.35
-const AI_SCORE_EPSILON: float = 0.0001
 const TEMPO_BAR_HEIGHT: int = 6
 const TEMPO_BAR_VERTICAL_WIDTH: int = 10
 const CARD_FLY_DURATION: float = 0.72
 const CARD_DISCARD_FLIP_DURATION: float = 0.18
-const TEMPO_NEAR_PATH_MARGIN: float = 1.0
-const CHAIN_CUT_INF_CAPACITY: float = 1000000.0
-const CHAIN_FLOW_EPSILON: float = 0.0001
 const ACTION_DRAW_CARD: String = "draw_card"
 const ACTION_PLAY_HAND_CARD: String = "play_hand_card"
 const ACTION_PLAY_DECK_FACE_DOWN: String = "play_deck_face_down"
@@ -49,6 +45,7 @@ const BARRIER_FILL_COLOR: Color = Color(0.88, 0.69, 0.32)
 const TOOLTIP_BACKGROUND_COLOR: Color = Color(0.03, 0.025, 0.02)
 const SUPPLY_PIPE_WIDTH: float = float(CELL_GAP)
 const UnitScene: PackedScene = preload("res://scenes/unit.tscn")
+const GameAi: Script = preload("res://scripts/main/game_ai.gd")
 const WoodBaseTexture: Texture2D = preload("res://assets/bases/base_single.jpg")
 const MetalBaseTexture: Texture2D = preload("res://assets/bases/bases_pair.jpg")
 const TableBackgroundTexture: Texture2D = preload("res://assets/backgrounds/table_stone_background.jpg")
@@ -64,6 +61,7 @@ var game_over: bool = false
 var game_over_message: String = ""
 var animation_running: bool = false
 var ai_running: bool = false
+var ai_logic: RefCounted
 var next_card_id: int = 1
 
 var board_cells = {}
@@ -94,6 +92,7 @@ var discard_grid: GridContainer
 func _ready() -> void:
 	TranslationServer.set_locale("ru")
 	randomize()
+	ai_logic = GameAi.new(self)
 	_setup_game()
 	_build_ui()
 	_refresh_ui()
@@ -631,8 +630,8 @@ func _on_tempo_bar_draw() -> void:
 
 func _get_tempo_bar_score() -> float:
 	var state: Dictionary = _capture_game_state()
-	var human_tempo: float = _evaluate_win_tempo(state, 0)
-	var ai_tempo: float = _evaluate_win_tempo(state, 1)
+	var human_tempo: float = ai_logic.evaluate_win_tempo(state, 0)
+	var ai_tempo: float = ai_logic.evaluate_win_tempo(state, 1)
 	if human_tempo <= 0.0 and ai_tempo <= 0.0:
 		return 0.0
 	if human_tempo <= 0.0:
@@ -644,8 +643,8 @@ func _get_tempo_bar_score() -> float:
 
 func _get_tempo_bar_player_share(player_index: int) -> float:
 	var state: Dictionary = _capture_game_state()
-	var player_tempo: float = _evaluate_win_tempo(state, player_index)
-	var opponent_tempo: float = _evaluate_win_tempo(state, _opponent(player_index))
+	var player_tempo: float = ai_logic.evaluate_win_tempo(state, player_index)
+	var opponent_tempo: float = ai_logic.evaluate_win_tempo(state, _opponent(player_index))
 	if player_tempo <= 0.0 and opponent_tempo <= 0.0:
 		return 0.5
 	if player_tempo <= 0.0:
@@ -662,23 +661,19 @@ func _get_tempo_debug_text() -> String:
 	if players.size() < 2:
 		return ""
 	var state: Dictionary = _capture_game_state()
-	var human_breakdown: Dictionary = _get_tempo_breakdown(state, 0)
-	var ai_breakdown: Dictionary = _get_tempo_breakdown(state, 1)
+	var human_breakdown: Dictionary = ai_logic.get_tempo_breakdown(state, 0)
+	var ai_breakdown: Dictionary = ai_logic.get_tempo_breakdown(state, 1)
 	var human_tempo: float = float(human_breakdown.tempo)
 	var ai_tempo: float = float(ai_breakdown.tempo)
 	var tempo_diff: float = _get_tempo_bar_score()
 	var wood_share: float = _get_tempo_bar_player_share(0) * 100.0
-	return "W t=%s p=%s cut=%s cp=%s h=%s turn=%s\nM t=%s p=%s cut=%s cp=%s h=%s turn=%s\nratio=%s/%s diff=%s" % [
+	return "W t=%s p=%s h=%s turn=%s\nM t=%s p=%s h=%s turn=%s\nratio=%s/%s diff=%s" % [
 		_format_tempo_debug_float(human_tempo),
 		_format_tempo_debug_float(float(human_breakdown.path_cost)),
-		_format_tempo_debug_float(float(human_breakdown.chain_cut_cost)),
-		_format_tempo_debug_float(float(human_breakdown.chain_penalty)),
 		_format_tempo_debug_float(float(human_breakdown.hand_penalty)),
 		_format_tempo_debug_float(float(human_breakdown.turn_penalty)),
 		_format_tempo_debug_float(ai_tempo),
 		_format_tempo_debug_float(float(ai_breakdown.path_cost)),
-		_format_tempo_debug_float(float(ai_breakdown.chain_cut_cost)),
-		_format_tempo_debug_float(float(ai_breakdown.chain_penalty)),
 		_format_tempo_debug_float(float(ai_breakdown.hand_penalty)),
 		_format_tempo_debug_float(float(ai_breakdown.turn_penalty)),
 		_format_tempo_debug_float(wood_share),
@@ -1778,7 +1773,7 @@ func _run_ai_turn_step() -> void:
 
 	_clear_pending()
 	var state: Dictionary = _capture_game_state()
-	var variant: Dictionary = _choose_ai_action_variant(state, current_player)
+	var variant: Dictionary = ai_logic.choose_action_variant(state, current_player)
 	if variant.is_empty():
 		var live_state: Dictionary = _get_live_game_state()
 		live_state.events = []
@@ -1793,542 +1788,8 @@ func _run_ai_turn_step() -> void:
 	_sync_after_state_change_without_card_layout()
 
 
-func _choose_ai_action_variant(state: Dictionary, player_index: int) -> Dictionary:
-	var variants: Array = _get_turn_variants_for_state(state, player_index)
-	if variants.is_empty():
-		return {}
-
-	var best_variant: Dictionary = {}
-	var best_score: float = -INF
-	var best_tiebreak: float = -INF
-	var has_best_variant: bool = false
-	for variant in variants:
-		var candidate_state: Dictionary = _duplicate_game_state(state)
-		var result: Dictionary = _apply_action_variant_to_state(candidate_state, variant)
-		if result.status != RESULT_OK:
-			continue
-		if _is_state_won_by_player(candidate_state, player_index):
-			return variant
-		var score: float = _score_ai_candidate_state(candidate_state, result, player_index)
-		var tiebreak: float = _score_ai_variant_tiebreak(state, candidate_state, variant, player_index)
-		if not has_best_variant or score > best_score + AI_SCORE_EPSILON or (abs(score - best_score) <= AI_SCORE_EPSILON and tiebreak > best_tiebreak):
-			has_best_variant = true
-			best_score = score
-			best_tiebreak = tiebreak
-			best_variant = variant
-	return best_variant
-
-
-func _score_ai_candidate_state(state: Dictionary, result: Dictionary, player_index: int) -> float:
-	var score: float = _score_tempo_race(state, player_index)
-	if bool(result.get("end_turn", false)):
-		return score
-	if int(state.current_player) != player_index:
-		return score
-	if int(state.minor_actions_spent) <= 0:
-		return score
-
-	var opponent_index: int = _opponent(player_index)
-	if not _can_finish_with_hand_in_state(state, opponent_index):
-		return score
-
-	var projected_state: Dictionary = _duplicate_game_state(state)
-	projected_state.events = []
-	_apply_end_turn_rules_to_state(projected_state)
-	return min(score, _score_tempo_race(projected_state, player_index))
-
-
-func _score_ai_variant_tiebreak(before_state: Dictionary, after_state: Dictionary, variant: Dictionary, player_index: int) -> float:
-	var before_tempo: float = _evaluate_win_tempo(before_state, player_index)
-	var after_tempo: float = _evaluate_win_tempo(after_state, player_index)
-	var tempo_gain: float = before_tempo - after_tempo
-	return tempo_gain * 100.0 + _get_ai_action_tiebreak_priority(variant)
-
-
-func _get_ai_action_tiebreak_priority(variant: Dictionary) -> float:
-	var action_type: String = String(variant.type)
-	if action_type == ACTION_PLAY_HAND_CARD:
-		return 30.0
-	if action_type == ACTION_PLAY_DECK_FACE_DOWN:
-		return 20.0
-	if action_type == ACTION_DRAW_CARD:
-		return 10.0
-	return 0.0
-
-
-func _score_tempo_race(state: Dictionary, player_index: int) -> float:
-	var opponent_index: int = _opponent(player_index)
-	if bool(state.game_over):
-		if _is_state_won_by_player(state, player_index):
-			return INF
-		return -INF
-
-	var own_tempo: float = _evaluate_win_tempo(state, player_index)
-	var opponent_tempo: float = _evaluate_win_tempo(state, opponent_index)
-	if own_tempo <= 0.0 and opponent_tempo <= 0.0:
-		return 0.0
-	if own_tempo <= 0.0:
-		return INF
-	if opponent_tempo <= 0.0:
-		return -INF
-	return opponent_tempo - own_tempo
-
-
-func _is_state_won_by_player(state: Dictionary, player_index: int) -> bool:
-	if not bool(state.game_over):
-		return false
-	var message: String = String(state.game_over_message)
-	return message.find(String(state.players[player_index].name)) != -1
-
-
-func _evaluate_win_tempo(state: Dictionary, player_index: int) -> float:
-	var breakdown: Dictionary = _get_tempo_breakdown(state, player_index)
-	return float(breakdown.tempo)
-
-
-func _get_tempo_breakdown(state: Dictionary, player_index: int) -> Dictionary:
-	if _can_finish_with_hand_in_state(state, player_index):
-		if int(state.current_player) == player_index and int(state.minor_actions_spent) == 0:
-			return _make_tempo_breakdown(0.0, 0.0, -1.0, 0.0, 0.0, 0.0)
-		if int(state.current_player) != player_index:
-			return _get_next_turn_finish_threat_breakdown(state, player_index)
-
-	var opponent_index: int = _opponent(player_index)
-	var target: Vector2i = state.players[opponent_index].base
-	var path_result: Dictionary = _get_path_tempo_result(state, player_index, target, true)
-	var path_cost: float = float(path_result.cost)
-	if path_cost >= 99.0:
-		return _make_tempo_breakdown(99.0, 99.0, -1.0, 0.0, 0.0, 0.0)
-
-	var chain_result: Dictionary = _get_chain_penalty_result(state, player_index, path_cost)
-	var chain_cut_cost: float = float(chain_result.cut_cost)
-	var chain_penalty: float = float(chain_result.penalty)
-	var own_hand_size: int = _get_tempo_hand_size(state, player_index)
-	var opponent_hand_size: int = _get_tempo_hand_size(state, opponent_index)
-	var opponent_hand_advantage: int = max(0, opponent_hand_size - own_hand_size)
-	var turn_penalty: int = 0
-	if int(state.current_player) != player_index:
-		turn_penalty = 1
-	var hand_penalty: float = float(opponent_hand_advantage)
-	var tempo: float = path_cost + chain_penalty + hand_penalty + float(turn_penalty)
-	return _make_tempo_breakdown(tempo, path_cost, chain_cut_cost, chain_penalty, hand_penalty, float(turn_penalty))
-
-
-func _get_next_turn_finish_threat_breakdown(state: Dictionary, player_index: int) -> Dictionary:
-	var path_cost: float = 1.0
-	var chain_result: Dictionary = _get_chain_penalty_result(state, player_index, path_cost)
-	var chain_cut_cost: float = float(chain_result.cut_cost)
-	var chain_penalty: float = float(chain_result.penalty)
-	return _make_tempo_breakdown(path_cost + chain_penalty, path_cost, chain_cut_cost, chain_penalty, 0.0, 0.0)
-
-
-func _make_tempo_breakdown(
-	tempo: float,
-	path_cost: float,
-	chain_cut_cost: float,
-	chain_penalty: float,
-	hand_penalty: float,
-	turn_penalty: float
-) -> Dictionary:
-	return {
-		"tempo": tempo,
-		"path_cost": path_cost,
-		"chain_cut_cost": chain_cut_cost,
-		"chain_penalty": chain_penalty,
-		"hand_penalty": hand_penalty,
-		"turn_penalty": turn_penalty
-	}
-
-
-func _get_tempo_hand_size(state: Dictionary, player_index: int) -> int:
-	return min(state.players[player_index].hand.size(), MAX_HAND)
-
-
 func _get_min_path_actions_to_supply_enemy_base(state: Dictionary, player_index: int) -> float:
-	var opponent_index: int = _opponent(player_index)
-	var target: Vector2i = state.players[opponent_index].base
-	var result: Dictionary = _get_path_tempo_result(state, player_index, target, true)
-	return float(result.cost)
-
-
-func _get_path_tempo_result(
-	state: Dictionary,
-	player_index: int,
-	target: Vector2i,
-	target_is_enemy_base: bool,
-	override_cell: Vector2i = Vector2i(-1, -1),
-	override_cost: float = -1.0
-) -> Dictionary:
-	return _get_path_tempo_result_from_start(
-		state,
-		player_index,
-		state.players[player_index].base,
-		target,
-		target_is_enemy_base,
-		override_cell,
-		override_cost
-	)
-
-
-func _get_path_tempo_result_from_start(
-	state: Dictionary,
-	player_index: int,
-	start: Vector2i,
-	target: Vector2i,
-	target_is_enemy_base: bool,
-	override_cell: Vector2i = Vector2i(-1, -1),
-	override_cost: float = -1.0
-) -> Dictionary:
-	var distances: Dictionary = _get_tempo_distance_map_from_start(
-		state,
-		player_index,
-		start,
-		target,
-		target_is_enemy_base,
-		override_cell,
-		override_cost
-	)
-	var parents: Dictionary = distances.parents
-	var costs: Dictionary = distances.costs
-	if costs.has(target):
-		return {
-			"cost": float(costs[target]),
-			"path": _build_tempo_path(target, parents)
-		}
-	return {
-		"cost": 99.0,
-		"path": []
-	}
-
-
-func _get_tempo_distance_map_from_start(
-	state: Dictionary,
-	player_index: int,
-	start: Vector2i,
-	target: Vector2i,
-	target_is_enemy_base: bool,
-	override_cell: Vector2i = Vector2i(-1, -1),
-	override_cost: float = -1.0
-) -> Dictionary:
-	var distances = {}
-	var parents = {}
-	var unvisited: Array = []
-
-	distances[start] = 0.0
-	parents[start] = start
-	unvisited.append(start)
-
-	while not unvisited.is_empty():
-		var current: Vector2i = _pop_lowest_tempo_cell(unvisited, distances)
-		var current_cost: float = float(distances[current])
-		for direction in [Vector2i.UP, Vector2i.DOWN, Vector2i.LEFT, Vector2i.RIGHT]:
-			var next: Vector2i = current + direction
-			if not _is_inside(next):
-				continue
-			if _has_barrier_in_state(state, current, next):
-				continue
-
-			var step_cost: float
-			if target_is_enemy_base and next == target:
-				step_cost = 0.0
-			else:
-				step_cost = _get_cell_supply_card_cost(state, player_index, next, override_cell, override_cost)
-
-			var new_cost: float = current_cost + step_cost
-			if not distances.has(next) or new_cost < float(distances[next]):
-				distances[next] = new_cost
-				parents[next] = current
-				if not unvisited.has(next):
-					unvisited.append(next)
-
-	return {
-		"costs": distances,
-		"parents": parents
-	}
-
-
-func _build_tempo_path(target: Vector2i, parents: Dictionary) -> Array:
-	if not parents.has(target):
-		return []
-	var path: Array = []
-	var current: Vector2i = target
-	while true:
-		path.push_front(current)
-		var parent: Vector2i = parents[current]
-		if parent == current:
-			break
-		current = parent
-	return path
-
-
-func _pop_lowest_tempo_cell(cells: Array, distances: Dictionary) -> Vector2i:
-	var best_array_index: int = 0
-	var best_cell: Vector2i = cells[0]
-	var best_distance: float = float(distances[best_cell])
-	for i in range(1, cells.size()):
-		var cell: Vector2i = cells[i]
-		var distance: float = float(distances[cell])
-		if distance < best_distance:
-			best_distance = distance
-			best_cell = cell
-			best_array_index = i
-	cells.remove_at(best_array_index)
-	return best_cell
-
-
-func _get_cell_supply_card_cost(
-	state: Dictionary,
-	player_index: int,
-	cell: Vector2i,
-	override_cell: Vector2i = Vector2i(-1, -1),
-	override_cost: float = -1.0
-) -> float:
-	if cell == override_cell and override_cost >= 0.0:
-		return override_cost
-
-	var owner: int = _top_owner_in_state(state, cell)
-	if owner == player_index:
-		return 0.0
-	if owner == -1:
-		return 1.0
-	if _top_face_down_in_state(state, cell):
-		return 3.0
-
-	var power: int = _top_power_in_state(state, cell)
-	return 2.0 + float(power)
-
-
-func _get_tempo_reverse_distance_map_to_target(
-	state: Dictionary,
-	player_index: int,
-	target: Vector2i,
-	target_is_enemy_base: bool,
-	override_cell: Vector2i = Vector2i(-1, -1),
-	override_cost: float = -1.0
-) -> Dictionary:
-	var distances = {}
-	var unvisited: Array = []
-
-	distances[target] = 0.0
-	unvisited.append(target)
-
-	while not unvisited.is_empty():
-		var current: Vector2i = _pop_lowest_tempo_cell(unvisited, distances)
-		var current_cost: float = float(distances[current])
-		var enter_current_cost: float
-		if target_is_enemy_base and current == target:
-			enter_current_cost = 0.0
-		else:
-			enter_current_cost = _get_cell_supply_card_cost(state, player_index, current, override_cell, override_cost)
-
-		for direction in [Vector2i.UP, Vector2i.DOWN, Vector2i.LEFT, Vector2i.RIGHT]:
-			var previous: Vector2i = current + direction
-			if not _is_inside(previous):
-				continue
-			if _has_barrier_in_state(state, current, previous):
-				continue
-
-			var new_cost: float = current_cost + enter_current_cost
-			if not distances.has(previous) or new_cost < float(distances[previous]):
-				distances[previous] = new_cost
-				if not unvisited.has(previous):
-					unvisited.append(previous)
-
-	return distances
-
-
-func _get_chain_penalty_result(state: Dictionary, player_index: int, base_path_cost: float) -> Dictionary:
-	var chain_cut_cost: float = _get_chain_cut_cost(state, player_index, base_path_cost)
-	if chain_cut_cost < 0.0:
-		return {
-			"cut_cost": chain_cut_cost,
-			"penalty": 0.0
-		}
-
-	var danger_limit: float = base_path_cost + TEMPO_NEAR_PATH_MARGIN
-	if chain_cut_cost > danger_limit:
-		return {
-			"cut_cost": chain_cut_cost,
-			"penalty": 0.0
-		}
-
-	return {
-		"cut_cost": chain_cut_cost,
-		"penalty": max(0.0, danger_limit - chain_cut_cost)
-	}
-
-
-func _get_chain_cut_cost(state: Dictionary, player_index: int, base_path_cost: float) -> float:
-	var chain_nodes: Dictionary = _get_supplied_chain_nodes(state, player_index)
-	var attack_terminals: Dictionary = _get_chain_attack_terminals(state, player_index, base_path_cost, chain_nodes)
-	if attack_terminals.is_empty():
-		return -1.0
-	return _get_min_chain_cut_cost(state, player_index, chain_nodes, attack_terminals)
-
-
-func _get_supplied_chain_nodes(state: Dictionary, player_index: int) -> Dictionary:
-	var chain_nodes = {}
-	var supplied_cells: Dictionary = _get_supplied_cells_in_state(state, player_index)
-	var base: Vector2i = state.players[player_index].base
-	chain_nodes[base] = true
-	for cell in supplied_cells.keys():
-		if cell == base:
-			continue
-		if _top_owner_in_state(state, cell) == player_index:
-			chain_nodes[cell] = true
-	return chain_nodes
-
-
-func _get_chain_attack_terminals(state: Dictionary, player_index: int, base_path_cost: float, chain_nodes: Dictionary) -> Dictionary:
-	var terminals = {}
-	var opponent_index: int = _opponent(player_index)
-	var target: Vector2i = state.players[opponent_index].base
-	var base: Vector2i = state.players[player_index].base
-	var distance_result: Dictionary = _get_tempo_distance_map_from_start(state, player_index, base, target, true)
-	var base_distances: Dictionary = distance_result.costs
-	var target_distances: Dictionary = _get_tempo_reverse_distance_map_to_target(state, player_index, target, true)
-	var near_limit: float = base_path_cost + TEMPO_NEAR_PATH_MARGIN
-
-	for cell in chain_nodes.keys():
-		if cell == base:
-			continue
-		if not base_distances.has(cell):
-			continue
-
-		var cell_distance: float = float(base_distances[cell])
-		for direction in [Vector2i.UP, Vector2i.DOWN, Vector2i.LEFT, Vector2i.RIGHT]:
-			var next: Vector2i = cell + direction
-			if not _is_inside(next):
-				continue
-			if chain_nodes.has(next):
-				continue
-			if not target_distances.has(next):
-				continue
-			if _has_barrier_in_state(state, cell, next):
-				continue
-
-			var step_cost: float
-			if next == target:
-				step_cost = 0.0
-			else:
-				step_cost = _get_cell_supply_card_cost(state, player_index, next)
-			var route_cost: float = cell_distance + step_cost + float(target_distances[next])
-			if route_cost <= near_limit + AI_SCORE_EPSILON:
-				terminals[cell] = true
-				break
-	return terminals
-
-
-func _get_min_chain_cut_cost(state: Dictionary, player_index: int, chain_nodes: Dictionary, attack_terminals: Dictionary) -> float:
-	var node_ids = {}
-	var next_node_id: int = 0
-	for cell in chain_nodes.keys():
-		node_ids[cell] = {
-			"in": next_node_id,
-			"out": next_node_id + 1
-		}
-		next_node_id += 2
-
-	var source: int = int(node_ids[state.players[player_index].base].out)
-	var sink: int = next_node_id
-	var capacity = {}
-	for cell in chain_nodes.keys():
-		var ids: Dictionary = node_ids[cell]
-		var node_capacity: float = _get_chain_node_cut_capacity(state, player_index, cell)
-		_add_flow_edge(capacity, int(ids["in"]), int(ids["out"]), node_capacity)
-		if attack_terminals.has(cell):
-			_add_flow_edge(capacity, int(ids["out"]), sink, CHAIN_CUT_INF_CAPACITY)
-
-	for cell in chain_nodes.keys():
-		var ids: Dictionary = node_ids[cell]
-		for direction in [Vector2i.UP, Vector2i.DOWN, Vector2i.LEFT, Vector2i.RIGHT]:
-			var next: Vector2i = cell + direction
-			if not chain_nodes.has(next):
-				continue
-			if _has_barrier_in_state(state, cell, next):
-				continue
-			var next_ids: Dictionary = node_ids[next]
-			_add_flow_edge(capacity, int(ids["out"]), int(next_ids["in"]), CHAIN_CUT_INF_CAPACITY)
-
-	return _get_max_flow(capacity, source, sink)
-
-
-func _get_chain_node_cut_capacity(state: Dictionary, player_index: int, cell: Vector2i) -> float:
-	if cell == state.players[player_index].base:
-		return CHAIN_CUT_INF_CAPACITY
-	var opponent_index: int = _opponent(player_index)
-	var opponent_break_result: Dictionary = _get_path_tempo_result(state, opponent_index, cell, false)
-	var opponent_break_cost: float = float(opponent_break_result.cost)
-	if opponent_break_cost >= 99.0:
-		return CHAIN_CUT_INF_CAPACITY
-	return opponent_break_cost
-
-
-func _add_flow_edge(capacity: Dictionary, from_node: int, to_node: int, amount: float) -> void:
-	if not capacity.has(from_node):
-		capacity[from_node] = {}
-	if not capacity.has(to_node):
-		capacity[to_node] = {}
-	capacity[from_node][to_node] = float(capacity[from_node].get(to_node, 0.0)) + amount
-	capacity[to_node][from_node] = float(capacity[to_node].get(from_node, 0.0))
-
-
-func _get_max_flow(capacity: Dictionary, source: int, sink: int) -> float:
-	var flow: float = 0.0
-	while true:
-		var parents: Dictionary = _find_flow_path(capacity, source, sink)
-		if parents.is_empty():
-			return flow
-
-		var path_capacity: float = CHAIN_CUT_INF_CAPACITY
-		var node: int = sink
-		while node != source:
-			var parent: int = int(parents[node])
-			path_capacity = min(path_capacity, float(capacity[parent][node]))
-			node = parent
-
-		node = sink
-		while node != source:
-			var parent: int = int(parents[node])
-			capacity[parent][node] = float(capacity[parent][node]) - path_capacity
-			capacity[node][parent] = float(capacity[node][parent]) + path_capacity
-			node = parent
-
-		flow += path_capacity
-		if flow >= CHAIN_CUT_INF_CAPACITY:
-			return CHAIN_CUT_INF_CAPACITY
-	return flow
-
-
-func _find_flow_path(capacity: Dictionary, source: int, sink: int) -> Dictionary:
-	var parents = {}
-	var queue: Array = [source]
-	parents[source] = source
-	while not queue.is_empty():
-		var current: int = int(queue.pop_front())
-		var edges: Dictionary = capacity.get(current, {})
-		for next_key in edges.keys():
-			var next: int = int(next_key)
-			if parents.has(next):
-				continue
-			if float(edges[next]) <= CHAIN_FLOW_EPSILON:
-				continue
-			parents[next] = current
-			if next == sink:
-				return parents
-			queue.append(next)
-	return {}
-
-
-func _can_finish_with_hand_in_state(state: Dictionary, player_index: int) -> bool:
-	var hand: Array = state.players[player_index].hand
-	var target: Vector2i = state.players[_opponent(player_index)].base
-	for hand_index in range(hand.size()):
-		var card: Dictionary = hand[hand_index].duplicate(true)
-		card.face_down = false
-		if _can_play_card_in_state(state, card, target):
-			return true
-	return false
+	return ai_logic.get_min_path_actions_to_supply_enemy_base(state, player_index)
 
 
 func _get_live_game_state() -> Dictionary:
