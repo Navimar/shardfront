@@ -221,6 +221,9 @@ func _get_tempo_distance_map_from_start(
 	var distances = {}
 	var parents = {}
 	var unvisited: Array = []
+	var supply_edges: Dictionary = game._get_supply_edges_in_state(state, player_index)
+	var supply_origins: Dictionary = game._get_supply_origin_cells_in_state(state, player_index)
+	var supplied_cells: Dictionary = game._get_supplied_cells_in_state(state, player_index)
 
 	distances[start] = 0.0
 	parents[start] = start
@@ -229,12 +232,8 @@ func _get_tempo_distance_map_from_start(
 	while not unvisited.is_empty():
 		var current: Vector2i = _pop_lowest_tempo_cell(unvisited, distances)
 		var current_cost: float = float(distances[current])
-		for direction in [Vector2i.UP, Vector2i.DOWN, Vector2i.LEFT, Vector2i.RIGHT]:
-			var next: Vector2i = current + direction
-			if not game._is_inside(next):
-				continue
-			if game._has_barrier_in_state(state, current, next):
-				continue
+		var next_cells: Array = _get_tempo_next_cells(state, player_index, current, supply_edges, supply_origins, supplied_cells)
+		for next in next_cells:
 
 			var step_cost: float
 			if target_is_enemy_base and next == target:
@@ -253,6 +252,34 @@ func _get_tempo_distance_map_from_start(
 		"costs": distances,
 		"parents": parents
 	}
+
+
+func _get_tempo_next_cells(
+	state: Dictionary,
+	player_index: int,
+	current: Vector2i,
+	supply_edges: Dictionary,
+	supply_origins: Dictionary,
+	supplied_cells: Dictionary
+) -> Array:
+	if supply_origins.has(current):
+		var edges: Dictionary = supply_edges.get(current, {})
+		return edges.keys()
+	if supplied_cells.has(current) and game._top_owner_in_state(state, current) == player_index:
+		return []
+	return _get_standard_tempo_next_cells(state, current)
+
+
+func _get_standard_tempo_next_cells(state: Dictionary, current: Vector2i) -> Array:
+	var cells: Array = []
+	for direction in [Vector2i.UP, Vector2i.DOWN, Vector2i.LEFT, Vector2i.RIGHT]:
+		var next: Vector2i = current + direction
+		if not game._is_inside(next):
+			continue
+		if game._has_barrier_in_state(state, current, next):
+			continue
+		cells.append(next)
+	return cells
 
 
 func _build_tempo_path(target: Vector2i, parents: Dictionary) -> Array:
@@ -324,16 +351,13 @@ func _get_tempo_threat_penalty(state: Dictionary, player_index: int, cell: Vecto
 
 func _is_threatened_by_opponent_supply(state: Dictionary, player_index: int, cell: Vector2i) -> bool:
 	var opponent_index: int = game._opponent(player_index)
-	var opponent_supplied_cells: Dictionary = game._get_supplied_cells_in_state(state, opponent_index)
-	for direction in [Vector2i.UP, Vector2i.DOWN, Vector2i.LEFT, Vector2i.RIGHT]:
-		var adjacent: Vector2i = cell + direction
-		if not game._is_inside(adjacent):
+	var opponent_edges: Dictionary = game._get_supply_edges_in_state(state, opponent_index)
+	var opponent_origins: Dictionary = game._get_supply_origin_cells_in_state(state, opponent_index)
+	for origin in opponent_origins.keys():
+		if game._top_owner_in_state(state, origin) != opponent_index:
 			continue
-		if game._has_barrier_in_state(state, cell, adjacent):
-			continue
-		if not opponent_supplied_cells.has(adjacent):
-			continue
-		if game._top_owner_in_state(state, adjacent) == opponent_index:
+		var edges: Dictionary = opponent_edges.get(origin, {})
+		if edges.has(cell):
 			return true
 	return false
 

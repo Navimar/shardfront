@@ -62,6 +62,7 @@ const PLAYABLE_SUPPLY_PIPE_WIDTH: float = float(CELL_GAP)
 const UnitScene: PackedScene = preload("res://scenes/unit.tscn")
 const GameAi: Script = preload("res://scripts/main/game_ai.gd")
 const GameAnimation: Script = preload("res://scripts/main/game_animation.gd")
+const GameBoardDraw: Script = preload("res://scripts/main/game_board_draw.gd")
 const GameSupply: Script = preload("res://scripts/main/game_supply.gd")
 const WoodBaseTexture: Texture2D = preload("res://assets/bases/base_single.jpg")
 const MetalBaseTexture: Texture2D = preload("res://assets/bases/bases_pair.jpg")
@@ -80,9 +81,9 @@ var animation_running: bool = false
 var ai_running: bool = false
 var ai_logic: RefCounted
 var animation_logic: RefCounted
+var board_draw_logic: RefCounted
 var supply_logic: RefCounted
 var next_card_id: int = 1
-var displayed_supply_control_cells: Dictionary = {}
 var supply_control_transition: Dictionary = {}
 var supply_control_transition_progress: float = 1.0
 
@@ -116,6 +117,7 @@ func _ready() -> void:
 	randomize()
 	ai_logic = GameAi.new(self)
 	animation_logic = GameAnimation.new(self)
+	board_draw_logic = GameBoardDraw.new(self)
 	supply_logic = GameSupply.new(self)
 	_setup_game()
 	_build_ui()
@@ -181,6 +183,8 @@ func _setup_game() -> void:
 
 	_draw_cards(0, 4)
 	_draw_cards(1, 5)
+	if board_draw_logic != null:
+		board_draw_logic.set_displayed_supply_origin_cells(_get_all_supply_origin_cells_in_state(_get_live_game_state()))
 
 
 func _clear_all_card_views() -> void:
@@ -388,23 +392,23 @@ func _build_ui() -> void:
 	board_grid.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	board_grid.add_theme_constant_override("h_separation", CELL_GAP)
 	board_grid.add_theme_constant_override("v_separation", CELL_GAP)
-	board_grid.resized.connect(_queue_barrier_redraw)
+	board_grid.resized.connect(board_draw_logic.queue_board_redraw)
 	board_area.add_child(board_grid)
 
 	supply_line_layer = Control.new()
 	supply_line_layer.set_anchors_preset(Control.PRESET_FULL_RECT)
 	supply_line_layer.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	supply_line_layer.z_index = 5
-	supply_line_layer.draw.connect(_on_supply_line_layer_draw)
-	supply_line_layer.resized.connect(_queue_barrier_redraw)
+	supply_line_layer.draw.connect(board_draw_logic.on_supply_line_layer_draw)
+	supply_line_layer.resized.connect(board_draw_logic.queue_board_redraw)
 	board_area.add_child(supply_line_layer)
 
 	barrier_layer = Control.new()
 	barrier_layer.set_anchors_preset(Control.PRESET_FULL_RECT)
 	barrier_layer.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	barrier_layer.z_index = 20
-	barrier_layer.draw.connect(_on_barrier_layer_draw)
-	barrier_layer.resized.connect(_queue_barrier_redraw)
+	barrier_layer.draw.connect(board_draw_logic.on_barrier_layer_draw)
+	barrier_layer.resized.connect(board_draw_logic.queue_board_redraw)
 	board_area.add_child(barrier_layer)
 
 	tempo_debug_label = Label.new()
@@ -552,7 +556,7 @@ func _sync_ui_chrome() -> void:
 			cell_panel.add_theme_stylebox_override("panel", _make_cell_style(_get_board_cell_fill_color(has_stack), BOARD_CELL_BORDER_COLOR))
 			label.modulate = Color(1.0, 1.0, 1.0)
 
-	_queue_barrier_redraw()
+	board_draw_logic.queue_board_redraw()
 	_refresh_discard_button()
 	_set_action_buttons_enabled(_can_press_minor_action_button())
 	replay_button.visible = game_over
@@ -960,7 +964,7 @@ func _resize_board_to_available() -> void:
 	for cell_panel in board_cells.values():
 		cell_panel.custom_minimum_size = Vector2(CELL_SIZE, CELL_SIZE)
 
-	_queue_barrier_redraw()
+	board_draw_logic.queue_board_redraw()
 
 
 func _position_tempo_debug_label() -> void:
@@ -1355,389 +1359,12 @@ func _get_card_from_event(event: Dictionary) -> Dictionary:
 	}
 
 
-func _queue_barrier_redraw() -> void:
-	if supply_line_layer != null:
-		supply_line_layer.queue_redraw()
-	if barrier_layer != null:
-		barrier_layer.queue_redraw()
-
-
-func _on_supply_line_layer_draw() -> void:
-	_draw_supply_networks()
-	_draw_board_grid_lines()
-	var playable_cells: Dictionary = _get_playable_cells_for_ui_pending_action()
-	_draw_playable_supply_lines(playable_cells)
-
-
-func _on_barrier_layer_draw() -> void:
-	var playable_cells: Dictionary = _get_playable_cells_for_ui_pending_action()
-	_draw_playable_arrow_heads(playable_cells)
-
-	for y in range(GRID_HEIGHT):
-		for x in range(GRID_WIDTH):
-			var cell: Vector2i = Vector2i(x, y)
-			var right: Vector2i = cell + Vector2i.RIGHT
-			if _is_inside(right) and _has_barrier(cell, right):
-				_draw_barrier_between(cell, right)
-
-			var down: Vector2i = cell + Vector2i.DOWN
-			if _is_inside(down) and _has_barrier(cell, down):
-				_draw_barrier_between(cell, down)
-
-
-func _draw_playable_supply_lines(playable_cells: Dictionary) -> void:
-	if playable_cells.is_empty():
-		return
-
-	var control_cells: Dictionary = _get_supply_control_cells(current_player)
-	var supply_edges: Dictionary = _get_supply_edges(current_player)
-	var drawn_segments: Dictionary = {}
-	for from_cell in supply_edges.keys():
-		if not _should_draw_supply_network_cell(from_cell, control_cells):
-			continue
-		var edges: Dictionary = supply_edges[from_cell]
-		for to_cell in edges.keys():
-			if _should_draw_supply_network_cell(to_cell, control_cells):
-				var segment_key: String = _get_undirected_segment_key(from_cell, to_cell)
-				if drawn_segments.has(segment_key):
-					continue
-				drawn_segments[segment_key] = true
-				_draw_playable_supply_segment(from_cell, to_cell, true, Color(0.88, 0.08, 0.06, 1.0))
-			elif playable_cells.has(to_cell) and _top_owner(to_cell) != current_player:
-				_draw_playable_supply_segment(from_cell, to_cell, false, Color(0.88, 0.08, 0.06, 1.0))
-
-
-func _draw_board_grid_lines() -> void:
-	if board_grid == null:
-		return
-
-	var layer_position: Vector2 = supply_line_layer.get_global_rect().position
-	var board_rect: Rect2 = board_grid.get_global_rect()
-	var board_position: Vector2 = board_rect.position - layer_position
-	var board_size: Vector2 = board_rect.size
-
-	for x in range(GRID_WIDTH + 1):
-		var line_x: float = board_position.x
-		if x == GRID_WIDTH:
-			line_x += board_size.x
-		elif x > 0:
-			line_x += float(x * CELL_SIZE) + (float(x) - 0.5) * float(CELL_GAP)
-		_draw_sketch_grid_line(
-			Vector2(line_x, board_position.y),
-			Vector2(line_x, board_position.y + board_size.y),
-			x
-		)
-
-	for y in range(GRID_HEIGHT + 1):
-		var line_y: float = board_position.y
-		if y == GRID_HEIGHT:
-			line_y += board_size.y
-		elif y > 0:
-			line_y += float(y * CELL_SIZE) + (float(y) - 0.5) * float(CELL_GAP)
-		_draw_sketch_grid_line(
-			Vector2(board_position.x, line_y),
-			Vector2(board_position.x + board_size.x, line_y),
-			100 + y
-		)
-
-
-func _draw_sketch_grid_line(start: Vector2, end: Vector2, line_seed: int) -> void:
-	var direction: Vector2 = (end - start).normalized()
-	var side: Vector2 = Vector2(-direction.y, direction.x)
-
-	for stroke_index in range(BOARD_GRID_SKETCH_STROKES):
-		var stroke_offset: float = (float(stroke_index) - 1.0) * 0.42
-		for segment_index in range(BOARD_GRID_SKETCH_SEGMENTS):
-			var noise_seed: int = line_seed * 1000 + stroke_index * 100 + segment_index
-			if _grid_line_noise(noise_seed) < 0.12:
-				continue
-
-			var t0: float = float(segment_index) / float(BOARD_GRID_SKETCH_SEGMENTS)
-			var t1: float = float(segment_index + 1) / float(BOARD_GRID_SKETCH_SEGMENTS)
-			t0 += _grid_line_noise(noise_seed + 17) * 0.012
-			t1 -= _grid_line_noise(noise_seed + 31) * 0.012
-			if t0 >= t1:
-				continue
-
-			var start_jitter: float = (_grid_line_noise(noise_seed + 43) - 0.5) * BOARD_GRID_SKETCH_JITTER + stroke_offset
-			var end_jitter: float = (_grid_line_noise(noise_seed + 59) - 0.5) * BOARD_GRID_SKETCH_JITTER + stroke_offset
-			var from_point: Vector2 = start.lerp(end, t0) + side * start_jitter
-			var to_point: Vector2 = start.lerp(end, t1) + side * end_jitter
-			var color: Color = BOARD_GRID_LINE_COLOR
-			color.a *= 0.45 + _grid_line_noise(noise_seed + 71) * 0.55
-			var width: float = BOARD_GRID_LINE_WIDTH + _grid_line_noise(noise_seed + 83) * 0.35
-			supply_line_layer.draw_line(from_point, to_point, color, width)
-
-
-func _grid_line_noise(seed: int) -> float:
-	return fposmod(sin(float(seed) * 12.9898) * 43758.5453, 1.0)
-
-
-func _draw_playable_arrow_heads(playable_cells: Dictionary) -> void:
-	if playable_cells.is_empty():
-		return
-
-	var control_cells: Dictionary = _get_supply_control_cells(current_player)
-	var supply_edges: Dictionary = _get_supply_edges(current_player)
-	for from_cell in supply_edges.keys():
-		if not _should_draw_supply_network_cell(from_cell, control_cells):
-			continue
-		var edges: Dictionary = supply_edges[from_cell]
-		for to_cell in edges.keys():
-			if playable_cells.has(to_cell) and _top_owner(to_cell) != current_player:
-				_draw_playable_arrow_head_between(from_cell, to_cell, playable_cells)
-
-
-func _draw_playable_arrow_head_between(from_cell: Vector2i, to_cell: Vector2i, playable_cells: Dictionary) -> void:
-	if not _is_inside(to_cell):
-		return
-	if not playable_cells.has(to_cell):
-		return
-	if _top_owner(to_cell) == current_player:
-		return
-	var from_rect: Rect2 = _get_cell_rect_on_layer(from_cell, barrier_layer)
-	var to_rect: Rect2 = _get_cell_rect_on_layer(to_cell, barrier_layer)
-	var direction: Vector2 = (to_rect.get_center() - from_rect.get_center()).normalized()
-	var tip: Vector2 = _get_rect_edge_point(to_rect, -direction) + direction * 10.0
-	_draw_arrow_head(tip, direction, Color(0.88, 0.08, 0.06, 1.0), PLAYABLE_SUPPLY_PIPE_WIDTH)
-
-
-func _draw_supply_networks() -> void:
-	if not supply_control_transition.is_empty():
-		_draw_supply_control_transition()
-		return
-	for player_index in range(players.size()):
-		_draw_supply_network(player_index)
-
-
-func _draw_supply_network(player_index: int) -> void:
-	var color: Color = _get_player_card_color(player_index).darkened(SUPPLY_CONTROL_DARKEN_AMOUNT)
-	var controlled_cells: Dictionary = displayed_supply_control_cells.get(player_index, {})
-	if controlled_cells.is_empty():
-		controlled_cells = _get_supply_control_cells(player_index)
-	color.a = SUPPLY_CONTROL_ALPHA
-	for cell in controlled_cells.keys():
-		_draw_supply_control_cell(cell, color)
-
-
-func _draw_supply_control_transition() -> void:
-	var from_cells_by_player: Dictionary = supply_control_transition.get("from_cells", {})
-	var to_cells_by_player: Dictionary = supply_control_transition.get("to_cells", {})
-	var cells: Dictionary = {}
-	for player_index in from_cells_by_player.keys():
-		for cell in Dictionary(from_cells_by_player[player_index]).keys():
-			cells[cell] = true
-	for player_index in to_cells_by_player.keys():
-		for cell in Dictionary(to_cells_by_player[player_index]).keys():
-			cells[cell] = true
-
-	for cell in cells.keys():
-		var from_player: int = _find_supply_control_cell_player(from_cells_by_player, cell)
-		var to_player: int = _find_supply_control_cell_player(to_cells_by_player, cell)
-		var color: Color = _get_supply_control_transition_color(from_player, to_player)
-		if color.a <= 0.01:
-			continue
-		_draw_supply_control_cell(cell, color)
-
-
-func _find_supply_control_cell_player(cells_by_player: Dictionary, cell: Vector2i) -> int:
-	for player_index in cells_by_player.keys():
-		var cells: Dictionary = cells_by_player[player_index]
-		if cells.has(cell):
-			return int(player_index)
-	return -1
-
-
-func _get_supply_control_transition_color(from_player: int, to_player: int) -> Color:
-	if from_player == to_player and from_player != -1:
-		var same_color: Color = _get_supply_control_player_color(from_player)
-		same_color.a = SUPPLY_CONTROL_ALPHA
-		return same_color
-	if from_player != -1 and to_player != -1:
-		var from_color: Color = _get_supply_control_player_color(from_player)
-		var to_color: Color = _get_supply_control_player_color(to_player)
-		var changed_color: Color = from_color.lerp(to_color, supply_control_transition_progress)
-		changed_color.a = SUPPLY_CONTROL_ALPHA
-		return changed_color
-	if to_player != -1:
-		var appear_color: Color = _get_supply_control_player_color(to_player)
-		appear_color.a = SUPPLY_CONTROL_ALPHA * supply_control_transition_progress
-		return appear_color
-	if from_player != -1:
-		var disappear_color: Color = _get_supply_control_player_color(from_player)
-		disappear_color.a = SUPPLY_CONTROL_ALPHA * (1.0 - supply_control_transition_progress)
-		return disappear_color
-	return Color(0.0, 0.0, 0.0, 0.0)
-
-
-func _get_supply_control_player_color(player_index: int) -> Color:
-	return _get_player_card_color(player_index).darkened(SUPPLY_CONTROL_DARKEN_AMOUNT)
-
-
-func _get_supply_control_cells(player_index: int) -> Dictionary:
-	return supply_logic.get_supply_control_cells(_get_live_game_state(), player_index)
-
-
 func _get_supply_edges(player_index: int) -> Dictionary:
 	return supply_logic.get_supply_edges(_get_live_game_state(), player_index)
 
 
-func _draw_supply_control_cell(cell: Vector2i, color: Color) -> void:
-	var rect: Rect2 = _get_cell_rect_on_layer(cell, supply_line_layer)
-	var half_gap: float = float(CELL_GAP) * 0.5
-	var expanded_rect: Rect2 = rect.grow(half_gap)
-	supply_line_layer.draw_rect(expanded_rect, color)
-
-
-func _should_draw_supply_network_cell(cell: Vector2i, control_cells: Dictionary) -> bool:
-	return control_cells.has(cell)
-
-
-func _get_undirected_segment_key(from_cell: Vector2i, to_cell: Vector2i) -> String:
-	var first: Vector2i = from_cell
-	var second: Vector2i = to_cell
-	if _is_cell_after(first, second):
-		first = to_cell
-		second = from_cell
-	return "%d,%d:%d,%d" % [first.x, first.y, second.x, second.y]
-
-
-func _is_cell_after(first: Vector2i, second: Vector2i) -> bool:
-	if first.y != second.y:
-		return first.y > second.y
-	return first.x > second.x
-
-
-func _draw_playable_supply_segment(from_cell: Vector2i, to_cell: Vector2i, center_to_center: bool, color: Color) -> void:
-	var from_rect: Rect2 = _get_cell_rect_on_layer(from_cell, supply_line_layer)
-	var to_rect: Rect2 = _get_cell_rect_on_layer(to_cell, supply_line_layer)
-	var direction: Vector2 = (to_rect.get_center() - from_rect.get_center()).normalized()
-	var segment_end: Vector2 = to_rect.get_center()
-	if not center_to_center:
-		segment_end = _get_rect_edge_point(to_rect, -direction)
-	supply_line_layer.draw_line(from_rect.get_center(), segment_end, color, PLAYABLE_SUPPLY_PIPE_WIDTH, true)
-
-
-func _build_supply_path(target_cell: Vector2i, parents: Dictionary) -> Array:
-	var path: Array = [target_cell]
-	var current: Vector2i = target_cell
-	while parents.has(current):
-		var parent: Vector2i = parents[current]
-		if parent == current:
-			break
-		path.push_front(parent)
-		current = parent
-	return path
-
-
-func _draw_supply_line_path(path: Array, is_secondary: bool) -> void:
-	if path.size() < 2:
-		return
-
-	var color: Color = Color(0.88, 0.08, 0.06, 1.0)
-	var width: float = PLAYABLE_SUPPLY_PIPE_WIDTH
-
-	for i in range(path.size() - 1):
-		var from_rect: Rect2 = _get_cell_rect_on_layer(path[i], supply_line_layer)
-		var to_rect: Rect2 = _get_cell_rect_on_layer(path[i + 1], supply_line_layer)
-		var direction: Vector2 = (to_rect.get_center() - from_rect.get_center()).normalized()
-		var segment_start: Vector2 = from_rect.get_center()
-		var segment_end: Vector2 = to_rect.get_center()
-		if i == path.size() - 2 and not is_secondary:
-			segment_end = _get_rect_edge_point(to_rect, -direction)
-		supply_line_layer.draw_line(segment_start, segment_end, color, width, true)
-
-
-func _draw_supply_arrow_head_for_path(path: Array) -> void:
-	if path.size() < 2:
-		return
-
-	var from_rect: Rect2 = _get_cell_rect_on_layer(path[path.size() - 2], barrier_layer)
-	var to_rect: Rect2 = _get_cell_rect_on_layer(path[path.size() - 1], barrier_layer)
-	var direction: Vector2 = (to_rect.get_center() - from_rect.get_center()).normalized()
-	var color: Color = Color(0.88, 0.08, 0.06, 1.0)
-	var tip: Vector2 = _get_rect_edge_point(to_rect, -direction) + direction * 15.0
-	_draw_arrow_head(tip, direction, color, PLAYABLE_SUPPLY_PIPE_WIDTH)
-
-
-func _draw_arrow_head(tip: Vector2, direction: Vector2, color: Color, width: float = PLAYABLE_SUPPLY_PIPE_WIDTH) -> void:
-	var side: Vector2 = Vector2(-direction.y, direction.x)
-	var length: float = 21.0
-	var outline_color: Color = Color(0.22, 0.03, 0.02, 1.0)
-	var outline_length: float = length + 3.0
-	var outline_width: float = width + 3.0
-	var outline_points: PackedVector2Array = PackedVector2Array([
-		tip + direction * 14.0,
-		tip - direction * outline_length + side * outline_width,
-		tip - direction * outline_length - side * outline_width
-	])
-	var points: PackedVector2Array = PackedVector2Array([
-		tip + direction * 12.0,
-		tip - direction * length + side * width,
-		tip - direction * length - side * width
-	])
-	barrier_layer.draw_colored_polygon(outline_points, outline_color)
-	barrier_layer.draw_colored_polygon(points, color)
-
-
-func _get_cell_rect_on_layer(cell: Vector2i, layer: Control) -> Rect2:
-	var cell_panel: Control = board_cells[cell]
-	var layer_position: Vector2 = layer.get_global_rect().position
-	var cell_rect: Rect2 = cell_panel.get_global_rect()
-	return Rect2(cell_rect.position - layer_position, cell_rect.size)
-
-
-func _get_rect_edge_point(rect: Rect2, direction: Vector2) -> Vector2:
-	var center: Vector2 = rect.get_center()
-	if abs(abs(direction.x) - abs(direction.y)) < 0.001:
-		var corner_x: float = rect.position.x
-		var corner_y: float = rect.position.y
-		if direction.x > 0.0:
-			corner_x += rect.size.x
-		if direction.y > 0.0:
-			corner_y += rect.size.y
-		return Vector2(corner_x, corner_y)
-	if abs(direction.x) > abs(direction.y):
-		if direction.x > 0.0:
-			return Vector2(rect.position.x + rect.size.x, center.y)
-		return Vector2(rect.position.x, center.y)
-
-	if direction.y > 0.0:
-		return Vector2(center.x, rect.position.y + rect.size.y)
-	return Vector2(center.x, rect.position.y)
-
-
-func _draw_barrier_between(first: Vector2i, second: Vector2i) -> void:
-	var first_panel: Control = board_cells[first]
-	var second_panel: Control = board_cells[second]
-	var first_rect: Rect2 = first_panel.get_global_rect()
-	var second_rect: Rect2 = second_panel.get_global_rect()
-	var layer_position: Vector2 = barrier_layer.get_global_rect().position
-	var thickness: float = 18.0
-	var frame_width: float = 3.0
-	var inset: float = 9.0
-	var frame_color: Color = Color(0.02, 0.015, 0.01)
-	var fill_color: Color = BARRIER_FILL_COLOR
-	var shine_color: Color = Color(1.0, 0.86, 0.48, 0.55)
-
-	if first.y == second.y:
-		var center_x: float = ((first_rect.position.x + first_rect.size.x) + second_rect.position.x) * 0.5 - layer_position.x
-		var top_y: float = max(first_rect.position.y, second_rect.position.y) + inset - layer_position.y
-		var height: float = min(first_rect.size.y, second_rect.size.y) - inset * 2.0
-		var outer_rect: Rect2 = Rect2(center_x - thickness * 0.5, top_y, thickness, height)
-		var inner_rect: Rect2 = outer_rect.grow(-frame_width)
-		barrier_layer.draw_rect(outer_rect, frame_color)
-		barrier_layer.draw_rect(inner_rect, fill_color)
-		barrier_layer.draw_rect(Rect2(inner_rect.position.x + frame_width, inner_rect.position.y, frame_width, inner_rect.size.y), shine_color)
-	else:
-		var center_y: float = ((first_rect.position.y + first_rect.size.y) + second_rect.position.y) * 0.5 - layer_position.y
-		var left_x: float = max(first_rect.position.x, second_rect.position.x) + inset - layer_position.x
-		var width: float = min(first_rect.size.x, second_rect.size.x) - inset * 2.0
-		var outer_rect: Rect2 = Rect2(left_x, center_y - thickness * 0.5, width, thickness)
-		var inner_rect: Rect2 = outer_rect.grow(-frame_width)
-		barrier_layer.draw_rect(outer_rect, frame_color)
-		barrier_layer.draw_rect(inner_rect, fill_color)
-		barrier_layer.draw_rect(Rect2(inner_rect.position.x, inner_rect.position.y + frame_width, inner_rect.size.x, frame_width), shine_color)
+func _get_supply_origin_cells(player_index: int) -> Dictionary:
+	return supply_logic.get_supply_origin_cells(_get_live_game_state(), player_index)
 
 
 func _get_card_short_text(card: Dictionary) -> String:
@@ -2004,7 +1631,7 @@ func _apply_action_variant_to_current_state(variant: Dictionary) -> Dictionary:
 
 func _apply_action_variant_to_state(state: Dictionary, variant: Dictionary) -> Dictionary:
 	state.events = []
-	var supply_control_before: Dictionary = _get_all_supply_control_cells_in_state(state)
+	var supply_origin_before: Dictionary = _get_all_supply_origin_cells_in_state(state)
 	var result: Dictionary = _apply_action_core_to_state(state, variant)
 	if result.status != RESULT_OK:
 		result.events = state.events
@@ -2013,7 +1640,7 @@ func _apply_action_variant_to_state(state: Dictionary, variant: Dictionary) -> D
 	_apply_after_action_rules_to_state(state, result)
 	if bool(result.get("end_turn", false)):
 		_apply_end_turn_rules_to_state(state)
-	_record_supply_control_event_if_changed_in_state(state, supply_control_before)
+	_record_supply_control_event_if_changed_in_state(state, supply_origin_before)
 	result.events = state.events
 	return result
 
@@ -2401,8 +2028,8 @@ func _record_layout_stack_event_in_state(state: Dictionary, cell: Vector2i) -> v
 
 
 func _record_supply_control_event_if_changed_in_state(state: Dictionary, before_cells: Dictionary) -> void:
-	var after_cells: Dictionary = _get_all_supply_control_cells_in_state(state)
-	if _supply_control_cells_equal(before_cells, after_cells):
+	var after_cells: Dictionary = _get_all_supply_origin_cells_in_state(state)
+	if _supply_cells_equal(before_cells, after_cells):
 		return
 	_record_action_event_in_state(state, {
 		"type": ANIMATION_SUPPLY_CONTROL,
@@ -2411,7 +2038,7 @@ func _record_supply_control_event_if_changed_in_state(state: Dictionary, before_
 	})
 
 
-func _supply_control_cells_equal(first: Dictionary, second: Dictionary) -> bool:
+func _supply_cells_equal(first: Dictionary, second: Dictionary) -> bool:
 	for player_index in first.keys():
 		var first_cells: Dictionary = first[player_index]
 		var second_cells: Dictionary = second.get(player_index, {})
@@ -2600,15 +2227,19 @@ func _get_supplied_cells_in_state(state: Dictionary, player_index: int) -> Dicti
 	return supply_logic.get_supplied_cells(state, player_index)
 
 
-func _get_all_supply_control_cells_in_state(state: Dictionary) -> Dictionary:
+func _get_all_supply_origin_cells_in_state(state: Dictionary) -> Dictionary:
 	var all_cells: Dictionary = {}
 	for player_index in range(state.players.size()):
-		all_cells[player_index] = _get_supply_control_cells_in_state(state, player_index)
+		all_cells[player_index] = _get_supply_origin_cells_in_state(state, player_index)
 	return all_cells
 
 
-func _get_supply_control_cells_in_state(state: Dictionary, player_index: int) -> Dictionary:
-	return supply_logic.get_supply_control_cells(state, player_index)
+func _get_supply_edges_in_state(state: Dictionary, player_index: int) -> Dictionary:
+	return supply_logic.get_supply_edges(state, player_index)
+
+
+func _get_supply_origin_cells_in_state(state: Dictionary, player_index: int) -> Dictionary:
+	return supply_logic.get_supply_origin_cells(state, player_index)
 
 
 func _get_stack_in_state(state: Dictionary, cell: Vector2i) -> Array:

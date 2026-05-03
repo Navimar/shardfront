@@ -12,14 +12,14 @@ func get_supplied_cells(state: Dictionary, player_index: int) -> Dictionary:
 	return result.supplied
 
 
-func get_supply_control_cells(state: Dictionary, player_index: int) -> Dictionary:
-	var result: Dictionary = calculate_supply_result(state, player_index)
-	return result.control
-
-
 func get_supply_edges(state: Dictionary, player_index: int) -> Dictionary:
 	var result: Dictionary = calculate_supply_result(state, player_index)
 	return result.edges
+
+
+func get_supply_origin_cells(state: Dictionary, player_index: int) -> Dictionary:
+	var result: Dictionary = calculate_supply_result(state, player_index)
+	return result.origins
 
 
 func calculate_supply_result(state: Dictionary, player_index: int) -> Dictionary:
@@ -61,14 +61,8 @@ func _apply_yarkiy_les_supply_rule(result: Dictionary) -> void:
 	var state: Dictionary = result.state
 	var player_index: int = int(result.player_index)
 	var opponent_index: int = game._opponent(player_index)
-	var supplied_forests: Array = []
-	for cell in result.supplied.keys():
-		if _top_owner(state, cell) == opponent_index and _top_name_key(state, cell) == game.UNIT_YARKIY_LES_NAME:
-			supplied_forests.append(cell)
-	for cell in supplied_forests:
-		_add_conductor(result, cell)
-		_add_standard_edges_for_conductor(result, cell)
-	_rebuild_reachability_from_base(result)
+	while _add_supplied_yarkiy_les_conductors(result, opponent_index):
+		_rebuild_reachability_from_base(result)
 
 
 func _apply_istukan_supply_rule(result: Dictionary) -> void:
@@ -93,7 +87,7 @@ func _make_empty_supply_result(state: Dictionary, player_index: int) -> Dictiona
 		"conductors": {},
 		"edges": {},
 		"supplied": {},
-		"control": {}
+		"origins": {}
 	}
 
 
@@ -128,6 +122,21 @@ func _apply_yarkiy_les_edges_from_current_result(result: Dictionary) -> void:
 	for cell in result.supplied.keys():
 		if _is_conductor(result, cell) and _top_owner(state, cell) == opponent_index and _top_name_key(state, cell) == game.UNIT_YARKIY_LES_NAME:
 			_add_standard_edges_for_conductor(result, cell)
+
+
+func _add_supplied_yarkiy_les_conductors(result: Dictionary, owner_index: int) -> bool:
+	var changed: bool = false
+	for cell in result.supplied.keys():
+		if _is_conductor(result, cell):
+			continue
+		if _top_owner(result.state, cell) != owner_index:
+			continue
+		if _top_name_key(result.state, cell) != game.UNIT_YARKIY_LES_NAME:
+			continue
+		_add_conductor(result, cell)
+		_add_standard_edges_for_conductor(result, cell)
+		changed = true
+	return changed
 
 
 func _add_standard_edges_for_conductors(result: Dictionary) -> void:
@@ -168,12 +177,12 @@ func _add_edge(result: Dictionary, from_cell: Vector2i, to_cell: Vector2i) -> vo
 
 func _rebuild_reachability_from_base(result: Dictionary) -> void:
 	result.supplied.clear()
-	result.control.clear()
+	result.origins.clear()
 	var base: Vector2i = result.state.players[int(result.player_index)].base
 	var queue: Array = [base]
 	result.supplied[base] = true
 	if _is_conductor(result, base):
-		result.control[base] = true
+		result.origins[base] = true
 
 	while not queue.is_empty():
 		var current: Vector2i = queue.pop_front()
@@ -183,7 +192,7 @@ func _rebuild_reachability_from_base(result: Dictionary) -> void:
 				continue
 			result.supplied[next] = true
 			if _is_conductor(result, next):
-				result.control[next] = true
+				result.origins[next] = true
 				queue.append(next)
 
 

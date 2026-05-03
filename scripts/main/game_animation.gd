@@ -92,43 +92,40 @@ func _animate_layout_stack_event(event: Dictionary) -> void:
 
 
 func _animate_supply_control_event(event: Dictionary) -> void:
-	game.displayed_supply_control_cells = event.get("from_cells", {}).duplicate(true)
 	game.supply_control_transition = event.duplicate(true)
 	game.supply_control_transition_progress = 0.0
-	game._queue_barrier_redraw()
+	game.board_draw_logic.queue_board_redraw()
 
 	var tween: Tween = game.create_tween()
 	tween.set_trans(Tween.TRANS_CUBIC)
 	tween.set_ease(Tween.EASE_IN_OUT)
 	tween.tween_method(_set_supply_control_transition_progress, 0.0, 1.0, game.SUPPLY_CONTROL_FADE_DURATION)
 	await tween.finished
-	game.displayed_supply_control_cells = event.get("to_cells", {}).duplicate(true)
+	game.board_draw_logic.set_displayed_supply_origin_cells(event.get("to_cells", {}))
 	game.supply_control_transition.clear()
 	game.supply_control_transition_progress = 1.0
-	game._queue_barrier_redraw()
+	game.board_draw_logic.queue_board_redraw()
 
 
 func _set_supply_control_transition_progress(progress: float) -> void:
 	game.supply_control_transition_progress = progress
-	game._queue_barrier_redraw()
+	game.board_draw_logic.queue_board_redraw()
 
 
 func _prepare_supply_control_animation(events: Array) -> void:
-	game.displayed_supply_control_cells.clear()
 	game.supply_control_transition.clear()
 	game.supply_control_transition_progress = 1.0
 	for event in events:
 		if String(event.type) == game.ANIMATION_SUPPLY_CONTROL:
-			game.displayed_supply_control_cells = event.get("from_cells", {}).duplicate(true)
-			game._queue_barrier_redraw()
+			game.board_draw_logic.set_displayed_supply_origin_cells(event.get("from_cells", {}))
+			game.board_draw_logic.queue_board_redraw()
 			return
 
 
 func _clear_supply_control_animation() -> void:
-	game.displayed_supply_control_cells.clear()
 	game.supply_control_transition.clear()
 	game.supply_control_transition_progress = 1.0
-	game._queue_barrier_redraw()
+	game.board_draw_logic.queue_board_redraw()
 
 
 func _animate_card_view_to(card_control: Control, target_position: Vector2, fade_out: bool) -> void:
