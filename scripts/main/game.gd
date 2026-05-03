@@ -58,6 +58,7 @@ const SUPPLY_CONTROL_FADE_DURATION: float = 0.28
 const PLAYABLE_SUPPLY_PIPE_WIDTH: float = float(CELL_GAP)
 const UnitScene: PackedScene = preload("res://scenes/unit.tscn")
 const GameAi: Script = preload("res://scripts/main/game_ai.gd")
+const GameAnimation: Script = preload("res://scripts/main/game_animation.gd")
 const WoodBaseTexture: Texture2D = preload("res://assets/bases/base_single.jpg")
 const MetalBaseTexture: Texture2D = preload("res://assets/bases/bases_pair.jpg")
 const TableBackgroundTexture: Texture2D = preload("res://assets/backgrounds/table_stone_background.jpg")
@@ -74,6 +75,7 @@ var game_over_message: String = ""
 var animation_running: bool = false
 var ai_running: bool = false
 var ai_logic: RefCounted
+var animation_logic: RefCounted
 var next_card_id: int = 1
 var displayed_supply_control_cells: Dictionary = {}
 var supply_control_transition: Dictionary = {}
@@ -108,6 +110,7 @@ func _ready() -> void:
 	TranslationServer.set_locale("ru")
 	randomize()
 	ai_logic = GameAi.new(self)
+	animation_logic = GameAnimation.new(self)
 	_setup_game()
 	_build_ui()
 	_refresh_ui()
@@ -323,19 +326,6 @@ func _build_ui() -> void:
 	hand_content.add_theme_constant_override("separation", 9)
 	tempo_row.add_child(hand_content)
 
-	tempo_debug_label = Label.new()
-	tempo_debug_label.custom_minimum_size = Vector2(CARD_WIDTH + 36 - TEMPO_BAR_VERTICAL_WIDTH - 8, 86)
-	tempo_debug_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	tempo_debug_label.z_index = 2049
-	tempo_debug_label.add_theme_color_override("font_color", Color(1.0, 0.96, 0.78))
-	tempo_debug_label.add_theme_color_override("font_shadow_color", Color(0.0, 0.0, 0.0))
-	tempo_debug_label.add_theme_constant_override("shadow_offset_x", 2)
-	tempo_debug_label.add_theme_constant_override("shadow_offset_y", 2)
-	tempo_debug_label.add_theme_font_size_override("font_size", 12)
-	tempo_debug_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	tempo_debug_label.visible = true
-	hand_content.add_child(tempo_debug_label)
-
 	draw_two_button = Button.new()
 	draw_two_button.text = _tr_text("UI_DRAW")
 	draw_two_button.tooltip_text = _tr_text("UI_TOOLTIP_DRAW")
@@ -410,6 +400,20 @@ func _build_ui() -> void:
 	barrier_layer.draw.connect(_on_barrier_layer_draw)
 	barrier_layer.resized.connect(_queue_barrier_redraw)
 	board_area.add_child(barrier_layer)
+
+	tempo_debug_label = Label.new()
+	tempo_debug_label.custom_minimum_size = Vector2(360.0, 72.0)
+	tempo_debug_label.size = tempo_debug_label.custom_minimum_size
+	tempo_debug_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	tempo_debug_label.z_index = 2049
+	tempo_debug_label.add_theme_color_override("font_color", Color(1.0, 0.96, 0.78))
+	tempo_debug_label.add_theme_color_override("font_shadow_color", Color(0.0, 0.0, 0.0))
+	tempo_debug_label.add_theme_constant_override("shadow_offset_x", 2)
+	tempo_debug_label.add_theme_constant_override("shadow_offset_y", 2)
+	tempo_debug_label.add_theme_font_size_override("font_size", 12)
+	tempo_debug_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	tempo_debug_label.visible = true
+	board_area.add_child(tempo_debug_label)
 
 	var opponent_hand_panel = VBoxContainer.new()
 	opponent_hand_panel.custom_minimum_size = Vector2(225, side_panel_height)
@@ -581,8 +585,7 @@ func _sync_board_stack_card_visual_state(cell: Vector2i) -> void:
 		if card_control == null or not is_instance_valid(card_control):
 			continue
 		var is_covered: bool = i < stack.size() - 1
-		var is_unsupplied: bool = not _is_card_supplied(card, cell)
-		_configure_card_view(card_control, card, bool(card.face_down), is_unsupplied, is_unsupplied or is_covered)
+		_configure_card_view(card_control, card, bool(card.face_down), false, is_covered)
 
 
 func _sync_hand_card_visual_state() -> void:
@@ -946,11 +949,18 @@ func _resize_board_to_available() -> void:
 		max(0.0, (board_area.size.x - board_size.x) * 0.5),
 		max(0.0, (board_area.size.y - board_size.y) * 0.5)
 	)
+	_position_tempo_debug_label()
 
 	for cell_panel in board_cells.values():
 		cell_panel.custom_minimum_size = Vector2(CELL_SIZE, CELL_SIZE)
 
 	_queue_barrier_redraw()
+
+
+func _position_tempo_debug_label() -> void:
+	if tempo_debug_label == null or board_grid == null:
+		return
+	tempo_debug_label.position = board_grid.position + Vector2(8.0, 8.0)
 
 
 func _make_cell_style(fill_color: Color, border_color: Color, border_width: int = 0) -> StyleBoxFlat:
@@ -1065,8 +1075,7 @@ func _sync_board_stack_card_views(cell: Vector2i, stack_container: Control) -> v
 		var card = stack[i]
 		var card_control: Control = _ensure_card_view(card)
 		var is_covered: bool = i < stack.size() - 1
-		var is_unsupplied: bool = not _is_card_supplied(card, cell)
-		_configure_card_view(card_control, card, bool(card.face_down), is_unsupplied, is_unsupplied or is_covered)
+		_configure_card_view(card_control, card, bool(card.face_down), false, is_covered)
 		card_control.tooltip_text = _get_card_tooltip(card)
 		_attach_card_view_to_container(card_control, stack_container)
 		card_control.position = _get_board_stack_card_local_position(stack.size(), i)
@@ -1087,110 +1096,7 @@ func _get_player_card_color(player_index: int) -> Color:
 
 
 func _animate_action_result(result: Dictionary) -> void:
-	var events: Array = result.get("events", [])
-	if events.is_empty():
-		return
-
-	animation_running = true
-	_prepare_supply_control_animation(events)
-	for event in events:
-		await _animate_action_event(event)
-	_clear_supply_control_animation()
-	animation_running = false
-
-
-func _animate_action_event(event: Dictionary) -> void:
-	var event_type: String = String(event.type)
-	if event_type == "play_card":
-		await _animate_play_card_event(event)
-	elif event_type == "draw_card":
-		await _animate_draw_event(event)
-	elif event_type == "discard_card":
-		await _animate_discard_event(event)
-	elif event_type == ANIMATION_LAYOUT_STACK:
-		await _animate_layout_stack_event(event)
-	elif event_type == ANIMATION_SUPPLY_CONTROL:
-		await _animate_supply_control_event(event)
-
-
-func _animate_play_card_event(event: Dictionary) -> void:
-	var cell: Vector2i = event.cell
-	var card_id: int = int(event.card_id)
-	var target_position: Vector2 = _get_board_card_target_global_position_for_event(event, cell, card_id)
-	var card_control: Control = _get_or_create_event_card_view(event)
-	await _animate_card_view_to(card_control, target_position, false)
-	_finish_play_card_animation(card_control, event)
-
-
-func _animate_draw_event(event: Dictionary) -> void:
-	var player_index: int = int(event.player_index)
-	var card_id: int = int(event.card_id)
-	var target_position: Vector2 = _get_hand_card_target_global_position(player_index, card_id)
-	var card_control: Control = _get_or_create_event_card_view(event)
-	await _animate_card_view_to(card_control, target_position, false)
-	_finish_draw_card_animation(card_control, player_index, card_id)
-
-
-func _animate_discard_event(event: Dictionary) -> void:
-	var player_index: int = int(event.player_index)
-	var target_position: Vector2 = _get_discard_target_position(player_index)
-	var card_control: Control = _get_or_create_event_card_view(event)
-	await _animate_card_view_flip_face_up(card_control)
-	await _animate_card_view_to(card_control, target_position, true)
-	_finish_discard_card_animation(card_control)
-
-
-func _animate_layout_stack_event(event: Dictionary) -> void:
-	var cell: Vector2i = event.cell
-	var stack_container: Control = board_cell_stacks[cell]
-	var stack: Array = _get_event_stack_cards(event, cell)
-	stack_container.visible = not stack.is_empty()
-	var tween: Tween = create_tween()
-	tween.set_parallel(true)
-	tween.set_trans(Tween.TRANS_CUBIC)
-	tween.set_ease(Tween.EASE_OUT)
-	var has_motion: bool = false
-	for i in range(stack.size()):
-		var card: Dictionary = stack[i]
-		var card_control: Control = _ensure_card_view(card)
-		var is_covered: bool = i < stack.size() - 1
-		var is_unsupplied: bool = not _is_card_supplied(card, cell)
-		_configure_card_view(card_control, card, bool(card.face_down), is_unsupplied, is_unsupplied or is_covered)
-		card_control.tooltip_text = _get_card_tooltip(card)
-		_attach_card_view_to_container(card_control, stack_container)
-		stack_container.move_child(card_control, i)
-		var target_position: Vector2 = _get_board_stack_card_local_position(stack.size(), i)
-		if card_control.position.distance_squared_to(target_position) > 0.25:
-			tween.tween_property(card_control, "position", target_position, CARD_FLY_DURATION * 0.35)
-			has_motion = true
-		else:
-			card_control.position = target_position
-	if has_motion:
-		await tween.finished
-	else:
-		tween.kill()
-
-
-func _animate_supply_control_event(event: Dictionary) -> void:
-	displayed_supply_control_cells = event.get("from_cells", {}).duplicate(true)
-	supply_control_transition = event.duplicate(true)
-	supply_control_transition_progress = 0.0
-	_queue_barrier_redraw()
-
-	var tween: Tween = create_tween()
-	tween.set_trans(Tween.TRANS_CUBIC)
-	tween.set_ease(Tween.EASE_IN_OUT)
-	tween.tween_method(_set_supply_control_transition_progress, 0.0, 1.0, SUPPLY_CONTROL_FADE_DURATION)
-	await tween.finished
-	displayed_supply_control_cells = event.get("to_cells", {}).duplicate(true)
-	supply_control_transition.clear()
-	supply_control_transition_progress = 1.0
-	_queue_barrier_redraw()
-
-
-func _set_supply_control_transition_progress(progress: float) -> void:
-	supply_control_transition_progress = progress
-	_queue_barrier_redraw()
+	await animation_logic.animate_action_result(result)
 
 
 func _finish_play_card_animation(card_control: Control, event: Dictionary) -> void:
@@ -1201,7 +1107,7 @@ func _finish_play_card_animation(card_control: Control, event: Dictionary) -> vo
 		card = _get_card_from_event(event)
 	var stack_container: Control = board_cell_stacks[cell]
 	stack_container.visible = true
-	_configure_card_view(card_control, card, bool(card.face_down), not _is_card_supplied(card, cell), false)
+	_configure_card_view(card_control, card, bool(card.face_down), false, false)
 	_attach_card_view_to_container(card_control, stack_container)
 	var stack: Array = _get_event_stack_cards(event, cell)
 	var stack_index: int = _find_card_index_in_array(stack, card_id)
@@ -1238,24 +1144,6 @@ func _finish_discard_card_animation(card_control: Control) -> void:
 		add_child(card_control)
 	card_control.set_as_top_level(false)
 	card_control.visible = false
-
-
-func _prepare_supply_control_animation(events: Array) -> void:
-	displayed_supply_control_cells.clear()
-	supply_control_transition.clear()
-	supply_control_transition_progress = 1.0
-	for event in events:
-		if String(event.type) == ANIMATION_SUPPLY_CONTROL:
-			displayed_supply_control_cells = event.get("from_cells", {}).duplicate(true)
-			_queue_barrier_redraw()
-			return
-
-
-func _clear_supply_control_animation() -> void:
-	displayed_supply_control_cells.clear()
-	supply_control_transition.clear()
-	supply_control_transition_progress = 1.0
-	_queue_barrier_redraw()
 
 
 func _get_or_create_event_card_view(event: Dictionary) -> Control:
@@ -1310,52 +1198,6 @@ func _configure_event_card_view(card_control: Control, event: Dictionary, face_d
 	card_control.player_index = int(event.player_index)
 	card_control.face_down = face_down
 	card_control.reset_visual_modifiers()
-
-
-func _animate_card_view_to(card_control: Control, target_position: Vector2, fade_out: bool) -> void:
-	if card_control == null or not is_instance_valid(card_control):
-		await get_tree().create_timer(CARD_FLY_DURATION).timeout
-		return
-	var tween: Tween = create_tween()
-	tween.set_trans(Tween.TRANS_CUBIC)
-	tween.set_ease(Tween.EASE_OUT)
-	if fade_out:
-		tween.set_parallel(true)
-	tween.tween_property(card_control, "global_position", target_position, CARD_FLY_DURATION)
-	if fade_out:
-		tween.tween_property(card_control, "modulate:a", 0.0, CARD_FLY_DURATION)
-	await tween.finished
-	if fade_out:
-		card_control.visible = false
-		card_control.modulate = Color(1.0, 1.0, 1.0, 1.0)
-
-
-func _animate_card_view_flip_face_up(card_control: Control) -> void:
-	if card_control == null or not is_instance_valid(card_control):
-		await get_tree().create_timer(CARD_DISCARD_FLIP_DURATION * 2.0).timeout
-		return
-	if not bool(card_control.face_down):
-		return
-
-	card_control.pivot_offset = card_control.size * 0.5
-	var original_scale: Vector2 = card_control.scale
-	var tween_out: Tween = create_tween()
-	tween_out.set_trans(Tween.TRANS_CUBIC)
-	tween_out.set_ease(Tween.EASE_IN)
-	tween_out.tween_property(card_control, "scale:x", 0.0, CARD_DISCARD_FLIP_DURATION)
-	await tween_out.finished
-
-	if card_control == null or not is_instance_valid(card_control):
-		return
-	card_control.face_down = false
-
-	var tween_in: Tween = create_tween()
-	tween_in.set_trans(Tween.TRANS_CUBIC)
-	tween_in.set_ease(Tween.EASE_OUT)
-	tween_in.tween_property(card_control, "scale:x", original_scale.x, CARD_DISCARD_FLIP_DURATION)
-	await tween_in.finished
-	if card_control != null and is_instance_valid(card_control):
-		card_control.scale = original_scale
 
 
 func _get_event_fallback_source_position(event: Dictionary) -> Vector2:
