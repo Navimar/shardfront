@@ -15,7 +15,7 @@ const UNIT_DIR: String = "res://resources/units"
 const DECK_ALL_STATUSES: Array = []
 const DECK_IMPLEMENTED_UNTESTED_STATUSES: Array = [UnitResource.IMPLEMENTATION_IMPLEMENTED]
 const DECK_READY_STATUSES: Array = [UnitResource.IMPLEMENTATION_IMPLEMENTED, UnitResource.IMPLEMENTATION_TESTED]
-const DECK_UNIT_STATUSES: Array = DECK_ALL_STATUSES
+const DECK_UNIT_STATUSES: Array = DECK_IMPLEMENTED_UNTESTED_STATUSES
 const HUMAN_PLAYER_INDEX: int = 0
 const AI_PLAYERS: Array = [1]
 const AI_THINK_DELAY: float = 0.35
@@ -35,11 +35,14 @@ const UNIT_BARON_NAME: String = "UNIT_BARON_NAME"
 const UNIT_DRAKON_NAME: String = "UNIT_DRAKON_NAME"
 const UNIT_DROVOSEK_NAME: String = "UNIT_DROVOSEK_NAME"
 const UNIT_GRIBNIK_NAME: String = "UNIT_GRIBNIK_NAME"
+const UNIT_ISTUKAN_NAME: String = "UNIT_ISTUKAN_NAME"
 const UNIT_KRYSA_NAME: String = "UNIT_KRYSA_NAME"
+const UNIT_LOKOMOTIV_NAME: String = "UNIT_LOKOMOTIV_NAME"
 const UNIT_LUCHNIK_NAME: String = "UNIT_LUCHNIK_NAME"
 const UNIT_MOZGOSHMYG_NAME: String = "UNIT_MOZGOSHMYG_NAME"
 const UNIT_RYTSAR_NAME: String = "UNIT_RYTSAR_NAME"
 const UNIT_VARVAR_NAME: String = "UNIT_VARVAR_NAME"
+const UNIT_YARKIY_LES_NAME: String = "UNIT_YARKIY_LES_NAME"
 const WOOD_CARD_COLOR: Color = Color(0.58, 0.32, 0.08)
 const METAL_CARD_COLOR: Color = Color(0.06, 0.38, 0.62)
 const BARRIER_FILL_COLOR: Color = Color(0.88, 0.69, 0.32)
@@ -59,6 +62,7 @@ const PLAYABLE_SUPPLY_PIPE_WIDTH: float = float(CELL_GAP)
 const UnitScene: PackedScene = preload("res://scenes/unit.tscn")
 const GameAi: Script = preload("res://scripts/main/game_ai.gd")
 const GameAnimation: Script = preload("res://scripts/main/game_animation.gd")
+const GameSupply: Script = preload("res://scripts/main/game_supply.gd")
 const WoodBaseTexture: Texture2D = preload("res://assets/bases/base_single.jpg")
 const MetalBaseTexture: Texture2D = preload("res://assets/bases/bases_pair.jpg")
 const TableBackgroundTexture: Texture2D = preload("res://assets/backgrounds/table_stone_background.jpg")
@@ -76,6 +80,7 @@ var animation_running: bool = false
 var ai_running: bool = false
 var ai_logic: RefCounted
 var animation_logic: RefCounted
+var supply_logic: RefCounted
 var next_card_id: int = 1
 var displayed_supply_control_cells: Dictionary = {}
 var supply_control_transition: Dictionary = {}
@@ -111,6 +116,7 @@ func _ready() -> void:
 	randomize()
 	ai_logic = GameAi.new(self)
 	animation_logic = GameAnimation.new(self)
+	supply_logic = GameSupply.new(self)
 	_setup_game()
 	_build_ui()
 	_refresh_ui()
@@ -1383,18 +1389,22 @@ func _draw_playable_supply_lines(playable_cells: Dictionary) -> void:
 	if playable_cells.is_empty():
 		return
 
-	var supplied_cells: Dictionary = _get_supplied_cells(current_player)
-	for y in range(GRID_HEIGHT):
-		for x in range(GRID_WIDTH):
-			var cell: Vector2i = Vector2i(x, y)
-			if not _should_draw_supply_network_cell(current_player, cell, supplied_cells):
-				continue
-			_draw_playable_network_segment(cell, cell + Vector2i.RIGHT, supplied_cells)
-			_draw_playable_network_segment(cell, cell + Vector2i.DOWN, supplied_cells)
-			_draw_playable_frontier_segment(cell, cell + Vector2i.UP, playable_cells)
-			_draw_playable_frontier_segment(cell, cell + Vector2i.DOWN, playable_cells)
-			_draw_playable_frontier_segment(cell, cell + Vector2i.LEFT, playable_cells)
-			_draw_playable_frontier_segment(cell, cell + Vector2i.RIGHT, playable_cells)
+	var control_cells: Dictionary = _get_supply_control_cells(current_player)
+	var supply_edges: Dictionary = _get_supply_edges(current_player)
+	var drawn_segments: Dictionary = {}
+	for from_cell in supply_edges.keys():
+		if not _should_draw_supply_network_cell(from_cell, control_cells):
+			continue
+		var edges: Dictionary = supply_edges[from_cell]
+		for to_cell in edges.keys():
+			if _should_draw_supply_network_cell(to_cell, control_cells):
+				var segment_key: String = _get_undirected_segment_key(from_cell, to_cell)
+				if drawn_segments.has(segment_key):
+					continue
+				drawn_segments[segment_key] = true
+				_draw_playable_supply_segment(from_cell, to_cell, true, Color(0.88, 0.08, 0.06, 1.0))
+			elif playable_cells.has(to_cell) and _top_owner(to_cell) != current_player:
+				_draw_playable_supply_segment(from_cell, to_cell, false, Color(0.88, 0.08, 0.06, 1.0))
 
 
 func _draw_board_grid_lines() -> void:
@@ -1467,44 +1477,19 @@ func _draw_playable_arrow_heads(playable_cells: Dictionary) -> void:
 	if playable_cells.is_empty():
 		return
 
-	var supplied_cells: Dictionary = _get_supplied_cells(current_player)
-	for y in range(GRID_HEIGHT):
-		for x in range(GRID_WIDTH):
-			var cell: Vector2i = Vector2i(x, y)
-			if not _should_draw_supply_network_cell(current_player, cell, supplied_cells):
-				continue
-			_draw_playable_arrow_head_between(cell, cell + Vector2i.UP, playable_cells)
-			_draw_playable_arrow_head_between(cell, cell + Vector2i.DOWN, playable_cells)
-			_draw_playable_arrow_head_between(cell, cell + Vector2i.LEFT, playable_cells)
-			_draw_playable_arrow_head_between(cell, cell + Vector2i.RIGHT, playable_cells)
-
-
-func _draw_playable_network_segment(from_cell: Vector2i, to_cell: Vector2i, supplied_cells: Dictionary) -> void:
-	if not _is_inside(to_cell):
-		return
-	if _has_barrier(from_cell, to_cell):
-		return
-	if not _should_draw_supply_network_cell(current_player, to_cell, supplied_cells):
-		return
-	_draw_playable_supply_segment(from_cell, to_cell, true, Color(0.88, 0.08, 0.06, 1.0))
-
-
-func _draw_playable_frontier_segment(from_cell: Vector2i, to_cell: Vector2i, playable_cells: Dictionary) -> void:
-	if not _is_inside(to_cell):
-		return
-	if _has_barrier(from_cell, to_cell):
-		return
-	if not playable_cells.has(to_cell):
-		return
-	if _top_owner(to_cell) == current_player:
-		return
-	_draw_playable_supply_segment(from_cell, to_cell, false, Color(0.88, 0.08, 0.06, 1.0))
+	var control_cells: Dictionary = _get_supply_control_cells(current_player)
+	var supply_edges: Dictionary = _get_supply_edges(current_player)
+	for from_cell in supply_edges.keys():
+		if not _should_draw_supply_network_cell(from_cell, control_cells):
+			continue
+		var edges: Dictionary = supply_edges[from_cell]
+		for to_cell in edges.keys():
+			if playable_cells.has(to_cell) and _top_owner(to_cell) != current_player:
+				_draw_playable_arrow_head_between(from_cell, to_cell, playable_cells)
 
 
 func _draw_playable_arrow_head_between(from_cell: Vector2i, to_cell: Vector2i, playable_cells: Dictionary) -> void:
 	if not _is_inside(to_cell):
-		return
-	if _has_barrier(from_cell, to_cell):
 		return
 	if not playable_cells.has(to_cell):
 		return
@@ -1590,15 +1575,11 @@ func _get_supply_control_player_color(player_index: int) -> Color:
 
 
 func _get_supply_control_cells(player_index: int) -> Dictionary:
-	var cells: Dictionary = {}
-	var supplied_cells: Dictionary = _get_supplied_cells(player_index)
-	for y in range(GRID_HEIGHT):
-		for x in range(GRID_WIDTH):
-			var cell: Vector2i = Vector2i(x, y)
-			if not _should_draw_supply_network_cell(player_index, cell, supplied_cells):
-				continue
-			cells[cell] = true
-	return cells
+	return supply_logic.get_supply_control_cells(_get_live_game_state(), player_index)
+
+
+func _get_supply_edges(player_index: int) -> Dictionary:
+	return supply_logic.get_supply_edges(_get_live_game_state(), player_index)
 
 
 func _draw_supply_control_cell(cell: Vector2i, color: Color) -> void:
@@ -1608,8 +1589,23 @@ func _draw_supply_control_cell(cell: Vector2i, color: Color) -> void:
 	supply_line_layer.draw_rect(expanded_rect, color)
 
 
-func _should_draw_supply_network_cell(player_index: int, cell: Vector2i, supplied_cells: Dictionary) -> bool:
-	return supplied_cells.has(cell) and (players[player_index].base == cell or _top_owner(cell) == player_index)
+func _should_draw_supply_network_cell(cell: Vector2i, control_cells: Dictionary) -> bool:
+	return control_cells.has(cell)
+
+
+func _get_undirected_segment_key(from_cell: Vector2i, to_cell: Vector2i) -> String:
+	var first: Vector2i = from_cell
+	var second: Vector2i = to_cell
+	if _is_cell_after(first, second):
+		first = to_cell
+		second = from_cell
+	return "%d,%d:%d,%d" % [first.x, first.y, second.x, second.y]
+
+
+func _is_cell_after(first: Vector2i, second: Vector2i) -> bool:
+	if first.y != second.y:
+		return first.y > second.y
+	return first.x > second.x
 
 
 func _draw_playable_supply_segment(from_cell: Vector2i, to_cell: Vector2i, center_to_center: bool, color: Color) -> void:
@@ -1693,6 +1689,14 @@ func _get_cell_rect_on_layer(cell: Vector2i, layer: Control) -> Rect2:
 
 func _get_rect_edge_point(rect: Rect2, direction: Vector2) -> Vector2:
 	var center: Vector2 = rect.get_center()
+	if abs(abs(direction.x) - abs(direction.y)) < 0.001:
+		var corner_x: float = rect.position.x
+		var corner_y: float = rect.position.y
+		if direction.x > 0.0:
+			corner_x += rect.size.x
+		if direction.y > 0.0:
+			corner_y += rect.size.y
+		return Vector2(corner_x, corner_y)
 	if abs(direction.x) > abs(direction.y):
 		if direction.x > 0.0:
 			return Vector2(rect.position.x + rect.size.x, center.y)
@@ -2593,26 +2597,7 @@ func _draw_until_power_at_least_in_state(state: Dictionary, player_index: int, m
 
 
 func _get_supplied_cells_in_state(state: Dictionary, player_index: int) -> Dictionary:
-	var supplied = {}
-	var base: Vector2i = state.players[player_index].base
-	var queue: Array = [base]
-	supplied[base] = true
-
-	while not queue.is_empty():
-		var current: Vector2i = queue.pop_front()
-		for direction in [Vector2i.UP, Vector2i.DOWN, Vector2i.LEFT, Vector2i.RIGHT]:
-			var next: Vector2i = current + direction
-			if not _is_inside(next):
-				continue
-			if supplied.has(next):
-				continue
-			if _has_barrier_in_state(state, current, next):
-				continue
-			supplied[next] = true
-			if _top_owner_in_state(state, next) == player_index:
-				queue.append(next)
-
-	return supplied
+	return supply_logic.get_supplied_cells(state, player_index)
 
 
 func _get_all_supply_control_cells_in_state(state: Dictionary) -> Dictionary:
@@ -2623,14 +2608,7 @@ func _get_all_supply_control_cells_in_state(state: Dictionary) -> Dictionary:
 
 
 func _get_supply_control_cells_in_state(state: Dictionary, player_index: int) -> Dictionary:
-	var cells: Dictionary = {}
-	var supplied_cells: Dictionary = _get_supplied_cells_in_state(state, player_index)
-	for y in range(GRID_HEIGHT):
-		for x in range(GRID_WIDTH):
-			var cell: Vector2i = Vector2i(x, y)
-			if supplied_cells.has(cell) and (state.players[player_index].base == cell or _top_owner_in_state(state, cell) == player_index):
-				cells[cell] = true
-	return cells
+	return supply_logic.get_supply_control_cells(state, player_index)
 
 
 func _get_stack_in_state(state: Dictionary, cell: Vector2i) -> Array:
@@ -2739,52 +2717,7 @@ func _draw_cards(player_index: int, count: int) -> void:
 
 
 func _get_supplied_cells(player_index: int) -> Dictionary:
-	var supplied = {}
-	var base: Vector2i = players[player_index].base
-	var queue: Array = [base]
-	supplied[base] = true
-
-	while not queue.is_empty():
-		var current: Vector2i = queue.pop_front()
-		for direction in [Vector2i.UP, Vector2i.DOWN, Vector2i.LEFT, Vector2i.RIGHT]:
-			var next: Vector2i = current + direction
-			if not _is_inside(next):
-				continue
-			if supplied.has(next):
-				continue
-			if _has_barrier(current, next):
-				continue
-			supplied[next] = true
-			if _top_owner(next) == player_index:
-				queue.append(next)
-
-	return supplied
-
-
-func _get_supply_parents(player_index: int) -> Dictionary:
-	var parents = {}
-	var supplied = {}
-	var base: Vector2i = players[player_index].base
-	var queue: Array = [base]
-	supplied[base] = true
-	parents[base] = base
-
-	while not queue.is_empty():
-		var current: Vector2i = queue.pop_front()
-		for direction in [Vector2i.UP, Vector2i.DOWN, Vector2i.LEFT, Vector2i.RIGHT]:
-			var next: Vector2i = current + direction
-			if not _is_inside(next):
-				continue
-			if supplied.has(next):
-				continue
-			if _has_barrier(current, next):
-				continue
-			supplied[next] = true
-			parents[next] = current
-			if _top_owner(next) == player_index:
-				queue.append(next)
-
-	return parents
+	return supply_logic.get_supplied_cells(_get_live_game_state(), player_index)
 
 
 func _get_stack(cell: Vector2i) -> Array:
