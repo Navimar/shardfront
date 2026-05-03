@@ -1,6 +1,7 @@
 extends RefCounted
 
 const PLAYABLE_SUPPLY_COLOR: Color = Color(0.88, 0.08, 0.06, 1.0)
+const SPECIAL_PLAYABLE_COLOR: Color = Color(1.0, 0.82, 0.12, 1.0)
 const ARROW_OUTLINE_COLOR: Color = Color(0.22, 0.03, 0.02, 1.0)
 const BARRIER_FRAME_COLOR: Color = Color(0.02, 0.015, 0.01)
 const BARRIER_SHINE_COLOR: Color = Color(1.0, 0.86, 0.48, 0.55)
@@ -31,6 +32,7 @@ func on_supply_line_layer_draw() -> void:
 	_draw_board_grid_lines()
 	var playable_cells: Dictionary = game._get_playable_cells_for_ui_pending_action()
 	_draw_playable_supply_lines(playable_cells)
+	_draw_special_playable_cells(playable_cells)
 
 
 func on_barrier_layer_draw() -> void:
@@ -70,8 +72,18 @@ func _draw_playable_supply_lines(playable_cells: Dictionary) -> void:
 					continue
 				drawn_segments[segment_key] = true
 				_draw_playable_supply_segment(from_cell, to_cell, true, PLAYABLE_SUPPLY_COLOR)
-			elif playable_cells.has(to_cell):
-				_draw_playable_supply_segment(from_cell, to_cell, false, PLAYABLE_SUPPLY_COLOR)
+	for cell in playable_cells.keys():
+		for from_cell in _get_playable_source_cells(playable_cells[cell]):
+			_draw_playable_supply_segment(from_cell, cell, false, _get_playable_access_color(playable_cells[cell]))
+
+
+func _draw_special_playable_cells(playable_cells: Dictionary) -> void:
+	for cell in playable_cells.keys():
+		if _get_playable_access_kind(playable_cells[cell]) == "standard":
+			continue
+		var rect: Rect2 = _get_cell_rect_on_layer(cell, game.supply_line_layer)
+		var marker_rect: Rect2 = rect.grow(-8.0)
+		game.supply_line_layer.draw_rect(marker_rect, SPECIAL_PLAYABLE_COLOR, false, 5.0)
 
 
 func _draw_board_grid_lines() -> void:
@@ -151,11 +163,21 @@ func _draw_playable_arrow_heads(playable_cells: Dictionary) -> void:
 			continue
 		var edges: Dictionary = supply_edges[from_cell]
 		for to_cell in edges.keys():
-			if playable_cells.has(to_cell) and not origin_cells.has(to_cell):
-				_draw_playable_arrow_head_between(from_cell, to_cell, playable_cells)
+			if playable_cells.has(to_cell) and not origin_cells.has(to_cell) and _has_playable_source(playable_cells[to_cell], from_cell):
+				_draw_playable_arrow_head_between(from_cell, to_cell, playable_cells, _get_playable_access_color(playable_cells[to_cell]))
+	for cell in playable_cells.keys():
+		for from_cell in _get_playable_source_cells(playable_cells[cell]):
+			if supply_edges.get(from_cell, {}).has(cell):
+				continue
+			_draw_playable_arrow_head_between(from_cell, cell, playable_cells, _get_playable_access_color(playable_cells[cell]))
 
 
-func _draw_playable_arrow_head_between(from_cell: Vector2i, to_cell: Vector2i, playable_cells: Dictionary) -> void:
+func _draw_playable_arrow_head_between(
+	from_cell: Vector2i,
+	to_cell: Vector2i,
+	playable_cells: Dictionary,
+	color: Color = PLAYABLE_SUPPLY_COLOR
+) -> void:
 	if not game._is_inside(to_cell):
 		return
 	if not playable_cells.has(to_cell):
@@ -164,7 +186,7 @@ func _draw_playable_arrow_head_between(from_cell: Vector2i, to_cell: Vector2i, p
 	var to_rect: Rect2 = _get_cell_rect_on_layer(to_cell, game.barrier_layer)
 	var direction: Vector2 = (to_rect.get_center() - from_rect.get_center()).normalized()
 	var tip: Vector2 = _get_rect_edge_point(to_rect, -direction) + direction * 10.0
-	_draw_arrow_head(tip, direction, PLAYABLE_SUPPLY_COLOR, game.PLAYABLE_SUPPLY_PIPE_WIDTH)
+	_draw_arrow_head(tip, direction, color, game.PLAYABLE_SUPPLY_PIPE_WIDTH)
 
 
 func _draw_supply_networks() -> void:
@@ -238,6 +260,31 @@ func _draw_supply_control_cell(cell: Vector2i, color: Color) -> void:
 
 func _should_draw_supply_network_cell(cell: Vector2i, origin_cells: Dictionary) -> bool:
 	return origin_cells.has(cell)
+
+
+func _get_playable_access_kind(playable_info) -> String:
+	if playable_info is Dictionary:
+		return String(playable_info.get("kind", "standard"))
+	return String(playable_info)
+
+
+func _get_playable_source_cells(playable_info) -> Array:
+	if playable_info is Dictionary:
+		return Array(playable_info.get("sources", []))
+	return []
+
+
+func _get_playable_access_color(playable_info) -> Color:
+	if _get_playable_access_kind(playable_info) == "standard":
+		return PLAYABLE_SUPPLY_COLOR
+	return SPECIAL_PLAYABLE_COLOR
+
+
+func _has_playable_source(playable_info, source_cell: Vector2i) -> bool:
+	for cell in _get_playable_source_cells(playable_info):
+		if cell == source_cell:
+			return true
+	return false
 
 
 func _get_undirected_segment_key(from_cell: Vector2i, to_cell: Vector2i) -> String:

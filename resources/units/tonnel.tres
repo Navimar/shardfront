@@ -10,5 +10,5 @@ name_key = "UNIT_TONNEL_NAME"
 description_key = "UNIT_TONNEL_DESCRIPTION"
 power = 2
 ability_symbols = "❗"
-implementation_status = "unimplemented"
+implementation_status = "tested"
 portrait = ExtResource("2_portrait")

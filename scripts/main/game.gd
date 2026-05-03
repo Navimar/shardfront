@@ -30,19 +30,6 @@ const ANIMATION_LAYOUT_STACK: String = "layout_stack"
 const ANIMATION_SUPPLY_CONTROL: String = "supply_control"
 const RESULT_OK: String = "ok"
 const RESULT_INVALID: String = "invalid"
-const UNIT_ABBERATSIYA_NAME: String = "UNIT_ABBERATSIYA_NAME"
-const UNIT_BARON_NAME: String = "UNIT_BARON_NAME"
-const UNIT_DRAKON_NAME: String = "UNIT_DRAKON_NAME"
-const UNIT_DROVOSEK_NAME: String = "UNIT_DROVOSEK_NAME"
-const UNIT_GRIBNIK_NAME: String = "UNIT_GRIBNIK_NAME"
-const UNIT_ISTUKAN_NAME: String = "UNIT_ISTUKAN_NAME"
-const UNIT_KRYSA_NAME: String = "UNIT_KRYSA_NAME"
-const UNIT_LOKOMOTIV_NAME: String = "UNIT_LOKOMOTIV_NAME"
-const UNIT_LUCHNIK_NAME: String = "UNIT_LUCHNIK_NAME"
-const UNIT_MOZGOSHMYG_NAME: String = "UNIT_MOZGOSHMYG_NAME"
-const UNIT_RYTSAR_NAME: String = "UNIT_RYTSAR_NAME"
-const UNIT_VARVAR_NAME: String = "UNIT_VARVAR_NAME"
-const UNIT_YARKIY_LES_NAME: String = "UNIT_YARKIY_LES_NAME"
 const WOOD_CARD_COLOR: Color = Color(0.58, 0.32, 0.08)
 const METAL_CARD_COLOR: Color = Color(0.06, 0.38, 0.62)
 const BARRIER_FILL_COLOR: Color = Color(0.88, 0.69, 0.32)
@@ -63,7 +50,10 @@ const UnitScene: PackedScene = preload("res://scenes/unit.tscn")
 const GameAi: Script = preload("res://scripts/main/game_ai.gd")
 const GameAnimation: Script = preload("res://scripts/main/game_animation.gd")
 const GameBoardDraw: Script = preload("res://scripts/main/game_board_draw.gd")
+const GamePlayLegality: Script = preload("res://scripts/main/game_play_legality.gd")
+const GamePower: Script = preload("res://scripts/main/game_power.gd")
 const GameSupply: Script = preload("res://scripts/main/game_supply.gd")
+const UnitKeys: Script = preload("res://scripts/main/unit_keys.gd")
 const WoodBaseTexture: Texture2D = preload("res://assets/bases/base_single.jpg")
 const MetalBaseTexture: Texture2D = preload("res://assets/bases/bases_pair.jpg")
 const TableBackgroundTexture: Texture2D = preload("res://assets/backgrounds/table_stone_background.jpg")
@@ -82,6 +72,8 @@ var ai_running: bool = false
 var ai_logic: RefCounted
 var animation_logic: RefCounted
 var board_draw_logic: RefCounted
+var play_legality_logic: RefCounted
+var power_logic: RefCounted
 var supply_logic: RefCounted
 var next_card_id: int = 1
 var supply_control_transition: Dictionary = {}
@@ -118,6 +110,8 @@ func _ready() -> void:
 	ai_logic = GameAi.new(self)
 	animation_logic = GameAnimation.new(self)
 	board_draw_logic = GameBoardDraw.new(self)
+	play_legality_logic = GamePlayLegality.new(self)
+	power_logic = GamePower.new(self)
 	supply_logic = GameSupply.new(self)
 	_setup_game()
 	_build_ui()
@@ -596,6 +590,8 @@ func _sync_board_stack_card_visual_state(cell: Vector2i) -> void:
 			continue
 		var is_covered: bool = i < stack.size() - 1
 		_configure_card_view(card_control, card, bool(card.face_down), false, is_covered)
+		if not bool(card.face_down) and not is_covered:
+			card_control.set_display_power(int(card.unit.power), power_logic.get_card_power_in_cell(_get_live_game_state(), card, cell))
 
 
 func _sync_hand_card_visual_state() -> void:
@@ -931,10 +927,10 @@ func _get_playable_cells_for_ui_pending_action() -> Dictionary:
 	if ui_pending_action == "hand":
 		var hand_index: int = _get_ui_selected_hand_index()
 		for variant in _get_play_hand_variants_for_state(_get_live_game_state(), current_player, hand_index):
-			playable[variant.cell] = true
+			playable[variant.cell] = variant.get("play_access", {})
 	elif ui_pending_action == "deck_face_down":
 		for variant in _get_deck_face_down_variants_for_state(_get_live_game_state(), current_player):
-			playable[variant.cell] = true
+			playable[variant.cell] = variant.get("play_access", {})
 	return playable
 
 
@@ -1086,6 +1082,8 @@ func _sync_board_stack_card_views(cell: Vector2i, stack_container: Control) -> v
 		var card_control: Control = _ensure_card_view(card)
 		var is_covered: bool = i < stack.size() - 1
 		_configure_card_view(card_control, card, bool(card.face_down), false, is_covered)
+		if not bool(card.face_down) and not is_covered:
+			card_control.set_display_power(int(card.unit.power), power_logic.get_card_power_in_cell(_get_live_game_state(), card, cell))
 		card_control.tooltip_text = _get_card_tooltip(card)
 		_attach_card_view_to_container(card_control, stack_container)
 		card_control.position = _get_board_stack_card_local_position(stack.size(), i)
@@ -1118,6 +1116,8 @@ func _finish_play_card_animation(card_control: Control, event: Dictionary) -> vo
 	var stack_container: Control = board_cell_stacks[cell]
 	stack_container.visible = true
 	_configure_card_view(card_control, card, bool(card.face_down), false, false)
+	if not bool(card.face_down):
+		card_control.set_display_power(int(card.unit.power), power_logic.get_card_power_in_cell(_get_live_game_state(), card, cell))
 	_attach_card_view_to_container(card_control, stack_container)
 	var stack: Array = _get_event_stack_cards(event, cell)
 	var stack_index: int = _find_card_index_in_array(stack, card_id)
@@ -1535,6 +1535,8 @@ func _make_action_variant(action_type: String, player_index: int, payload: Dicti
 		variant.hand_index = int(payload.hand_index)
 	if payload.has("cell"):
 		variant.cell = payload.cell
+	if payload.has("play_access"):
+		variant.play_access = payload.play_access
 	return variant
 
 
@@ -1579,7 +1581,8 @@ func _get_play_hand_variants_for_state(state: Dictionary, player_index: int, han
 			if _can_play_card_in_state(state, card, cell):
 				variants.append(_make_action_variant(ACTION_PLAY_HAND_CARD, player_index, {
 					"hand_index": hand_index,
-					"cell": cell
+					"cell": cell,
+					"play_access": _get_play_access_info_in_state(state, card, cell)
 				}))
 	return variants
 
@@ -1608,7 +1611,8 @@ func _get_deck_face_down_variants_for_state(state: Dictionary, player_index: int
 			var cell: Vector2i = Vector2i(x, y)
 			if _can_play_card_in_state(state, card, cell):
 				variants.append(_make_action_variant(ACTION_PLAY_DECK_FACE_DOWN, player_index, {
-					"cell": cell
+					"cell": cell,
+					"play_access": _get_play_access_info_in_state(state, card, cell)
 				}))
 	return variants
 
@@ -1770,26 +1774,26 @@ func _apply_played_card_effect_rules_to_state(state: Dictionary, result: Diction
 	var unit: Resource = card.unit
 	var name_key: String = String(unit.name_key)
 
-	if name_key == UNIT_RYTSAR_NAME:
+	if name_key == UnitKeys.RYTSAR_NAME:
 		_draw_cards_in_state(state, player_index, 1)
-	elif name_key == UNIT_GRIBNIK_NAME:
+	elif name_key == UnitKeys.GRIBNIK_NAME:
 		_draw_cards_in_state(state, player_index, 2)
-	elif name_key == UNIT_ABBERATSIYA_NAME:
+	elif name_key == UnitKeys.ABBERATSIYA_NAME:
 		_draw_cards_in_state(state, opponent_index, 2)
-	elif name_key == UNIT_DRAKON_NAME:
+	elif name_key == UnitKeys.DRAKON_NAME:
 		_discard_cards_from_hand_end_in_state(state, player_index, 2)
-	elif name_key == UNIT_BARON_NAME:
+	elif name_key == UnitKeys.BARON_NAME:
 		_draw_cards_in_state(state, player_index, 2)
 		_discard_cards_from_hand_end_in_state(state, player_index, 1)
-	elif name_key == UNIT_DROVOSEK_NAME:
+	elif name_key == UnitKeys.DROVOSEK_NAME:
 		_draw_then_discard_drawn_cards_in_state(state, player_index, 3, 2)
-	elif name_key == UNIT_KRYSA_NAME:
+	elif name_key == UnitKeys.KRYSA_NAME:
 		_discard_cards_from_hand_end_in_state(state, opponent_index, 1)
-	elif name_key == UNIT_LUCHNIK_NAME:
+	elif name_key == UnitKeys.LUCHNIK_NAME:
 		_discard_random_cards_from_hand_in_state(state, opponent_index, 1)
-	elif name_key == UNIT_MOZGOSHMYG_NAME:
+	elif name_key == UnitKeys.MOZGOSHMYG_NAME:
 		_redraw_hand_in_state(state, opponent_index)
-	elif name_key == UNIT_VARVAR_NAME:
+	elif name_key == UnitKeys.VARVAR_NAME:
 		_draw_until_power_at_least_in_state(state, player_index, 5)
 
 
@@ -1966,35 +1970,15 @@ func _can_play_card(card: Dictionary, cell: Vector2i) -> bool:
 
 
 func _can_play_card_in_state(state: Dictionary, card: Dictionary, cell: Vector2i) -> bool:
-	if not _is_inside(cell):
-		return false
-	var player_index: int = int(card.owner)
-	if _get_base_owner_in_state(state, cell) == player_index:
-		return false
-	if not _get_supplied_cells_in_state(state, player_index).has(cell):
-		return false
+	return play_legality_logic.can_play_card(state, card, cell)
 
-	var stack: Array = _get_stack_in_state(state, cell)
-	var base_owner: int = _get_base_owner_in_state(state, cell)
-	if card.face_down:
-		if base_owner != -1:
-			return false
-		if stack.is_empty():
-			return true
-		return _top_owner_in_state(state, cell) == player_index
 
-	if base_owner == _opponent(player_index):
-		return true
-	if stack.is_empty():
-		return true
-	if _top_owner_in_state(state, cell) == player_index:
-		return true
-	if _top_face_down_in_state(state, cell):
-		return true
+func _get_play_access_kind_in_state(state: Dictionary, card: Dictionary, cell: Vector2i) -> String:
+	return play_legality_logic.get_play_access_kind(state, card, cell)
 
-	var attack_power: int = card.unit.power
-	var defense_power: int = _top_power_in_state(state, cell)
-	return attack_power >= defense_power
+
+func _get_play_access_info_in_state(state: Dictionary, card: Dictionary, cell: Vector2i) -> Dictionary:
+	return play_legality_logic.get_play_access_info(state, card, cell)
 
 
 func _place_card(card: Dictionary, cell: Vector2i) -> void:
@@ -2254,13 +2238,7 @@ func _top_owner_in_state(state: Dictionary, cell: Vector2i) -> int:
 
 
 func _top_power_in_state(state: Dictionary, cell: Vector2i) -> int:
-	var stack: Array = _get_stack_in_state(state, cell)
-	if stack.is_empty():
-		return 0
-	var card: Dictionary = stack[stack.size() - 1]
-	if card.face_down:
-		return 0
-	return int(card.unit.power)
+	return power_logic.get_top_power(state, cell)
 
 
 func _top_face_down_in_state(state: Dictionary, cell: Vector2i) -> bool:
@@ -2363,13 +2341,7 @@ func _top_owner(cell: Vector2i) -> int:
 
 
 func _top_power(cell: Vector2i) -> int:
-	var stack: Array = _get_stack(cell)
-	if stack.is_empty():
-		return 0
-	var card: Dictionary = stack[stack.size() - 1]
-	if card.face_down:
-		return 0
-	return int(card.unit.power)
+	return power_logic.get_top_power(_get_live_game_state(), cell)
 
 
 func _top_face_down(cell: Vector2i) -> bool:

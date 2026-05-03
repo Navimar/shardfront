@@ -10,5 +10,5 @@ name_key = "UNIT_ISTUKAN_NAME"
 description_key = "UNIT_ISTUKAN_DESCRIPTION"
 power = 7
 ability_symbols = "❗"
-implementation_status = "implemented"
+implementation_status = "tested"
 portrait = ExtResource("2_portrait")

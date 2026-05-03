@@ -2,6 +2,10 @@ extends Control
 
 const NAME_FONT_SIZE: int = 24
 const POWER_FONT_SIZE: int = 30
+const PASSIVE_SYMBOL: String = "❗"
+const POWER_NORMAL_COLOR: Color = Color(1.0, 1.0, 1.0)
+const POWER_BUFF_COLOR: Color = Color(0.35, 1.0, 0.45)
+const POWER_DEBUFF_COLOR: Color = Color(1.0, 0.28, 0.22)
 
 @export var unit: Resource:
 	get:
@@ -34,12 +38,15 @@ var _face_down: bool = false
 var _portrait_desaturated: bool = false
 var _text_muted: bool = false
 var _back_desaturated: bool = false
+var _display_power: int = 0
+var _base_power: int = 0
 
 @onready var panel: Panel = %Panel
 @onready var background: Panel = %Background
 @onready var content: VBoxContainer = $Content
 @onready var portrait: TextureRect = %Portrait
 @onready var power_badge: Panel = %PowerBadge
+@onready var passive_badge: Panel = %PassiveBadge
 @onready var name_label: Label = %NameLabel
 @onready var power_label: Label = %PowerLabel
 @onready var description_label: Label = %DescriptionLabel
@@ -82,8 +89,16 @@ func reset_visual_modifiers() -> void:
 	set_portrait_desaturated(false)
 	set_text_muted(false)
 	set_back_desaturated(false)
+	_reset_display_power()
 	_clear_extra_frames()
 	modulate = Color(1.0, 1.0, 1.0, 1.0)
+
+
+func set_display_power(base_power: int, display_power: int) -> void:
+	_base_power = base_power
+	_display_power = display_power
+	if is_node_ready():
+		_apply_display_power()
 
 
 func _build_back_texture() -> void:
@@ -106,12 +121,18 @@ func _apply_unit() -> void:
 		name_label.text = ""
 		power_label.text = ""
 		description_label.text = ""
+		passive_badge.visible = false
+		_base_power = 0
+		_display_power = 0
 		return
 
 	portrait.texture = _unit.portrait
 	name_label.text = _unit.get_display_name()
-	power_label.text = str(_unit.power)
+	_base_power = int(_unit.power)
+	_display_power = _base_power
+	_apply_display_power()
 	description_label.text = _unit.get_description()
+	passive_badge.visible = _has_passive_field_ability()
 
 
 func _apply_player_style() -> void:
@@ -132,6 +153,7 @@ func _apply_player_style() -> void:
 	background_style.content_margin_right = 0
 	background_style.content_margin_bottom = 0
 	var badge_style: StyleBoxFlat = background_style.duplicate()
+	var passive_badge_style: StyleBoxFlat = background_style.duplicate()
 	style.bg_color.a = 0.0
 	style.set_border_width_all(3)
 	style.set_corner_radius_all(0)
@@ -141,6 +163,7 @@ func _apply_player_style() -> void:
 	style.content_margin_bottom = 0
 	background.add_theme_stylebox_override("panel", background_style)
 	power_badge.add_theme_stylebox_override("panel", badge_style)
+	passive_badge.add_theme_stylebox_override("panel", passive_badge_style)
 	panel.add_theme_stylebox_override("panel", style)
 
 
@@ -170,7 +193,10 @@ func _apply_text_muted() -> void:
 	if _text_muted:
 		color = Color(0.62, 0.62, 0.62)
 	name_label.add_theme_color_override("font_color", color)
-	power_label.add_theme_color_override("font_color", color)
+	if _text_muted:
+		power_label.add_theme_color_override("font_color", color)
+	else:
+		_apply_display_power_color()
 
 
 func _apply_face_state() -> void:
@@ -182,6 +208,8 @@ func _apply_face_state() -> void:
 		back_texture.texture = metal_card_back
 	back_texture.visible = _face_down
 	content.visible = not _face_down
+	if not _face_down:
+		passive_badge.visible = _has_passive_field_ability()
 	if _back_desaturated:
 		back_texture.material = _make_desaturation_material()
 	else:
@@ -209,3 +237,36 @@ func _clear_extra_frames() -> void:
 	for child in get_children():
 		if child.has_meta("selection_frame"):
 			child.queue_free()
+
+
+func _has_passive_field_ability() -> bool:
+	if _unit == null:
+		return false
+	return String(_unit.ability_symbols).contains(PASSIVE_SYMBOL)
+
+
+func _reset_display_power() -> void:
+	if _unit == null:
+		_base_power = 0
+		_display_power = 0
+	else:
+		_base_power = int(_unit.power)
+		_display_power = _base_power
+	if is_node_ready():
+		_apply_display_power()
+
+
+func _apply_display_power() -> void:
+	power_label.text = str(_display_power)
+	_apply_display_power_color()
+
+
+func _apply_display_power_color() -> void:
+	if _text_muted:
+		return
+	var color: Color = POWER_NORMAL_COLOR
+	if _display_power > _base_power:
+		color = POWER_BUFF_COLOR
+	elif _display_power < _base_power:
+		color = POWER_DEBUFF_COLOR
+	power_label.add_theme_color_override("font_color", color)
