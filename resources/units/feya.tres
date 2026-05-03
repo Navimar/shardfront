@@ -10,5 +10,5 @@ name_key = "UNIT_FEYA_NAME"
 description_key = "UNIT_FEYA_DESCRIPTION"
 power = 3
 ability_symbols = "⚔️"
-implementation_status = "unimplemented"
+implementation_status = "implemented"
 portrait = ExtResource("2_portrait")

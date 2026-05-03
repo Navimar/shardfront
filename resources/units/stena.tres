@@ -10,5 +10,5 @@ name_key = "UNIT_STENA_NAME"
 description_key = "UNIT_STENA_DESCRIPTION"
 power = 7
 ability_symbols = "⚔️"
-implementation_status = "unimplemented"
+implementation_status = "implemented"
 portrait = ExtResource("2_portrait")

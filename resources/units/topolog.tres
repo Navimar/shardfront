@@ -1,14 +1,14 @@
 [gd_resource type="Resource" script_class="UnitResource" load_steps=3 format=3]
 
 [ext_resource type="Script" path="res://scripts/resources/unit_resource.gd" id="1_resource"]
-[ext_resource type="Texture2D" path="res://assets/cards/card_drovosek.jpg" id="2_portrait"]
+[ext_resource type="Texture2D" path="res://assets/cards/card_topolog.jpg" id="2_portrait"]
 
 [resource]
 script = ExtResource("1_resource")
-id = "type-1200db57-6cf2-492d-91f3-219b48a46c13"
-name_key = "UNIT_DROVOSEK_NAME"
-description_key = "UNIT_DROVOSEK_DESCRIPTION"
+id = "type-a5e6b8c4-d4d8-4ad1-9d72-8a44df839a6c"
+name_key = "UNIT_TOPOLOG_NAME"
+description_key = "UNIT_TOPOLOG_DESCRIPTION"
 power = 4
-ability_symbols = "🃏"
+ability_symbols = "❗"
 implementation_status = "implemented"
 portrait = ExtResource("2_portrait")

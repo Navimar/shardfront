@@ -10,5 +10,5 @@ name_key = "UNIT_GRIFFON_NAME"
 description_key = "UNIT_GRIFFON_DESCRIPTION"
 power = 5
 ability_symbols = "✋"
-implementation_status = "implemented"
+implementation_status = "tested"
 portrait = ExtResource("2_portrait")

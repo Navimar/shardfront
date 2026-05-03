@@ -34,6 +34,7 @@ func calculate_supply_result(state: Dictionary, player_index: int) -> Dictionary
 	_apply_vorota_supply_rule(result)
 	_apply_lokomotiv_supply_rule(result)
 	_apply_tonnel_supply_rule(result)
+	_apply_topolog_supply_rule(result)
 	_resolve_yarkiy_les_supply_rule(result)
 	_rebuild_reachability(result)
 	return result
@@ -134,6 +135,17 @@ func _apply_tonnel_supply_rule(result: Dictionary) -> void:
 				_add_edge(result, next, cell)
 
 
+func _apply_topolog_supply_rule(result: Dictionary) -> void:
+	if not _has_active_topolog(result.state):
+		return
+	for y in range(game.GRID_HEIGHT):
+		_add_wrap_edge_for_conductor(result, Vector2i(0, y), Vector2i(game.GRID_WIDTH - 1, y))
+		_add_wrap_edge_for_conductor(result, Vector2i(game.GRID_WIDTH - 1, y), Vector2i(0, y))
+	for x in range(game.GRID_WIDTH):
+		_add_wrap_edge_for_conductor(result, Vector2i(x, 0), Vector2i(x, game.GRID_HEIGHT - 1))
+		_add_wrap_edge_for_conductor(result, Vector2i(x, game.GRID_HEIGHT - 1), Vector2i(x, 0))
+
+
 func _resolve_yarkiy_les_supply_rule(result: Dictionary) -> void:
 	while true:
 		_rebuild_reachability(result)
@@ -220,6 +232,19 @@ func _is_conductor(result: Dictionary, cell: Vector2i) -> bool:
 
 func _is_base_cell(result: Dictionary, cell: Vector2i) -> bool:
 	return result.state.players[int(result.player_index)].base == cell
+
+
+func _add_wrap_edge_for_conductor(result: Dictionary, from_cell: Vector2i, to_cell: Vector2i) -> void:
+	if _is_conductor(result, from_cell):
+		_add_edge(result, from_cell, to_cell)
+
+
+func _has_active_topolog(state: Dictionary) -> bool:
+	for y in range(game.GRID_HEIGHT):
+		for x in range(game.GRID_WIDTH):
+			if _top_name_key(state, Vector2i(x, y)) == UnitKeys.TOPOLOG_NAME:
+				return true
+	return false
 
 
 func _get_top_unit_cells(state: Dictionary, player_index: int, name_key: String) -> Array:

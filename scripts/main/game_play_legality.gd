@@ -36,9 +36,7 @@ func can_play_card(state: Dictionary, card: Dictionary, cell: Vector2i) -> bool:
 	if game._top_face_down_in_state(state, cell):
 		return true
 
-	var attack_power: int = int(card.unit.power)
-	var defense_power: int = game._top_power_in_state(state, cell)
-	return attack_power >= defense_power
+	return game.power_logic.can_attack_card(state, card, cell)
 
 
 func get_play_access_kind(state: Dictionary, card: Dictionary, cell: Vector2i) -> String:

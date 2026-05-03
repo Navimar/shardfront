@@ -10,5 +10,5 @@ name_key = "UNIT_MAGICHESKIY_SCHIT_NAME"
 description_key = "UNIT_MAGICHESKIY_SCHIT_DESCRIPTION"
 power = 3
 ability_symbols = "🛡️❗"
-implementation_status = "implemented"
+implementation_status = "tested"
 portrait = ExtResource("2_portrait")
