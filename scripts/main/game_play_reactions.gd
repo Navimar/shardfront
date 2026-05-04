@@ -51,6 +51,23 @@ func apply_covered_card_reactions(state: Dictionary, result: Dictionary) -> void
 				"card_id": int(covered_card.id)
 			}
 			result.end_turn = false
+	elif covered_name == UnitKeys.VOLK_NAME:
+		covered_card.attack_power_override = int(covering_card.unit.power)
+		var volk_request: Dictionary = {
+			"kind": "replay_volk",
+			"target_type": "cell",
+			"player_index": int(covered_card.owner),
+			"source_cell": cell,
+			"card_id": int(covered_card.id)
+		}
+		var volk_destinations: Array = game.target_logic.get_legal_target_cells(state, volk_request)
+		if volk_destinations.is_empty():
+			return
+		if game._is_ai_player(int(covered_card.owner)):
+			game.target_logic.apply_target(state, volk_request, volk_destinations[0])
+		else:
+			result.pending_target = volk_request
+			result.end_turn = false
 	elif covered_name == UnitKeys.MINA_NAME:
 		covered_card.face_down = true
 		_discard_covering_card(state, result, cell, stack, covering_card)

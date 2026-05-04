@@ -4,13 +4,14 @@ class_name UnitResource
 const IMPLEMENTATION_UNIMPLEMENTED: String = "unimplemented"
 const IMPLEMENTATION_IMPLEMENTED: String = "implemented"
 const IMPLEMENTATION_TESTED: String = "tested"
+const IMPLEMENTATION_DEFERRED: String = "deferred"
 
 @export var id: String = ""
 @export var name_key: String = ""
 @export var description_key: String = ""
 @export var power: int = 0
 @export var ability_symbols: String = ""
-@export_enum("unimplemented", "implemented", "tested") var implementation_status: String = IMPLEMENTATION_UNIMPLEMENTED
+@export_enum("unimplemented", "implemented", "tested", "deferred") var implementation_status: String = IMPLEMENTATION_UNIMPLEMENTED
 @export var portrait: Texture2D = null
 
 

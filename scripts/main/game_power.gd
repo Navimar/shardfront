@@ -43,7 +43,7 @@ func get_card_attack_power(card: Dictionary) -> int:
 		return 15
 	if name_key == UnitKeys.STENA_NAME:
 		return 0
-	return int(card.unit.power)
+	return int(card.get("attack_power_override", int(card.unit.power)))
 
 
 func can_attack_card(state: Dictionary, attack_card: Dictionary, target_cell: Vector2i) -> bool:
@@ -55,7 +55,61 @@ func can_attack_card(state: Dictionary, attack_card: Dictionary, target_cell: Ve
 
 
 func _get_card_attack_power_for_target(state: Dictionary, attack_card: Dictionary, target_cell: Vector2i) -> int:
-	return get_card_attack_power(attack_card) + _get_ballista_attack_bonus(state, int(attack_card.owner), target_cell)
+	return (
+		_get_card_attack_power_in_state(state, attack_card)
+		+ _get_ballista_attack_bonus(state, int(attack_card.owner), target_cell)
+		+ _get_kladents_attack_bonus(state, int(attack_card.owner))
+		+ int(attack_card.get("attack_bonus", 0))
+	)
+
+
+func _get_card_attack_power_in_state(state: Dictionary, card: Dictionary) -> int:
+	if bool(card.get("face_down", false)):
+		return get_card_attack_power(card)
+	if String(card.unit.name_key) != UnitKeys.ZERKALNYY_GOLEM_NAME:
+		return get_card_attack_power(card)
+	var location: Dictionary = _find_card_cell_and_index(state, int(card.id))
+	if location.is_empty():
+		return get_card_attack_power(card)
+	var stack: Array = game._get_stack_in_state(state, location.cell)
+	var card_index: int = int(location.index)
+	if card_index <= 0:
+		return get_card_attack_power(card)
+	var copied_card: Dictionary = stack[card_index - 1]
+	if bool(copied_card.face_down):
+		return get_card_attack_power(card)
+	return get_card_attack_power(copied_card)
+
+
+func _find_card_cell_and_index(state: Dictionary, card_id: int) -> Dictionary:
+	for y in range(game.GRID_HEIGHT):
+		for x in range(game.GRID_WIDTH):
+			var cell: Vector2i = Vector2i(x, y)
+			var stack: Array = game._get_stack_in_state(state, cell)
+			var card_index: int = game._find_card_index_in_array(stack, card_id)
+			if card_index >= 0:
+				return {
+					"cell": cell,
+					"index": card_index
+				}
+	return {}
+
+
+func _get_kladents_attack_bonus(state: Dictionary, player_index: int) -> int:
+	for y in range(game.GRID_HEIGHT):
+		for x in range(game.GRID_WIDTH):
+			var cell: Vector2i = Vector2i(x, y)
+			var stack: Array = game._get_stack_in_state(state, cell)
+			if stack.is_empty():
+				continue
+			var card: Dictionary = stack[stack.size() - 1]
+			if int(card.owner) != player_index:
+				continue
+			if bool(card.face_down):
+				continue
+			if String(card.unit.name_key) == UnitKeys.KLADENETS_NAME:
+				return 10
+	return 0
 
 
 func _get_bashnya_defense_bonus(state: Dictionary, player_index: int, cell: Vector2i) -> int:

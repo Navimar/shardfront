@@ -63,6 +63,8 @@ const GameTargets: Script = preload("res://scripts/main/game_targets.gd")
 const UnitKeys: Script = preload("res://scripts/main/unit_keys.gd")
 const WoodBaseTexture: Texture2D = preload("res://assets/bases/base_single.jpg")
 const MetalBaseTexture: Texture2D = preload("res://assets/bases/bases_pair.jpg")
+const WoodBaseDestroyedTexture: Texture2D = preload("res://assets/bases/base_red_destroyed.jpg")
+const MetalBaseDestroyedTexture: Texture2D = preload("res://assets/bases/base_blue_destroyed.jpg")
 const TableBackgroundTexture: Texture2D = preload("res://assets/backgrounds/table_stone_background.jpg")
 
 var board = []
@@ -73,6 +75,7 @@ var ui_selected_hand_card_id: int = -1
 var minor_actions_spent: int = 0
 var game_over: bool = false
 var game_over_message: String = ""
+var destroyed_base_owner: int = -1
 var turn_restrictions: Array = []
 var barrier_removal_options: Array = []
 var animation_running: bool = false
@@ -111,6 +114,7 @@ var barrier_layer: Control
 var draw_two_button: Button
 var deck_two_button: Button
 var finish_choice_button: Button
+var strateg_take_button: Button
 var replay_button: Button
 var discard_button: Button
 var opponent_discard_button: Button
@@ -159,6 +163,9 @@ func _input(event: InputEvent) -> void:
 func _setup_game() -> void:
 	board.clear()
 	next_card_id = 1
+	game_over = false
+	game_over_message = ""
+	destroyed_base_owner = -1
 	turn_restrictions.clear()
 	barrier_removal_options.clear()
 	_clear_all_card_views()
@@ -367,6 +374,12 @@ func _build_ui() -> void:
 	finish_choice_button.visible = false
 	finish_choice_button.pressed.connect(_on_finish_choice_pressed)
 	hand_content.add_child(finish_choice_button)
+
+	strateg_take_button = Button.new()
+	strateg_take_button.text = "Взять"
+	strateg_take_button.visible = false
+	strateg_take_button.pressed.connect(_on_strateg_take_pressed)
+	hand_content.add_child(strateg_take_button)
 
 	replay_button = Button.new()
 	replay_button.text = _tr_text("UI_REPLAY")
@@ -619,6 +632,8 @@ func _sync_board_stack_card_visual_state(cell: Vector2i) -> void:
 		_configure_card_view(card_control, card, bool(card.face_down), false, is_covered)
 		if not bool(card.face_down) and not is_covered:
 			card_control.set_display_power(int(card.unit.power), power_logic.get_card_power_in_cell(_get_live_game_state(), card, cell))
+		if pending_logic.is_target_card(int(card.id)):
+			_add_selected_card_frame(card_control)
 
 
 func _sync_hand_card_visual_state() -> void:
@@ -656,6 +671,7 @@ func _is_hand_card_inactive_for_current_pending(card: Dictionary) -> bool:
 
 
 func _sync_after_state_change_without_card_layout() -> void:
+	_sync_base_visuals()
 	_sync_ui_chrome()
 	_queue_ai_turn_if_needed()
 
@@ -782,6 +798,8 @@ func _refresh_discard_button() -> void:
 
 
 func _refresh_finish_choice_button() -> void:
+	strateg_take_button.visible = pending_logic.action == "strateg"
+	strateg_take_button.disabled = animation_running or (_is_ai_player(current_player) and not _pending_action_belongs_to_view_player())
 	var can_finish: bool = pending_logic.can_finish_choice_target()
 	finish_choice_button.visible = can_finish
 	if not can_finish:
@@ -789,6 +807,8 @@ func _refresh_finish_choice_button() -> void:
 		return
 	if pending_logic.action == "hand_discard":
 		finish_choice_button.text = "Готово"
+	elif pending_logic.action == "strateg":
+		finish_choice_button.text = "Дальше"
 	elif pending_logic.is_repeating_choice_target():
 		finish_choice_button.text = "Готово"
 	elif String(pending_logic.target_request.get("kind", "")) != "optional_remove_barrier":
@@ -982,6 +1002,8 @@ func _get_action_text() -> String:
 		return "Выберите карту из руки."
 	if pending_logic.action == "discard_pick":
 		return "Выберите карту из сброса."
+	if pending_logic.action == "strateg":
+		return "Стратег: выберите карту, чтобы взять, или сбросьте ее."
 	if _is_ai_player(current_player):
 		return "%s думает..." % players[current_player].name
 	if minor_actions_spent > 0:
@@ -1135,7 +1157,8 @@ func _wrap_tooltip_text(text: String, max_line_length: int = 28) -> String:
 
 func _refresh_base_visual(cell: Vector2i, base_container: VBoxContainer) -> void:
 	for child in base_container.get_children():
-		child.queue_free()
+		base_container.remove_child(child)
+		child.free()
 
 	var base_owner: int = _get_base_owner(cell)
 	if base_owner == -1:
@@ -1148,10 +1171,20 @@ func _refresh_base_visual(cell: Vector2i, base_container: VBoxContainer) -> void
 	base_image.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	base_image.stretch_mode = TextureRect.STRETCH_SCALE
 	if base_owner == 0:
-		base_image.texture = WoodBaseTexture
+		if _is_base_destroyed(base_owner):
+			base_image.texture = WoodBaseDestroyedTexture
+		else:
+			base_image.texture = WoodBaseTexture
 	else:
-		base_image.texture = MetalBaseTexture
+		if _is_base_destroyed(base_owner):
+			base_image.texture = MetalBaseDestroyedTexture
+		else:
+			base_image.texture = MetalBaseTexture
 	base_container.add_child(base_image)
+
+
+func _is_base_destroyed(base_owner: int) -> bool:
+	return game_over and destroyed_base_owner == base_owner
 
 
 func _sync_board_stack_card_views(cell: Vector2i, stack_container: Control) -> void:
@@ -1164,6 +1197,7 @@ func _sync_board_stack_card_views(cell: Vector2i, stack_container: Control) -> v
 		if not bool(card.face_down) and not is_covered:
 			card_control.set_display_power(int(card.unit.power), power_logic.get_card_power_in_cell(_get_live_game_state(), card, cell))
 		card_control.tooltip_text = _get_card_tooltip(card)
+		_connect_board_card_input(card_control)
 		_attach_card_view_to_container(card_control, stack_container)
 		card_control.position = _get_board_stack_card_local_position(stack.size(), i)
 		stack_container.move_child(card_control, i)
@@ -1467,6 +1501,9 @@ func _on_hand_card_gui_input(event: InputEvent, unit_control: Control) -> void:
 	if game_over or animation_running:
 		return
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
+		if pending_logic.action == "strateg":
+			await pending_logic.try_take_strateg_preview(int(unit_control.get_meta("card_id")))
+			return
 		if pending_logic.action == "hand_pick":
 			await pending_logic.try_pick_hand_card(int(unit_control.get_meta("card_id")))
 			return
@@ -1519,6 +1556,22 @@ func _on_discard_card_gui_input(event: InputEvent, unit_control: Control) -> voi
 		await pending_logic.try_pick_discard_card(int(unit_control.get_meta("card_id")))
 
 
+func _connect_board_card_input(card_control: Control) -> void:
+	if bool(card_control.get_meta("board_input_connected", false)):
+		return
+	card_control.gui_input.connect(_on_board_card_gui_input.bind(card_control))
+	card_control.set_meta("board_input_connected", true)
+
+
+func _on_board_card_gui_input(event: InputEvent, unit_control: Control) -> void:
+	if game_over or animation_running:
+		return
+	if pending_logic.action != "target" or not pending_logic.is_card_target():
+		return
+	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
+		await pending_logic.try_apply_target_card(int(unit_control.get_meta("card_id")))
+
+
 func _is_ai_player(player_index: int) -> bool:
 	return AI_PLAYERS.has(player_index)
 
@@ -1565,6 +1618,8 @@ func _run_ai_turn_step() -> void:
 			pending_logic.begin_hand_pick(result.pending_hand_pick)
 		elif result.has("pending_discard_pick"):
 			pending_logic.begin_discard_pick(result.pending_discard_pick)
+		elif result.has("pending_strateg"):
+			pending_logic.begin_strateg(result.pending_strateg)
 		elif result.has("pending_extra_hand_play"):
 			if _is_ai_player(current_player):
 				await _try_ai_extra_hand_play()
@@ -1606,6 +1661,7 @@ func _get_live_game_state() -> Dictionary:
 		"minor_actions_spent": minor_actions_spent,
 		"game_over": game_over,
 		"game_over_message": game_over_message,
+		"destroyed_base_owner": destroyed_base_owner,
 		"next_card_id": next_card_id,
 		"turn_restrictions": turn_restrictions,
 		"barrier_removal_options": barrier_removal_options
@@ -1625,6 +1681,7 @@ func _duplicate_game_state(state: Dictionary) -> Dictionary:
 		"minor_actions_spent": int(state.minor_actions_spent),
 		"game_over": bool(state.game_over),
 		"game_over_message": String(state.game_over_message),
+		"destroyed_base_owner": int(state.get("destroyed_base_owner", -1)),
 		"next_card_id": int(state.get("next_card_id", next_card_id)),
 		"turn_restrictions": Array(state.get("turn_restrictions", [])).duplicate(true),
 		"barrier_removal_options": Array(state.get("barrier_removal_options", [])).duplicate(true)
@@ -1639,6 +1696,7 @@ func _restore_game_state(state: Dictionary) -> void:
 	minor_actions_spent = int(state.minor_actions_spent)
 	game_over = bool(state.game_over)
 	game_over_message = String(state.game_over_message)
+	destroyed_base_owner = int(state.get("destroyed_base_owner", -1))
 	next_card_id = int(state.get("next_card_id", next_card_id))
 	turn_restrictions = Array(state.get("turn_restrictions", [])).duplicate(true)
 	barrier_removal_options = Array(state.get("barrier_removal_options", [])).duplicate(true)
@@ -1676,6 +1734,7 @@ func _make_action_variant(action_type: String, player_index: int, payload: Dicti
 		"hand_index": -1,
 		"cell": Vector2i(-1, -1),
 		"target_cell": Vector2i(-1, -1),
+		"target_card_id": -1,
 		"target_sequence": [],
 		"target_choice": {},
 		"payload": payload
@@ -1688,6 +1747,8 @@ func _make_action_variant(action_type: String, player_index: int, payload: Dicti
 		variant.play_access = payload.play_access
 	if payload.has("target_cell"):
 		variant.target_cell = payload.target_cell
+	if payload.has("target_card_id"):
+		variant.target_card_id = int(payload.target_card_id)
 	if payload.has("target_sequence"):
 		variant.target_sequence = Array(payload.target_sequence).duplicate()
 	if payload.has("target_choice"):
@@ -1761,6 +1822,13 @@ func _expand_variant_with_target_choices(state: Dictionary, variant: Dictionary)
 			variants.append(choice_variant)
 	elif String(result.pending_target.get("target_type", "cell")) == "cell_sequence":
 		variants.append_array(_expand_variant_with_target_sequence(simulation_state, result.pending_target, variant, []))
+	elif String(result.pending_target.get("target_type", "cell")) == "card":
+		for target_card in target_logic.get_legal_target_cards(simulation_state, result.pending_target):
+			var card_variant: Dictionary = variant.duplicate(true)
+			card_variant.target_card_id = int(target_card.card_id)
+			card_variant.payload = Dictionary(card_variant.payload).duplicate(true)
+			card_variant.payload.target_card_id = int(target_card.card_id)
+			variants.append(card_variant)
 	else:
 		for target_cell in target_logic.get_legal_target_cells(simulation_state, result.pending_target):
 			var target_variant: Dictionary = variant.duplicate(true)
@@ -1871,6 +1939,8 @@ func _apply_action_variant_to_state(state: Dictionary, variant: Dictionary) -> D
 			target_result = _apply_target_sequence_to_state(state, result.pending_target, Array(variant.target_sequence))
 		elif target_type == "choice" and not Dictionary(variant.get("target_choice", {})).is_empty():
 			target_result = target_logic.apply_choice(state, result.pending_target, variant.target_choice, false)
+		elif target_type == "card" and int(variant.get("target_card_id", -1)) >= 0:
+			target_result = target_logic.apply_card_target(state, result.pending_target, int(variant.target_card_id))
 		elif target_type != "choice" and variant.get("target_cell", Vector2i(-1, -1)) != Vector2i(-1, -1):
 			target_result = target_logic.apply_target(state, result.pending_target, variant.target_cell)
 		else:
@@ -1881,7 +1951,7 @@ func _apply_action_variant_to_state(state: Dictionary, variant: Dictionary) -> D
 				target_result.events = state.events
 				return target_result
 			result.erase("pending_target")
-			for pending_key in ["pending_target", "pending_hand_discard", "pending_hand_pick", "pending_discard_pick", "pending_extra_hand_play"]:
+			for pending_key in ["pending_target", "pending_hand_discard", "pending_hand_pick", "pending_discard_pick", "pending_strateg", "pending_extra_hand_play"]:
 				if target_result.has(pending_key):
 					result[pending_key] = target_result[pending_key]
 			result.end_turn = bool(target_result.end_turn)
@@ -1902,6 +1972,7 @@ func _result_has_pending_action(result: Dictionary) -> bool:
 		or result.has("pending_hand_discard")
 		or result.has("pending_hand_pick")
 		or result.has("pending_discard_pick")
+		or result.has("pending_strateg")
 		or result.has("pending_extra_hand_play")
 	)
 
@@ -1911,7 +1982,9 @@ func _apply_target_sequence_to_state(state: Dictionary, request: Dictionary, tar
 	var target_result: Dictionary = {}
 	if targets.is_empty() and target_logic.can_finish_choice_request(current_request):
 		target_logic.finish_choice(state, current_request)
-		return _make_action_result(RESULT_OK, "")
+		target_result = _make_action_result(RESULT_OK, "")
+		target_result.end_turn = true
+		return target_result
 	for target_cell in targets:
 		target_result = target_logic.apply_target(state, current_request, target_cell)
 		if target_result.status != RESULT_OK:
@@ -1966,10 +2039,12 @@ func _apply_play_hand_card_to_state(state: Dictionary, variant: Dictionary) -> D
 	card.face_down = false
 	if not action_restriction_logic.can_play_hand_card(state, player_index, card, cell):
 		return _make_action_result(RESULT_INVALID, "card_restricted")
+	_apply_preplay_attack_override_in_state(state, player_index, hand_index, card, cell)
 	if not _can_play_card_in_state(state, card, cell):
 		return _make_action_result(RESULT_INVALID, "cannot_play_card")
 
 	var opponent_supplied_before: Dictionary = _get_supplied_cells_in_state(state, _opponent(player_index))
+	_apply_kladents_attack_bonus_payment_in_state(state, player_index, card, cell)
 	hand.remove_at(hand_index)
 	_place_played_hand_card_in_state(state, card, cell)
 	_record_action_event_in_state(state, {
@@ -1986,7 +2061,7 @@ func _apply_play_hand_card_to_state(state: Dictionary, variant: Dictionary) -> D
 		}
 	})
 	_record_layout_stack_event_in_state(state, cell)
-	_apply_gnom_overflow_in_state(state, card, cell)
+	_apply_played_card_overflow_in_state(state, card, cell)
 	var result: Dictionary = _make_action_result(RESULT_OK, "")
 	result.card = card
 	result.cell = cell
@@ -1994,6 +2069,71 @@ func _apply_play_hand_card_to_state(state: Dictionary, variant: Dictionary) -> D
 	result.end_turn = true
 	result.opponent_supplied_before = opponent_supplied_before
 	return result
+
+
+func _apply_preplay_attack_override_in_state(
+	state: Dictionary,
+	player_index: int,
+	hand_index: int,
+	card: Dictionary,
+	target: Vector2i
+) -> void:
+	if bool(card.face_down):
+		return
+	var name_key: String = String(card.unit.name_key)
+	if name_key == UnitKeys.ROBOT_NAME:
+		var hand: Array = state.players[player_index].hand
+		for index in range(hand.size()):
+			if index == hand_index:
+				continue
+			var copied_card: Dictionary = hand[index]
+			if bool(copied_card.get("face_down", false)):
+				continue
+			card.attack_power_override = power_logic.get_card_attack_power(copied_card)
+			return
+	elif name_key == UnitKeys.HLAMOVNIK_NAME:
+		var discard: Array = state.players[player_index].discard
+		if discard.is_empty():
+			return
+		var copied_discard_card: Dictionary = discard[discard.size() - 1]
+		card.attack_power_override = power_logic.get_card_attack_power(copied_discard_card)
+	elif name_key == UnitKeys.ZERKALNYY_GOLEM_NAME:
+		var target_stack: Array = _get_stack_in_state(state, target)
+		if target_stack.is_empty():
+			return
+		var copied_board_card: Dictionary = target_stack[target_stack.size() - 1]
+		if bool(copied_board_card.face_down):
+			return
+		card.attack_power_override = power_logic.get_card_attack_power(copied_board_card)
+
+
+func _apply_kladents_attack_bonus_payment_in_state(state: Dictionary, player_index: int, card: Dictionary, target: Vector2i) -> void:
+	var target_stack: Array = _get_stack_in_state(state, target)
+	if target_stack.is_empty():
+		return
+	var target_card: Dictionary = target_stack[target_stack.size() - 1]
+	if int(target_card.owner) == player_index:
+		return
+	if bool(target_card.face_down):
+		return
+	if power_logic.get_card_attack_power(card) + int(card.get("attack_bonus", 0)) >= _top_power_in_state(state, target):
+		return
+	for y in range(GRID_HEIGHT):
+		for x in range(GRID_WIDTH):
+			var cell: Vector2i = Vector2i(x, y)
+			var stack: Array = _get_stack_in_state(state, cell)
+			if stack.is_empty():
+				continue
+				var kladents_card: Dictionary = stack[stack.size() - 1]
+				if int(kladents_card.owner) != player_index:
+					continue
+				if bool(kladents_card.face_down):
+					continue
+				if String(kladents_card.unit.name_key) != UnitKeys.KLADENETS_NAME:
+					continue
+				kladents_card.face_down = true
+			_record_layout_stack_event_in_state(state, cell)
+			return
 
 
 func _apply_play_deck_face_down_to_state(state: Dictionary, variant: Dictionary) -> Dictionary:
@@ -2073,11 +2213,51 @@ func _check_base_capture_in_state(state: Dictionary, result: Dictionary = {}) ->
 		var winner_index: int = int(top_card.owner)
 		if winner_index == base_owner:
 			continue
+		if _try_apply_opolchenie_defense_in_state(state, base_owner, base_cell, top_card, result):
+			continue
 		state.game_over = true
 		state.game_over_message = _tr_text("UI_GAME_OVER") % state.players[winner_index].name
+		state.destroyed_base_owner = base_owner
 		if not result.is_empty():
 			result.end_turn = false
 		return
+
+
+func _try_apply_opolchenie_defense_in_state(
+	state: Dictionary,
+	base_owner: int,
+	base_cell: Vector2i,
+	attacking_card: Dictionary,
+	result: Dictionary
+) -> bool:
+	var hand: Array = state.players[base_owner].hand
+	var opolchenie_index: int = -1
+	for index in range(hand.size()):
+		var hand_card: Dictionary = hand[index]
+		if String(hand_card.unit.name_key) == UnitKeys.OPOLCHENIE_NAME:
+			opolchenie_index = index
+			break
+	if opolchenie_index < 0:
+		return false
+	var opolchenie_card: Dictionary = hand[opolchenie_index]
+	hand.remove_at(opolchenie_index)
+	_discard_card_in_state(state, base_owner, opolchenie_card, {
+		"type": "hand",
+		"hand_index": opolchenie_index
+	})
+	var stack: Array = _get_stack_in_state(state, base_cell)
+	var attack_index: int = _find_card_index_in_array(stack, int(attacking_card.id))
+	if attack_index >= 0:
+		stack.remove_at(attack_index)
+		_discard_card_in_state(state, int(attacking_card.owner), attacking_card, {
+			"type": "board",
+			"cell": base_cell,
+			"face_down": bool(attacking_card.face_down)
+		})
+		_record_layout_stack_event_in_state(state, base_cell)
+		if not result.is_empty() and result.has("card") and int(result.card.id) == int(attacking_card.id):
+			result.played_card_removed = true
+	return true
 
 
 func _apply_end_turn_rules_to_state(state: Dictionary, result: Dictionary = {}) -> void:
@@ -2169,6 +2349,12 @@ func _on_deck_two_pressed() -> void:
 	_sync_after_state_change_without_card_layout()
 
 
+func _on_strateg_take_pressed() -> void:
+	if pending_logic.action != "strateg":
+		return
+	await pending_logic.try_take_strateg_preview(int(pending_logic.strateg_request.get("preview_card_id", -1)))
+
+
 func _on_finish_choice_pressed() -> void:
 	if game_over or animation_running:
 		return
@@ -2187,6 +2373,7 @@ func _on_replay_pressed() -> void:
 	current_player = 0
 	game_over = false
 	game_over_message = ""
+	destroyed_base_owner = -1
 	_setup_game()
 	_refresh_ui()
 
@@ -2286,6 +2473,8 @@ func _try_play_hand_card(cell: Vector2i) -> void:
 		pending_logic.begin_hand_pick(result.pending_hand_pick)
 	elif result.has("pending_discard_pick"):
 		pending_logic.begin_discard_pick(result.pending_discard_pick)
+	elif result.has("pending_strateg"):
+		pending_logic.begin_strateg(result.pending_strateg)
 	elif result.has("pending_extra_hand_play"):
 		pending_logic.action = "hand"
 	elif result.has("pending_target"):
@@ -2354,15 +2543,23 @@ func _place_played_hand_card_in_state(state: Dictionary, card: Dictionary, cell:
 	stack.append(card)
 
 
-func _apply_gnom_overflow_in_state(state: Dictionary, card: Dictionary, cell: Vector2i) -> void:
+func _apply_played_card_overflow_in_state(state: Dictionary, card: Dictionary, cell: Vector2i) -> void:
 	if bool(card.face_down):
 		return
-	if String(card.unit.name_key) != UnitKeys.GNOM_NAME:
+	var name_key: String = String(card.unit.name_key)
+	if name_key != UnitKeys.GNOM_NAME and name_key != UnitKeys.SKARABEY_NAME:
 		return
 	var stack: Array = _get_stack_in_state(state, cell)
 	if stack.size() <= 2:
 		return
 	var removed: Dictionary = stack.pop_back()
+	if name_key == UnitKeys.SKARABEY_NAME:
+		_return_card_to_hand_in_state(state, int(removed.owner), removed, {
+			"type": "board",
+			"cell": cell,
+			"face_down": bool(removed.face_down)
+		})
+		return
 	_discard_card_in_state(state, int(removed.owner), removed, {
 		"type": "board",
 		"cell": cell,
@@ -2814,6 +3011,7 @@ func _set_action_buttons_enabled(enabled: bool) -> void:
 		draw_two_button.disabled = true
 		deck_two_button.disabled = true
 		finish_choice_button.disabled = true
+		strateg_take_button.disabled = true
 		return
 	var state: Dictionary = _get_live_game_state()
 	draw_two_button.disabled = not action_restriction_logic.can_draw_card(state, current_player)

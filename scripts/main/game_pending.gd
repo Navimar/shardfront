@@ -10,8 +10,10 @@ var hand_discard_card_id: int = -1
 var hand_discard_source_cell: Vector2i = Vector2i(-1, -1)
 var hand_discard_optional: bool = false
 var hand_discard_draw_bonus: int = 0
+var hand_discard_attack_bonus: int = 0
 var hand_pick_request: Dictionary = {}
 var discard_pick_request: Dictionary = {}
+var strateg_request: Dictionary = {}
 var target_request: Dictionary = {}
 var selected_target_edge: Array = []
 
@@ -31,8 +33,10 @@ func clear() -> void:
 	hand_discard_source_cell = Vector2i(-1, -1)
 	hand_discard_optional = false
 	hand_discard_draw_bonus = 0
+	hand_discard_attack_bonus = 0
 	hand_pick_request.clear()
 	discard_pick_request.clear()
+	strateg_request.clear()
 	target_request.clear()
 	selected_target_edge.clear()
 
@@ -55,6 +59,7 @@ func begin_hand_discard(discard_info: Dictionary) -> void:
 	hand_discard_source_cell = discard_info.get("source_cell", Vector2i(-1, -1))
 	hand_discard_optional = bool(discard_info.get("optional", false))
 	hand_discard_draw_bonus = int(discard_info.get("draw_bonus", 0))
+	hand_discard_attack_bonus = int(discard_info.get("attack_bonus", 0))
 
 
 func begin_hand_pick(request: Dictionary) -> void:
@@ -71,8 +76,18 @@ func begin_discard_pick(request: Dictionary) -> void:
 	game.discard_dialog.popup_centered()
 
 
+func begin_strateg(request: Dictionary) -> void:
+	action = "strateg"
+	game.ui_selected_hand_card_id = int(request.get("preview_card_id", -1))
+	strateg_request = request.duplicate(true)
+
+
 func is_hand_card_inactive(card: Dictionary) -> bool:
 	var view_player: int = game._get_view_player()
+	if action == "strateg":
+		if int(strateg_request.get("player_index", -1)) != view_player:
+			return false
+		return int(card.id) != int(strateg_request.get("preview_card_id", -1))
 	if action == "hand_pick":
 		if int(hand_pick_request.get("player_index", -1)) != view_player:
 			return false
@@ -91,7 +106,15 @@ func is_hand_card_inactive(card: Dictionary) -> bool:
 func get_target_cells() -> Array:
 	if is_choice_target():
 		return []
+	if is_card_target():
+		return []
 	return game.target_logic.get_legal_target_cells(game._get_live_game_state(), target_request)
+
+
+func get_target_cards() -> Array:
+	if not is_card_target():
+		return []
+	return game.target_logic.get_legal_target_cards(game._get_live_game_state(), target_request)
 
 
 func get_target_edges() -> Array:
@@ -104,11 +127,17 @@ func is_choice_target() -> bool:
 	return String(target_request.get("target_type", "cell")) == "choice"
 
 
+func is_card_target() -> bool:
+	return String(target_request.get("target_type", "cell")) == "card"
+
+
 func is_repeating_choice_target() -> bool:
 	return game.target_logic.is_repeating_choice_request(target_request)
 
 
 func can_finish_choice_target() -> bool:
+	if action == "strateg":
+		return int(strateg_request.get("checks", 0)) < 10
 	if action == "hand_discard" and hand_discard_optional:
 		return true
 	return game.target_logic.can_finish_choice_request(target_request)
@@ -128,6 +157,15 @@ func can_pick_hand_card(card_id: int) -> bool:
 	return int(hand_pick_request.get("player_index", -1)) == game._get_view_player()
 
 
+func is_target_card(card_id: int) -> bool:
+	if action != "target" or not is_card_target():
+		return false
+	for target in get_target_cards():
+		if int(target.get("card_id", -1)) == card_id:
+			return true
+	return false
+
+
 func _begin_pending_from_result_or_clear(result: Dictionary) -> void:
 	if result.has("pending_hand_discard"):
 		begin_hand_discard(result.pending_hand_discard)
@@ -135,6 +173,8 @@ func _begin_pending_from_result_or_clear(result: Dictionary) -> void:
 		begin_hand_pick(result.pending_hand_pick)
 	elif result.has("pending_discard_pick"):
 		begin_discard_pick(result.pending_discard_pick)
+	elif result.has("pending_strateg"):
+		begin_strateg(result.pending_strateg)
 	elif result.has("pending_extra_hand_play"):
 		action = "hand"
 	elif result.has("pending_target"):
@@ -146,12 +186,33 @@ func _begin_pending_from_result_or_clear(result: Dictionary) -> void:
 func try_apply_target(cell: Vector2i) -> void:
 	if action != "target":
 		return
-	if is_choice_target():
+	if is_choice_target() or is_card_target():
 		return
 	var request_player: int = int(target_request.get("player_index", -1))
 	if request_player != game.current_player and request_player != game._get_view_player():
 		return
 	var result: Dictionary = _apply_target_to_current_state(target_request, cell)
+	if result.status != game.RESULT_OK:
+		game.action_label.text = game._tr_text("UI_ERROR_CANNOT_PLAY_CARD")
+		return
+
+	game.animation_running = true
+	game._set_action_buttons_enabled(false)
+	await game._animate_action_result(result)
+	game.animation_running = false
+	_begin_pending_from_result_or_clear(result)
+	game._sync_after_state_change_without_card_layout()
+
+
+func try_apply_target_card(card_id: int) -> void:
+	if action != "target":
+		return
+	if not is_card_target():
+		return
+	var request_player: int = int(target_request.get("player_index", -1))
+	if request_player != game.current_player and request_player != game._get_view_player():
+		return
+	var result: Dictionary = _apply_card_target_to_current_state(target_request, card_id)
 	if result.status != game.RESULT_OK:
 		game.action_label.text = game._tr_text("UI_ERROR_CANNOT_PLAY_CARD")
 		return
@@ -201,6 +262,9 @@ func try_apply_target_edge(edge: Array) -> void:
 
 
 func finish_repeating_target() -> void:
+	if action == "strateg":
+		await try_discard_strateg_preview()
+		return
 	if action == "hand_discard" and hand_discard_optional:
 		var hand_result: Dictionary = _finish_hand_discard_optional_in_current_state()
 		game.animation_running = true
@@ -215,6 +279,36 @@ func finish_repeating_target() -> void:
 	if not can_finish_choice_target():
 		return
 	var result: Dictionary = _finish_target_turn_in_current_state()
+	game.animation_running = true
+	game._set_action_buttons_enabled(false)
+	await game._animate_action_result(result)
+	game.animation_running = false
+	_begin_pending_from_result_or_clear(result)
+	game._sync_after_state_change_without_card_layout()
+
+
+func try_take_strateg_preview(card_id: int) -> void:
+	if action != "strateg":
+		return
+	if int(strateg_request.get("player_index", -1)) != game._get_view_player():
+		return
+	if card_id != int(strateg_request.get("preview_card_id", -1)):
+		return
+	var result: Dictionary = _finish_strateg_in_current_state()
+	game.animation_running = true
+	game._set_action_buttons_enabled(false)
+	await game._animate_action_result(result)
+	game.animation_running = false
+	_begin_pending_from_result_or_clear(result)
+	game._sync_after_state_change_without_card_layout()
+
+
+func try_discard_strateg_preview() -> void:
+	if action != "strateg":
+		return
+	if int(strateg_request.get("player_index", -1)) != game._get_view_player():
+		return
+	var result: Dictionary = _discard_strateg_preview_in_current_state()
 	game.animation_running = true
 	game._set_action_buttons_enabled(false)
 	await game._animate_action_result(result)
@@ -253,6 +347,8 @@ func try_discard_hand_card(card_id: int) -> void:
 			"card_id": hand_discard_card_id,
 			"source_cell": hand_discard_source_cell
 		}, result)
+	if hand_discard_attack_bonus != 0:
+		_apply_hand_discard_attack_bonus_to_source(state)
 	result.events = state.events
 
 	game.animation_running = true
@@ -361,12 +457,31 @@ func _apply_target_to_current_state(request: Dictionary, target: Vector2i) -> Di
 	return result
 
 
+func _apply_card_target_to_current_state(request: Dictionary, card_id: int) -> Dictionary:
+	var state: Dictionary = game._get_live_game_state()
+	state.events = []
+	var supply_origin_before: Dictionary = game._get_all_supply_origin_cells_in_state(state)
+	var result: Dictionary = game.target_logic.apply_card_target(state, request, card_id)
+	if result.status == game.RESULT_OK and not game._result_has_pending_action(result):
+		_apply_source_play_reactions_to_result(state, request, result)
+		game._check_base_capture_in_state(state, result)
+		if not game._result_has_pending_action(result):
+			if not bool(state.game_over):
+				game._apply_end_turn_rules_to_state(state, result)
+			game._record_supply_control_event_if_changed_in_state(state, supply_origin_before)
+	result.events = state.events
+	game._restore_game_state(state)
+	return result
+
+
 func _finish_hand_discard_optional_in_current_state() -> Dictionary:
 	var state: Dictionary = game._get_live_game_state()
 	state.events = []
 	var result: Dictionary = game._make_action_result(game.RESULT_OK, "")
 	if hand_discard_draw_bonus != 0:
 		game._draw_cards_in_state(state, hand_discard_player, hand_discard_done + hand_discard_draw_bonus)
+	if hand_discard_attack_bonus != 0 and hand_discard_done > 0:
+		_apply_hand_discard_attack_bonus_to_source(state)
 	_apply_source_play_reactions_to_result(state, {
 		"card_id": hand_discard_card_id,
 		"source_cell": hand_discard_source_cell
@@ -375,6 +490,83 @@ func _finish_hand_discard_optional_in_current_state() -> Dictionary:
 	result.events = state.events
 	game._restore_game_state(state)
 	return result
+
+
+func _finish_strateg_in_current_state() -> Dictionary:
+	var state: Dictionary = game._get_live_game_state()
+	state.events = []
+	var supply_origin_before: Dictionary = game._get_all_supply_origin_cells_in_state(state)
+	var result: Dictionary = game._make_action_result(game.RESULT_OK, "")
+	_apply_source_play_reactions_to_result(state, strateg_request, result)
+	if not game._result_has_pending_action(result):
+		game._apply_end_turn_rules_to_state(state, result)
+		game._record_supply_control_event_if_changed_in_state(state, supply_origin_before)
+	result.events = state.events
+	game._restore_game_state(state)
+	return result
+
+
+func _discard_strateg_preview_in_current_state() -> Dictionary:
+	var state: Dictionary = game._get_live_game_state()
+	state.events = []
+	var player_index: int = int(strateg_request.player_index)
+	var preview_card_id: int = int(strateg_request.preview_card_id)
+	var hand: Array = state.players[player_index].hand
+	var hand_index: int = game._find_card_index_in_array(hand, preview_card_id)
+	if hand_index < 0:
+		return game._make_action_result(game.RESULT_INVALID, "bad_hand_index")
+	var card: Dictionary = hand[hand_index]
+	hand.remove_at(hand_index)
+	game._discard_card_in_state(state, player_index, card, {
+		"type": "hand",
+		"hand_index": hand_index
+	})
+	var result: Dictionary = game._make_action_result(game.RESULT_OK, "")
+	var checks: int = int(strateg_request.get("checks", 0))
+	if checks < 10:
+		var preview: Dictionary = _draw_strateg_preview_card(state, player_index)
+		if not preview.is_empty():
+			var next_request: Dictionary = strateg_request.duplicate(true)
+			next_request.preview_card_id = int(preview.id)
+			next_request.checks = checks + 1
+			result.pending_strateg = next_request
+			result.end_turn = false
+			result.events = state.events
+			game._restore_game_state(state)
+			return result
+	_apply_source_play_reactions_to_result(state, strateg_request, result)
+	if not game._result_has_pending_action(result):
+		game._apply_end_turn_rules_to_state(state, result)
+	result.events = state.events
+	game._restore_game_state(state)
+	return result
+
+
+func _draw_strateg_preview_card(state: Dictionary, player_index: int) -> Dictionary:
+	game._refill_deck_if_empty_in_state(state, player_index)
+	var deck: Array = state.players[player_index].deck
+	if deck.is_empty():
+		return {}
+	var card: Dictionary = deck.pop_back()
+	card.owner = player_index
+	card.face_down = false
+	state.players[player_index].hand.append(card)
+	game._record_draw_event_in_state(state, player_index, card)
+	game._refill_deck_if_empty_in_state(state, player_index)
+	return card
+
+
+func _apply_hand_discard_attack_bonus_to_source(state: Dictionary) -> void:
+	if hand_discard_card_id < 0 or not game._is_inside(hand_discard_source_cell):
+		return
+	var source_card: Dictionary = game._find_card_by_id_in_array(
+		game._get_stack_in_state(state, hand_discard_source_cell),
+		hand_discard_card_id
+	)
+	if source_card.is_empty():
+		return
+	source_card.attack_bonus = int(source_card.get("attack_bonus", 0)) + hand_discard_attack_bonus
+	hand_discard_attack_bonus = 0
 
 
 func _apply_choice_to_current_state(request: Dictionary, choice: Dictionary, finish_turn: bool = true) -> Dictionary:
