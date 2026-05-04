@@ -19,6 +19,7 @@ const DECK_READY_STATUSES: Array = [UnitResource.IMPLEMENTATION_IMPLEMENTED, Uni
 const DECK_UNIT_STATUSES: Array = DECK_IMPLEMENTED_UNTESTED_STATUSES
 const HUMAN_PLAYER_INDEX: int = 0
 const AI_PLAYERS: Array = [1]
+const PLAYER_BASE_CELLS: Array[Vector2i] = [Vector2i(1, 1), Vector2i(5, 3)]
 const AI_THINK_DELAY: float = 0.35
 const TEMPO_BAR_HEIGHT: int = 6
 const TEMPO_BAR_VERTICAL_WIDTH: int = 10
@@ -151,18 +152,6 @@ func _input(event: InputEvent) -> void:
 			await pending_logic.try_apply_target_edge(edge)
 			return
 
-	var cell: Vector2i = _get_board_cell_at_global_position(event.global_position)
-	if cell == Vector2i(-1, -1):
-		return
-
-	get_viewport().set_input_as_handled()
-	if pending_logic.action == "hand":
-		_try_play_hand_card(cell)
-	elif pending_logic.action == "deck_face_down":
-		_try_play_from_deck_face_down(cell)
-	elif pending_logic.action == "target":
-		await pending_logic.try_apply_target(cell)
-
 
 func _setup_game() -> void:
 	board.clear()
@@ -188,7 +177,7 @@ func _setup_game() -> void:
 	players = [
 		{
 			"name": "Древесный игрок",
-			"base": Vector2i(1, 1),
+			"base": PLAYER_BASE_CELLS[0],
 			"deck_template": all_units.duplicate(),
 			"deck": first_deck,
 			"hand": [],
@@ -196,7 +185,7 @@ func _setup_game() -> void:
 		},
 		{
 			"name": "Металлический игрок",
-			"base": Vector2i(5, 3),
+			"base": PLAYER_BASE_CELLS[1],
 			"deck_template": all_units.duplicate(),
 			"deck": second_deck,
 			"hand": [],
@@ -797,6 +786,8 @@ func _refresh_finish_choice_button() -> void:
 		return
 	if pending_logic.is_repeating_choice_target():
 		finish_choice_button.text = "Готово"
+	elif String(pending_logic.target_request.get("kind", "")) != "optional_remove_barrier":
+		finish_choice_button.text = "Готово"
 	else:
 		finish_choice_button.text = "Пропустить"
 	finish_choice_button.disabled = animation_running or _is_ai_player(current_player)
@@ -976,6 +967,8 @@ func _get_action_text() -> String:
 			if not pending_logic.selected_target_edge.is_empty():
 				return "Выберите новое ребро."
 			return "Выберите ребро."
+		if pending_logic.is_repeating_choice_target():
+			return "Выберите цели или завершите."
 		return "Выберите цель."
 	if pending_logic.action == "hand_discard":
 		return "Выберите карты для сброса (%d)." % pending_logic.hand_discard_count
@@ -1627,6 +1620,7 @@ func _make_action_variant(action_type: String, player_index: int, payload: Dicti
 		"hand_index": -1,
 		"cell": Vector2i(-1, -1),
 		"target_cell": Vector2i(-1, -1),
+		"target_sequence": [],
 		"target_choice": {},
 		"payload": payload
 	}
@@ -1638,6 +1632,8 @@ func _make_action_variant(action_type: String, player_index: int, payload: Dicti
 		variant.play_access = payload.play_access
 	if payload.has("target_cell"):
 		variant.target_cell = payload.target_cell
+	if payload.has("target_sequence"):
+		variant.target_sequence = Array(payload.target_sequence).duplicate()
 	if payload.has("target_choice"):
 		variant.target_choice = payload.target_choice
 	return variant
@@ -1707,12 +1703,50 @@ func _expand_variant_with_target_choices(state: Dictionary, variant: Dictionary)
 			choice_variant.payload = Dictionary(choice_variant.payload).duplicate(true)
 			choice_variant.payload.target_choice = target_choice
 			variants.append(choice_variant)
+	elif String(result.pending_target.get("target_type", "cell")) == "cell_sequence":
+		variants.append_array(_expand_variant_with_target_sequence(simulation_state, result.pending_target, variant, []))
 	else:
 		for target_cell in target_logic.get_legal_target_cells(simulation_state, result.pending_target):
 			var target_variant: Dictionary = variant.duplicate(true)
 			target_variant.target_cell = target_cell
 			target_variant.payload = Dictionary(target_variant.payload).duplicate(true)
 			target_variant.payload.target_cell = target_cell
+			variants.append(target_variant)
+	return variants
+
+
+func _expand_variant_with_target_sequence(
+	state: Dictionary,
+	request: Dictionary,
+	variant: Dictionary,
+	selected_cells: Array
+) -> Array:
+	var variants: Array = []
+	if target_logic.can_finish_choice_request(request):
+		var finish_variant: Dictionary = variant.duplicate(true)
+		finish_variant.target_sequence = selected_cells.duplicate()
+		finish_variant.payload = Dictionary(finish_variant.payload).duplicate(true)
+		finish_variant.payload.target_sequence = selected_cells.duplicate()
+		variants.append(finish_variant)
+	for target_cell in target_logic.get_legal_target_cells(state, request):
+		var next_state: Dictionary = _duplicate_game_state(state)
+		var target_result: Dictionary = target_logic.apply_target(next_state, request, target_cell)
+		if target_result.status != RESULT_OK:
+			continue
+		var next_selected_cells: Array = selected_cells.duplicate()
+		next_selected_cells.append(target_cell)
+		if target_result.has("pending_target"):
+			variants.append_array(_expand_variant_with_target_sequence(
+				next_state,
+				target_result.pending_target,
+				variant,
+				next_selected_cells
+			))
+		else:
+			var target_variant: Dictionary = variant.duplicate(true)
+			target_variant.target_sequence = next_selected_cells
+			target_variant.payload = Dictionary(target_variant.payload).duplicate(true)
+			target_variant.payload.target_sequence = next_selected_cells
 			variants.append(target_variant)
 	return variants
 
@@ -1777,7 +1811,9 @@ func _apply_action_variant_to_state(state: Dictionary, variant: Dictionary) -> D
 	if result.has("pending_target"):
 		var target_type: String = String(result.pending_target.get("target_type", "cell"))
 		var target_result: Dictionary
-		if target_type == "choice" and not Dictionary(variant.get("target_choice", {})).is_empty():
+		if target_type == "cell_sequence" and variant.has("target_sequence"):
+			target_result = _apply_target_sequence_to_state(state, result.pending_target, Array(variant.target_sequence))
+		elif target_type == "choice" and not Dictionary(variant.get("target_choice", {})).is_empty():
 			target_result = target_logic.apply_choice(state, result.pending_target, variant.target_choice, false)
 		elif target_type != "choice" and variant.get("target_cell", Vector2i(-1, -1)) != Vector2i(-1, -1):
 			target_result = target_logic.apply_target(state, result.pending_target, variant.target_cell)
@@ -1790,11 +1826,36 @@ func _apply_action_variant_to_state(state: Dictionary, variant: Dictionary) -> D
 				return target_result
 			result.erase("pending_target")
 			result.end_turn = bool(target_result.end_turn)
+	if not result.has("pending_target") and not result.has("pending_hand_discard"):
+		_apply_stack_reactions_after_play_to_state(state, result)
 	if bool(result.get("end_turn", false)):
 		_apply_end_turn_rules_to_state(state, result)
 	_record_supply_control_event_if_changed_in_state(state, supply_origin_before)
 	result.events = state.events
 	return result
+
+
+func _apply_target_sequence_to_state(state: Dictionary, request: Dictionary, targets: Array) -> Dictionary:
+	var current_request: Dictionary = request.duplicate(true)
+	var target_result: Dictionary = {}
+	if targets.is_empty() and target_logic.can_finish_choice_request(current_request):
+		target_logic.finish_choice(state, current_request)
+		return _make_action_result(RESULT_OK, "")
+	for target_cell in targets:
+		target_result = target_logic.apply_target(state, current_request, target_cell)
+		if target_result.status != RESULT_OK:
+			return target_result
+		if target_result.has("pending_target"):
+			current_request = target_result.pending_target
+		else:
+			return target_result
+	if target_result.is_empty():
+		return {}
+	if target_result.has("pending_target") and target_logic.can_finish_choice_request(target_result.pending_target):
+		target_logic.finish_choice(state, target_result.pending_target)
+		target_result.erase("pending_target")
+		target_result.end_turn = true
+	return target_result
 
 
 func _apply_action_core_to_state(state: Dictionary, variant: Dictionary) -> Dictionary:
@@ -1906,7 +1967,7 @@ func _apply_after_action_rules_to_state(state: Dictionary, result: Dictionary) -
 	if not bool(result.get("played_card", false)):
 		return
 
-	play_reaction_logic.apply_after_play(state, result)
+	play_reaction_logic.apply_played_card_reactions(state, result)
 	if not bool(result.get("played_card_removed", false)):
 		_apply_played_card_effect_rules_to_state(state, result)
 
@@ -1924,6 +1985,14 @@ func _apply_after_action_rules_to_state(state: Dictionary, result: Dictionary) -
 	var target_request: Dictionary = target_logic.get_target_request(state, result)
 	if not target_request.is_empty():
 		result.pending_target = target_request
+
+
+func _apply_stack_reactions_after_play_to_state(state: Dictionary, result: Dictionary) -> void:
+	if not bool(result.get("played_card", false)):
+		return
+	if bool(result.get("played_card_removed", false)):
+		return
+	play_reaction_logic.apply_covered_card_reactions(state, result)
 
 
 func _apply_played_card_effect_rules_to_state(state: Dictionary, result: Dictionary) -> void:
@@ -2103,6 +2172,7 @@ func _on_board_cell_gui_input(event: InputEvent, cell_panel: PanelContainer) -> 
 	if event.button_index != MOUSE_BUTTON_LEFT:
 		return
 
+	cell_panel.accept_event()
 	var cell: Vector2i = cell_panel.get_meta("cell")
 	if pending_logic.action == "hand":
 		_try_play_hand_card(cell)
@@ -2455,6 +2525,9 @@ func _set_pending_hand_discard_result(
 		"count": discard_count,
 		"allowed_card_ids": allowed_card_ids.duplicate()
 	}
+	if result.has("card") and result.has("cell"):
+		result.pending_hand_discard.card_id = int(result.card.id)
+		result.pending_hand_discard.source_cell = result.cell
 	result.end_turn = false
 
 
@@ -2580,6 +2653,41 @@ func _get_base_owner_in_state(state: Dictionary, cell: Vector2i) -> int:
 
 func _has_barrier_in_state(state: Dictionary, a: Vector2i, b: Vector2i) -> bool:
 	return state.barriers.has(_edge_key(a, b))
+
+
+func _get_base_cell_for_player_in_state(state: Dictionary, player_index: int) -> Vector2i:
+	var state_players: Array = Array(state.get("players", []))
+	if player_index >= 0 and player_index < state_players.size():
+		return state_players[player_index].base
+	if player_index >= 0 and player_index < players.size():
+		return players[player_index].base
+	return PLAYER_BASE_CELLS[player_index]
+
+
+func _bases_are_connected_in_state(state: Dictionary) -> bool:
+	var start: Vector2i = _get_base_cell_for_player_in_state(state, 0)
+	var target: Vector2i = _get_base_cell_for_player_in_state(state, 1)
+	var visited = {}
+	var queue: Array = [start]
+	visited[start] = true
+
+	while not queue.is_empty():
+		var current: Vector2i = queue.pop_front()
+		if current == target:
+			return true
+
+		for direction in [Vector2i.UP, Vector2i.DOWN, Vector2i.LEFT, Vector2i.RIGHT]:
+			var next: Vector2i = current + direction
+			if not _is_inside(next):
+				continue
+			if visited.has(next):
+				continue
+			if _has_barrier_in_state(state, current, next):
+				continue
+			visited[next] = true
+			queue.append(next)
+
+	return false
 
 
 func _trim_stacks_and_hands() -> void:
@@ -2737,29 +2845,7 @@ func _rotate_cell(cell: Vector2i) -> Vector2i:
 
 
 func _bases_are_connected() -> bool:
-	var start: Vector2i = Vector2i(1, 1)
-	var target: Vector2i = Vector2i(5, 3)
-	var visited = {}
-	var queue: Array = [start]
-	visited[start] = true
-
-	while not queue.is_empty():
-		var current: Vector2i = queue.pop_front()
-		if current == target:
-			return true
-
-		for direction in [Vector2i.UP, Vector2i.DOWN, Vector2i.LEFT, Vector2i.RIGHT]:
-			var next: Vector2i = current + direction
-			if not _is_inside(next):
-				continue
-			if visited.has(next):
-				continue
-			if _has_barrier(current, next):
-				continue
-			visited[next] = true
-			queue.append(next)
-
-	return false
+	return _bases_are_connected_in_state(_get_live_game_state())
 
 
 func _add_barrier(a: Vector2i, b: Vector2i) -> void:

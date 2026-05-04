@@ -5,6 +5,8 @@ var action: String = ""
 var hand_discard_player: int = -1
 var hand_discard_count: int = 0
 var hand_discard_allowed_ids: Array = []
+var hand_discard_card_id: int = -1
+var hand_discard_source_cell: Vector2i = Vector2i(-1, -1)
 var target_request: Dictionary = {}
 var selected_target_edge: Array = []
 
@@ -19,6 +21,8 @@ func clear() -> void:
 	hand_discard_player = -1
 	hand_discard_count = 0
 	hand_discard_allowed_ids.clear()
+	hand_discard_card_id = -1
+	hand_discard_source_cell = Vector2i(-1, -1)
 	target_request.clear()
 	selected_target_edge.clear()
 
@@ -36,6 +40,8 @@ func begin_hand_discard(discard_info: Dictionary) -> void:
 	hand_discard_player = int(discard_info.player_index)
 	hand_discard_count = int(discard_info.count)
 	hand_discard_allowed_ids = Array(discard_info.get("allowed_card_ids", [])).duplicate()
+	hand_discard_card_id = int(discard_info.get("card_id", -1))
+	hand_discard_source_cell = discard_info.get("source_cell", Vector2i(-1, -1))
 
 
 func is_hand_card_inactive(card: Dictionary) -> bool:
@@ -68,11 +74,11 @@ func is_choice_target() -> bool:
 
 
 func is_repeating_choice_target() -> bool:
-	return is_choice_target() and game.target_logic.is_repeating_choice_request(target_request)
+	return game.target_logic.is_repeating_choice_request(target_request)
 
 
 func can_finish_choice_target() -> bool:
-	return is_choice_target() and game.target_logic.can_finish_choice_request(target_request)
+	return game.target_logic.can_finish_choice_request(target_request)
 
 
 func can_discard_hand_card(card_id: int) -> bool:
@@ -182,6 +188,12 @@ func try_discard_hand_card(card_id: int) -> void:
 	result.events = state.events
 	hand_discard_count -= 1
 	hand_discard_allowed_ids.erase(card_id)
+	if hand_discard_count <= 0 or game._count_discardable_hand_cards(hand, hand_discard_allowed_ids) <= 0:
+		_apply_source_play_reactions_to_result(state, {
+			"card_id": hand_discard_card_id,
+			"source_cell": hand_discard_source_cell
+		}, result)
+	result.events = state.events
 
 	game.animation_running = true
 	game._set_action_buttons_enabled(false)
@@ -199,7 +211,8 @@ func _apply_target_to_current_state(request: Dictionary, target: Vector2i) -> Di
 	state.events = []
 	var supply_origin_before: Dictionary = game._get_all_supply_origin_cells_in_state(state)
 	var result: Dictionary = game.target_logic.apply_target(state, request, target)
-	if result.status == game.RESULT_OK:
+	if result.status == game.RESULT_OK and not result.has("pending_target"):
+		_apply_source_play_reactions_to_result(state, request, result)
 		game._apply_end_turn_rules_to_state(state, result)
 		game._record_supply_control_event_if_changed_in_state(state, supply_origin_before)
 	result.events = state.events
@@ -212,6 +225,8 @@ func _apply_choice_to_current_state(request: Dictionary, choice: Dictionary, fin
 	state.events = []
 	var supply_origin_before: Dictionary = game._get_all_supply_origin_cells_in_state(state)
 	var result: Dictionary = game.target_logic.apply_choice(state, request, choice)
+	if result.status == game.RESULT_OK:
+		_apply_source_play_reactions_to_result(state, request, result)
 	if result.status == game.RESULT_OK and finish_turn:
 		game._apply_end_turn_rules_to_state(state, result)
 	if result.status == game.RESULT_OK:
@@ -223,12 +238,33 @@ func _apply_choice_to_current_state(request: Dictionary, choice: Dictionary, fin
 	return result
 
 
+func _apply_source_play_reactions_to_result(state: Dictionary, request: Dictionary, result: Dictionary) -> void:
+	if result.has("pending_target"):
+		return
+	if not request.has("card_id"):
+		return
+	var source_cell: Vector2i = request.source_cell
+	if int(request.card_id) < 0 or not game._is_inside(source_cell):
+		return
+	var source_card: Dictionary = game._find_card_by_id_in_array(
+		game._get_stack_in_state(state, source_cell),
+		int(request.card_id)
+	)
+	if source_card.is_empty():
+		return
+	result.played_card = true
+	result.card = source_card
+	result.cell = source_cell
+	game._apply_stack_reactions_after_play_to_state(state, result)
+
+
 func _finish_target_turn_in_current_state() -> Dictionary:
 	var state: Dictionary = game._get_live_game_state()
 	state.events = []
 	var result: Dictionary = game._make_action_result(game.RESULT_OK, "")
 	result.end_turn = true
 	game.target_logic.finish_choice(state, target_request)
+	_apply_source_play_reactions_to_result(state, target_request, result)
 	game._apply_end_turn_rules_to_state(state, result)
 	result.events = state.events
 	game._restore_game_state(state)

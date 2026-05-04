@@ -9,16 +9,15 @@ func _init(game_node: Node) -> void:
 	game = game_node
 
 
-func apply_after_play(state: Dictionary, result: Dictionary) -> void:
+func apply_played_card_reactions(state: Dictionary, result: Dictionary) -> void:
 	if not bool(result.get("played_card", false)):
-		return
-	_apply_covered_card_reactions(state, result)
-	if bool(result.get("played_card_removed", false)):
 		return
 	_apply_cherepaha_play_rule(state, result)
 
 
-func _apply_covered_card_reactions(state: Dictionary, result: Dictionary) -> void:
+func apply_covered_card_reactions(state: Dictionary, result: Dictionary) -> void:
+	if not bool(result.get("played_card", false)):
+		return
 	var cell: Vector2i = result.cell
 	var stack: Array = game._get_stack_in_state(state, cell)
 	if stack.size() < 2:
