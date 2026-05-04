@@ -78,6 +78,7 @@ func _animate_layout_stack_event(event: Dictionary) -> void:
 		game._configure_card_view(card_control, card, bool(card.face_down), false, is_covered)
 		card_control.tooltip_text = game._get_card_tooltip(card)
 		game._attach_card_view_to_container(card_control, stack_container)
+		card_control.z_index = i
 		stack_container.move_child(card_control, i)
 		var target_position: Vector2 = game._get_board_stack_card_local_position(stack.size(), i)
 		if card_control.position.distance_squared_to(target_position) > 0.25:

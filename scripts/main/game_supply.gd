@@ -2,11 +2,11 @@ extends RefCounted
 
 const UnitKeys: Script = preload("res://scripts/main/unit_keys.gd")
 
-var game: Node
+var board_query
 
 
-func _init(game_node: Node) -> void:
-	game = game_node
+func _init(query: RefCounted) -> void:
+	board_query = query
 
 
 func get_supplied_cells(state: Dictionary, player_index: int) -> Dictionary:
@@ -46,8 +46,8 @@ func _apply_base_supply_rule(result: Dictionary) -> void:
 	var base: Vector2i = state.players[player_index].base
 	_add_source(result, base)
 	_add_conductor(result, base)
-	for y in range(game.GRID_HEIGHT):
-		for x in range(game.GRID_WIDTH):
+	for y in range(board_query.grid_height):
+		for x in range(board_query.grid_width):
 			var cell: Vector2i = Vector2i(x, y)
 			if _top_owner(state, cell) == player_index:
 				_add_conductor(result, cell)
@@ -71,7 +71,7 @@ func _apply_standard_supply_bridge_rule(result: Dictionary) -> void:
 	for cell in result.conductors.keys():
 		for direction in [Vector2i.UP, Vector2i.DOWN, Vector2i.LEFT, Vector2i.RIGHT]:
 			var next: Vector2i = cell + direction
-			if not game._is_inside(next):
+			if not board_query.is_inside(next):
 				continue
 			_add_edge(result, cell, next)
 
@@ -81,7 +81,7 @@ func _apply_barrier_supply_rule(result: Dictionary) -> void:
 	for from_cell in result.edges.keys():
 		var edges: Dictionary = result.edges[from_cell]
 		for to_cell in edges.keys():
-			if game._has_barrier_in_state(result.state, from_cell, to_cell):
+			if board_query.has_barrier(result.state, from_cell, to_cell):
 				blocked_edges.append([from_cell, to_cell])
 	for edge in blocked_edges:
 		_remove_edge(result, edge[0], edge[1])
@@ -99,7 +99,7 @@ func _apply_lokomotiv_supply_rule(result: Dictionary) -> void:
 			Vector2i(1, 1)
 		]:
 			var next: Vector2i = cell + direction
-			if not game._is_inside(next):
+			if not board_query.is_inside(next):
 				continue
 			_add_edge(result, cell, next)
 			if _is_conductor(result, next):
@@ -113,9 +113,9 @@ func _apply_vorota_supply_rule(result: Dictionary) -> void:
 			continue
 		for direction in [Vector2i.UP, Vector2i.DOWN, Vector2i.LEFT, Vector2i.RIGHT]:
 			var next: Vector2i = cell + direction
-			if not game._is_inside(next):
+			if not board_query.is_inside(next):
 				continue
-			if not game._has_barrier_in_state(result.state, cell, next):
+			if not board_query.has_barrier(result.state, cell, next):
 				continue
 			_add_edge(result, cell, next)
 			if _is_conductor(result, next):
@@ -128,7 +128,7 @@ func _apply_tonnel_supply_rule(result: Dictionary) -> void:
 			continue
 		for direction in [Vector2i.UP, Vector2i.DOWN, Vector2i.LEFT, Vector2i.RIGHT]:
 			var next: Vector2i = cell + direction * 2
-			if not game._is_inside(next):
+			if not board_query.is_inside(next):
 				continue
 			_add_edge(result, cell, next)
 			if _is_conductor(result, next):
@@ -138,19 +138,19 @@ func _apply_tonnel_supply_rule(result: Dictionary) -> void:
 func _apply_topolog_supply_rule(result: Dictionary) -> void:
 	if not _has_active_topolog(result.state):
 		return
-	for y in range(game.GRID_HEIGHT):
-		_add_wrap_edge_for_conductor(result, Vector2i(0, y), Vector2i(game.GRID_WIDTH - 1, y))
-		_add_wrap_edge_for_conductor(result, Vector2i(game.GRID_WIDTH - 1, y), Vector2i(0, y))
-	for x in range(game.GRID_WIDTH):
-		_add_wrap_edge_for_conductor(result, Vector2i(x, 0), Vector2i(x, game.GRID_HEIGHT - 1))
-		_add_wrap_edge_for_conductor(result, Vector2i(x, game.GRID_HEIGHT - 1), Vector2i(x, 0))
+	for y in range(board_query.grid_height):
+		_add_wrap_edge_for_conductor(result, Vector2i(0, y), Vector2i(board_query.grid_width - 1, y))
+		_add_wrap_edge_for_conductor(result, Vector2i(board_query.grid_width - 1, y), Vector2i(0, y))
+	for x in range(board_query.grid_width):
+		_add_wrap_edge_for_conductor(result, Vector2i(x, 0), Vector2i(x, board_query.grid_height - 1))
+		_add_wrap_edge_for_conductor(result, Vector2i(x, board_query.grid_height - 1), Vector2i(x, 0))
 
 
 func _resolve_yarkiy_les_supply_rule(result: Dictionary) -> void:
 	while true:
 		_rebuild_reachability(result)
 		var added_any: bool = false
-		var opponent_index: int = game._opponent(int(result.player_index))
+		var opponent_index: int = board_query.opponent(int(result.player_index))
 		for cell in result.supplied.keys():
 			if _is_conductor(result, cell):
 				continue
@@ -161,7 +161,7 @@ func _resolve_yarkiy_les_supply_rule(result: Dictionary) -> void:
 			_add_conductor(result, cell)
 			for direction in [Vector2i.UP, Vector2i.DOWN, Vector2i.LEFT, Vector2i.RIGHT]:
 				var next: Vector2i = cell + direction
-				if game._is_inside(next) and not game._has_barrier_in_state(result.state, cell, next):
+				if board_query.is_inside(next) and not board_query.has_barrier(result.state, cell, next):
 					_add_edge(result, cell, next)
 			added_any = true
 		if not added_any:
@@ -240,8 +240,8 @@ func _add_wrap_edge_for_conductor(result: Dictionary, from_cell: Vector2i, to_ce
 
 
 func _has_active_topolog(state: Dictionary) -> bool:
-	for y in range(game.GRID_HEIGHT):
-		for x in range(game.GRID_WIDTH):
+	for y in range(board_query.grid_height):
+		for x in range(board_query.grid_width):
 			if _top_name_key(state, Vector2i(x, y)) == UnitKeys.TOPOLOG_NAME:
 				return true
 	return false
@@ -249,8 +249,8 @@ func _has_active_topolog(state: Dictionary) -> bool:
 
 func _get_top_unit_cells(state: Dictionary, player_index: int, name_key: String) -> Array:
 	var cells: Array = []
-	for y in range(game.GRID_HEIGHT):
-		for x in range(game.GRID_WIDTH):
+	for y in range(board_query.grid_height):
+		for x in range(board_query.grid_width):
 			var cell: Vector2i = Vector2i(x, y)
 			if _top_owner(state, cell) == player_index and _top_name_key(state, cell) == name_key:
 				cells.append(cell)
@@ -258,14 +258,8 @@ func _get_top_unit_cells(state: Dictionary, player_index: int, name_key: String)
 
 
 func _top_owner(state: Dictionary, cell: Vector2i) -> int:
-	return game._top_owner_in_state(state, cell)
+	return board_query.top_owner(state, cell)
 
 
 func _top_name_key(state: Dictionary, cell: Vector2i) -> String:
-	var stack: Array = game._get_stack_in_state(state, cell)
-	if stack.is_empty():
-		return ""
-	var card: Dictionary = stack[stack.size() - 1]
-	if bool(card.face_down):
-		return ""
-	return String(card.unit.name_key)
+	return board_query.top_name_key(state, cell)

@@ -49,9 +49,12 @@ const SUPPLY_CONTROL_DARKEN_AMOUNT: float = 0.35
 const SUPPLY_CONTROL_FADE_DURATION: float = 0.28
 const PLAYABLE_SUPPLY_PIPE_WIDTH: float = float(CELL_GAP)
 const UnitScene: PackedScene = preload("res://scenes/unit.tscn")
+const BarrierOps: Script = preload("res://scripts/main/barrier_ops.gd")
+const BoardTopology: Script = preload("res://scripts/main/board_topology.gd")
 const GameAi: Script = preload("res://scripts/main/game_ai.gd")
 const GameActionRestrictions: Script = preload("res://scripts/main/game_action_restrictions.gd")
 const GameAnimation: Script = preload("res://scripts/main/game_animation.gd")
+const GameBoardQuery: Script = preload("res://scripts/main/game_board_query.gd")
 const GameBoardDraw: Script = preload("res://scripts/main/game_board_draw.gd")
 const GamePlayEffects: Script = preload("res://scripts/main/game_play_effects.gd")
 const GamePlayLegality: Script = preload("res://scripts/main/game_play_legality.gd")
@@ -83,6 +86,9 @@ var ai_running: bool = false
 var action_restriction_logic: RefCounted
 var ai_logic: RefCounted
 var animation_logic: RefCounted
+var board_topology: RefCounted
+var barrier_ops: RefCounted
+var board_query: RefCounted
 var board_draw_logic: RefCounted
 var pending_logic: RefCounted
 var play_effect_logic: RefCounted
@@ -128,13 +134,16 @@ func _ready() -> void:
 	action_restriction_logic = GameActionRestrictions.new(self)
 	ai_logic = GameAi.new(self)
 	animation_logic = GameAnimation.new(self)
+	board_topology = BoardTopology.new(GRID_WIDTH, GRID_HEIGHT)
+	barrier_ops = BarrierOps.new(board_topology)
+	board_query = GameBoardQuery.new(board_topology, barrier_ops, PLAYER_BASE_CELLS.size())
 	board_draw_logic = GameBoardDraw.new(self)
 	pending_logic = GamePending.new(self)
 	play_effect_logic = GamePlayEffects.new(self)
 	play_legality_logic = GamePlayLegality.new(self)
 	play_reaction_logic = GamePlayReactions.new(self)
 	power_logic = GamePower.new(self)
-	supply_logic = GameSupply.new(self)
+	supply_logic = GameSupply.new(board_query)
 	target_logic = GameTargets.new(self)
 	_setup_game()
 	_build_ui()
@@ -1015,7 +1024,7 @@ func _get_playable_cells_for_ui_pending_action() -> Dictionary:
 	var playable = {}
 	if pending_logic.action == "hand":
 		var hand_index: int = _get_ui_selected_hand_index()
-		for variant in _get_play_hand_variants_for_state(_get_live_game_state(), current_player, hand_index):
+		for variant in _get_play_hand_variants_for_state(_get_live_game_state(), current_player, hand_index, false):
 			playable[variant.cell] = variant.get("play_access", {})
 	elif pending_logic.action == "deck_face_down":
 		for variant in _get_deck_face_down_variants_for_state(_get_live_game_state(), current_player):
@@ -1197,9 +1206,11 @@ func _sync_board_stack_card_views(cell: Vector2i, stack_container: Control) -> v
 		if not bool(card.face_down) and not is_covered:
 			card_control.set_display_power(int(card.unit.power), power_logic.get_card_power_in_cell(_get_live_game_state(), card, cell))
 		card_control.tooltip_text = _get_card_tooltip(card)
+		card_control.set_meta("board_cell", cell)
 		_connect_board_card_input(card_control)
 		_attach_card_view_to_container(card_control, stack_container)
 		card_control.position = _get_board_stack_card_local_position(stack.size(), i)
+		card_control.z_index = i
 		stack_container.move_child(card_control, i)
 
 
@@ -1237,6 +1248,7 @@ func _finish_play_card_animation(card_control: Control, event: Dictionary) -> vo
 	if stack_index < 0:
 		stack_index = stack.size() - 1
 	card_control.position = _get_board_stack_card_local_position(stack.size(), stack_index)
+	card_control.z_index = stack_index
 	stack_container.move_child(card_control, stack_index)
 
 
@@ -1433,7 +1445,7 @@ func _get_board_stack_card_local_position(stack_size: int, stack_index: int) -> 
 	var single_card_y: float = (CELL_SIZE - CARD_HEIGHT) * 0.5
 	if stack_size <= 1:
 		return Vector2(0.0, single_card_y)
-	var visual_index: int = stack_size - 1 - stack_index
+	var visual_index: int = min(stack_size - 1 - stack_index, 1)
 	return Vector2(0.0, float(visual_index * overlap_offset))
 
 
@@ -1566,10 +1578,14 @@ func _connect_board_card_input(card_control: Control) -> void:
 func _on_board_card_gui_input(event: InputEvent, unit_control: Control) -> void:
 	if game_over or animation_running:
 		return
-	if pending_logic.action != "target" or not pending_logic.is_card_target():
+	if pending_logic.action != "target":
 		return
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
-		await pending_logic.try_apply_target_card(int(unit_control.get_meta("card_id")))
+		unit_control.accept_event()
+		if pending_logic.is_card_target():
+			await pending_logic.try_apply_target_card(int(unit_control.get_meta("card_id")))
+		elif unit_control.has_meta("board_cell"):
+			await pending_logic.try_apply_target(unit_control.get_meta("board_cell"))
 
 
 func _is_ai_player(player_index: int) -> bool:
@@ -1580,10 +1596,30 @@ func _queue_ai_turn_if_needed() -> void:
 	if ai_running or game_over or animation_running:
 		return
 	if pending_logic.action != "":
+		if _is_ai_player(pending_logic.get_decision_player()):
+			_run_ai_pending_decision.call_deferred()
 		return
 	if not _is_ai_player(current_player):
 		return
 	_run_ai_turn_step.call_deferred()
+
+
+func _run_ai_pending_decision() -> void:
+	if ai_running or game_over or animation_running:
+		return
+	if pending_logic.action == "":
+		return
+	if not _is_ai_player(pending_logic.get_decision_player()):
+		return
+
+	ai_running = true
+	await get_tree().create_timer(AI_THINK_DELAY).timeout
+	if game_over or animation_running or pending_logic.action == "" or not _is_ai_player(pending_logic.get_decision_player()):
+		ai_running = false
+		return
+	await pending_logic.try_apply_ai_decision()
+	ai_running = false
+	_sync_after_state_change_without_card_layout()
 
 
 func _run_ai_turn_step() -> void:
@@ -1625,6 +1661,8 @@ func _run_ai_turn_step() -> void:
 				await _try_ai_extra_hand_play()
 			else:
 				pending_logic.action = "hand"
+		elif result.has("pending_target"):
+			pending_logic.begin_target(result.pending_target)
 
 	ai_running = false
 	_sync_after_state_change_without_card_layout()
@@ -1776,7 +1814,12 @@ func _get_turn_variants_for_state(state: Dictionary, player_index: int) -> Array
 	return action_restriction_logic.filter_turn_variants(state, player_index, variants)
 
 
-func _get_play_hand_variants_for_state(state: Dictionary, player_index: int, hand_index: int) -> Array:
+func _get_play_hand_variants_for_state(
+	state: Dictionary,
+	player_index: int,
+	hand_index: int,
+	expand_targets: bool = true
+) -> Array:
 	var variants: Array = []
 	if bool(state.game_over):
 		return variants
@@ -1800,7 +1843,10 @@ func _get_play_hand_variants_for_state(state: Dictionary, player_index: int, han
 					"cell": cell,
 					"play_access": _get_play_access_info_in_state(state, card, cell)
 				})
-				variants.append_array(_expand_variant_with_target_choices(state, base_variant))
+				if expand_targets:
+					variants.append_array(_expand_variant_with_target_choices(state, base_variant))
+				else:
+					variants.append(base_variant)
 	return variants
 
 
@@ -1860,12 +1906,24 @@ func _expand_variant_with_target_sequence(
 		var next_selected_cells: Array = selected_cells.duplicate()
 		next_selected_cells.append(target_cell)
 		if target_result.has("pending_target"):
-			variants.append_array(_expand_variant_with_target_sequence(
-				next_state,
-				target_result.pending_target,
-				variant,
-				next_selected_cells
-			))
+			var kind: String = String(request.get("kind", ""))
+			var should_stop_expanding: bool = (
+				(kind == "vihr_swap_neighbors" and next_selected_cells.size() >= 2)
+				or (kind == "sporovik_own_full_stack" and next_selected_cells.size() >= 1)
+			)
+			if should_stop_expanding:
+				var target_variant: Dictionary = variant.duplicate(true)
+				target_variant.target_sequence = next_selected_cells.duplicate()
+				target_variant.payload = Dictionary(target_variant.payload).duplicate(true)
+				target_variant.payload.target_sequence = next_selected_cells.duplicate()
+				variants.append(target_variant)
+			else:
+				variants.append_array(_expand_variant_with_target_sequence(
+					next_state,
+					target_result.pending_target,
+					variant,
+					next_selected_cells
+				))
 		else:
 			var target_variant: Dictionary = variant.duplicate(true)
 			target_variant.target_sequence = next_selected_cells
@@ -1935,7 +1993,10 @@ func _apply_action_variant_to_state(state: Dictionary, variant: Dictionary) -> D
 	if result.has("pending_target"):
 		var target_type: String = String(result.pending_target.get("target_type", "cell"))
 		var target_result: Dictionary
-		if target_type == "cell_sequence" and variant.has("target_sequence"):
+		if (
+			target_type == "cell_sequence"
+			and Dictionary(variant.get("payload", {})).has("target_sequence")
+		):
 			target_result = _apply_target_sequence_to_state(state, result.pending_target, Array(variant.target_sequence))
 		elif target_type == "choice" and not Dictionary(variant.get("target_choice", {})).is_empty():
 			target_result = target_logic.apply_choice(state, result.pending_target, variant.target_choice, false)
@@ -1981,10 +2042,7 @@ func _apply_target_sequence_to_state(state: Dictionary, request: Dictionary, tar
 	var current_request: Dictionary = request.duplicate(true)
 	var target_result: Dictionary = {}
 	if targets.is_empty() and target_logic.can_finish_choice_request(current_request):
-		target_logic.finish_choice(state, current_request)
-		target_result = _make_action_result(RESULT_OK, "")
-		target_result.end_turn = true
-		return target_result
+		return target_logic.finish_choice(state, current_request)
 	for target_cell in targets:
 		target_result = target_logic.apply_target(state, current_request, target_cell)
 		if target_result.status != RESULT_OK:
@@ -1996,9 +2054,11 @@ func _apply_target_sequence_to_state(state: Dictionary, request: Dictionary, tar
 	if target_result.is_empty():
 		return {}
 	if target_result.has("pending_target") and target_logic.can_finish_choice_request(target_result.pending_target):
-		target_logic.finish_choice(state, target_result.pending_target)
+		var finish_result: Dictionary = target_logic.finish_choice(state, target_result.pending_target)
+		if finish_result.has("pending_target"):
+			return finish_result
 		target_result.erase("pending_target")
-		target_result.end_turn = true
+		target_result.end_turn = bool(finish_result.get("end_turn", true))
 	return target_result
 
 
@@ -2399,6 +2459,9 @@ func _on_board_cell_gui_input(event: InputEvent, cell_panel: PanelContainer) -> 
 
 
 func _pending_action_belongs_to_view_player() -> bool:
+	var decision_player: int = pending_logic.get_decision_player()
+	if decision_player != -1:
+		return decision_player == _get_view_player()
 	if pending_logic.action == "target":
 		return int(pending_logic.target_request.get("player_index", -1)) == _get_view_player()
 	if pending_logic.action == "hand_pick":
@@ -2552,14 +2615,15 @@ func _apply_played_card_overflow_in_state(state: Dictionary, card: Dictionary, c
 	var stack: Array = _get_stack_in_state(state, cell)
 	if stack.size() <= 2:
 		return
-	var removed: Dictionary = stack.pop_back()
 	if name_key == UnitKeys.SKARABEY_NAME:
+		var removed: Dictionary = stack.pop_front()
 		_return_card_to_hand_in_state(state, int(removed.owner), removed, {
 			"type": "board",
 			"cell": cell,
 			"face_down": bool(removed.face_down)
 		})
 		return
+	var removed: Dictionary = stack.pop_back()
 	_discard_card_in_state(state, int(removed.owner), removed, {
 		"type": "board",
 		"cell": cell,
@@ -2793,7 +2857,19 @@ func _get_base_owner_in_state(state: Dictionary, cell: Vector2i) -> int:
 
 
 func _has_barrier_in_state(state: Dictionary, a: Vector2i, b: Vector2i) -> bool:
-	return state.barriers.has(_edge_key(a, b))
+	return barrier_ops.has_barrier(state, a, b)
+
+
+func _add_barrier_to_state(state: Dictionary, a: Vector2i, b: Vector2i) -> void:
+	barrier_ops.add_barrier(state, a, b)
+
+
+func _remove_barrier_from_state(state: Dictionary, a: Vector2i, b: Vector2i) -> void:
+	barrier_ops.remove_barrier(state, a, b)
+
+
+func _get_barrier_edges_in_state(state: Dictionary) -> Array:
+	return barrier_ops.get_barrier_edges(state)
 
 
 func _get_base_cell_for_player_in_state(state: Dictionary, player_index: int) -> Vector2i:
@@ -2817,10 +2893,7 @@ func _bases_are_connected_in_state(state: Dictionary) -> bool:
 		if current == target:
 			return true
 
-		for direction in [Vector2i.UP, Vector2i.DOWN, Vector2i.LEFT, Vector2i.RIGHT]:
-			var next: Vector2i = current + direction
-			if not _is_inside(next):
-				continue
+		for next in _get_board_neighbors(current):
 			if visited.has(next):
 				continue
 			if _has_barrier_in_state(state, current, next):
@@ -2935,7 +3008,7 @@ func _opponent(player_index: int) -> int:
 
 
 func _is_inside(cell: Vector2i) -> bool:
-	return cell.x >= 0 and cell.x < GRID_WIDTH and cell.y >= 0 and cell.y < GRID_HEIGHT
+	return board_topology.is_inside(cell)
 
 
 func _generate_initial_barriers() -> void:
@@ -2963,18 +3036,11 @@ func _generate_initial_barriers() -> void:
 
 
 func _get_all_board_edges() -> Array:
-	var edges: Array = []
-	for y in range(GRID_HEIGHT):
-		for x in range(GRID_WIDTH):
-			var cell: Vector2i = Vector2i(x, y)
-			var right: Vector2i = cell + Vector2i.RIGHT
-			if _is_inside(right):
-				edges.append([cell, right])
+	return board_topology.get_all_edges()
 
-			var down: Vector2i = cell + Vector2i.DOWN
-			if _is_inside(down):
-				edges.append([cell, down])
-	return edges
+
+func _get_board_neighbors(cell: Vector2i) -> Array:
+	return board_topology.get_neighbors(cell)
 
 
 func _add_rotated_barrier(a: Vector2i, b: Vector2i) -> void:
@@ -2982,7 +3048,7 @@ func _add_rotated_barrier(a: Vector2i, b: Vector2i) -> void:
 
 
 func _rotate_cell(cell: Vector2i) -> Vector2i:
-	return Vector2i(GRID_WIDTH - 1 - cell.x, GRID_HEIGHT - 1 - cell.y)
+	return board_topology.rotate_cell(cell)
 
 
 func _bases_are_connected() -> bool:
@@ -2990,20 +3056,15 @@ func _bases_are_connected() -> bool:
 
 
 func _add_barrier(a: Vector2i, b: Vector2i) -> void:
-	barriers[_edge_key(a, b)] = true
+	_add_barrier_to_state(_get_live_game_state(), a, b)
 
 
 func _has_barrier(a: Vector2i, b: Vector2i) -> bool:
-	return barriers.has(_edge_key(a, b))
+	return barrier_ops.has_barrier(_get_live_game_state(), a, b)
 
 
 func _edge_key(a: Vector2i, b: Vector2i) -> String:
-	var first: Vector2i = a
-	var second: Vector2i = b
-	if b.x < a.x or (b.x == a.x and b.y < a.y):
-		first = b
-		second = a
-	return "%d,%d-%d,%d" % [first.x, first.y, second.x, second.y]
+	return board_topology.edge_key(a, b)
 
 
 func _set_action_buttons_enabled(enabled: bool) -> void:

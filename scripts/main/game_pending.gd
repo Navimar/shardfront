@@ -45,6 +45,10 @@ func begin_target(request: Dictionary) -> void:
 	action = "target"
 	game.ui_selected_hand_card_id = -1
 	target_request = request.duplicate(true)
+	if not target_request.has("decision_player"):
+		target_request.decision_player = int(target_request.get("player_index", -1))
+	if not target_request.has("source_player"):
+		target_request.source_player = int(target_request.get("player_index", -1))
 	selected_target_edge.clear()
 
 
@@ -143,6 +147,24 @@ func can_finish_choice_target() -> bool:
 	return game.target_logic.can_finish_choice_request(target_request)
 
 
+func get_decision_player() -> int:
+	if action == "target":
+		return int(target_request.get("decision_player", target_request.get("player_index", -1)))
+	if action == "hand_pick":
+		return int(hand_pick_request.get("decision_player", hand_pick_request.get("player_index", -1)))
+	if action == "discard_pick":
+		return int(discard_pick_request.get("decision_player", discard_pick_request.get("player_index", -1)))
+	if action == "strateg":
+		return int(strateg_request.get("decision_player", strateg_request.get("player_index", -1)))
+	if action == "hand_discard":
+		return hand_discard_player
+	return -1
+
+
+func is_decision_player_view_player() -> bool:
+	return get_decision_player() == game._get_view_player()
+
+
 func can_discard_hand_card(card_id: int) -> bool:
 	if action != "hand_discard":
 		return false
@@ -188,8 +210,7 @@ func try_apply_target(cell: Vector2i) -> void:
 		return
 	if is_choice_target() or is_card_target():
 		return
-	var request_player: int = int(target_request.get("player_index", -1))
-	if request_player != game.current_player and request_player != game._get_view_player():
+	if not is_decision_player_view_player():
 		return
 	var result: Dictionary = _apply_target_to_current_state(target_request, cell)
 	if result.status != game.RESULT_OK:
@@ -209,8 +230,7 @@ func try_apply_target_card(card_id: int) -> void:
 		return
 	if not is_card_target():
 		return
-	var request_player: int = int(target_request.get("player_index", -1))
-	if request_player != game.current_player and request_player != game._get_view_player():
+	if not is_decision_player_view_player():
 		return
 	var result: Dictionary = _apply_card_target_to_current_state(target_request, card_id)
 	if result.status != game.RESULT_OK:
@@ -230,7 +250,7 @@ func try_apply_target_edge(edge: Array) -> void:
 		return
 	if not is_choice_target():
 		return
-	if int(target_request.get("player_index", -1)) != game.current_player:
+	if not is_decision_player_view_player():
 		return
 	var choice: Dictionary = game.target_logic.get_choice_for_edge_selection(
 		game._get_live_game_state(),
@@ -279,6 +299,65 @@ func finish_repeating_target() -> void:
 	if not can_finish_choice_target():
 		return
 	var result: Dictionary = _finish_target_turn_in_current_state()
+	game.animation_running = true
+	game._set_action_buttons_enabled(false)
+	await game._animate_action_result(result)
+	game.animation_running = false
+	_begin_pending_from_result_or_clear(result)
+	game._sync_after_state_change_without_card_layout()
+
+
+func try_apply_ai_decision() -> void:
+	if action != "target":
+		return
+	if not game._is_ai_player(get_decision_player()):
+		return
+	if is_card_target():
+		var target_cards: Array = get_target_cards()
+		if target_cards.is_empty():
+			return
+		await _apply_ai_target_card(int(target_cards[0].card_id))
+		return
+	if is_choice_target():
+		var choices: Array = game.target_logic.get_ai_target_choices(game._get_live_game_state(), target_request)
+		if choices.is_empty():
+			if can_finish_choice_target():
+				await _apply_ai_finish_target()
+			return
+		await _apply_ai_target_choice(choices[0])
+		return
+	var target_cells: Array = get_target_cells()
+	if target_cells.is_empty():
+		if can_finish_choice_target():
+			await _apply_ai_finish_target()
+		return
+	await _apply_ai_target_cell(target_cells[0])
+
+
+func _apply_ai_target_cell(cell: Vector2i) -> void:
+	var result: Dictionary = _apply_target_to_current_state(target_request, cell)
+	await _animate_ai_pending_result(result)
+
+
+func _apply_ai_target_card(card_id: int) -> void:
+	var result: Dictionary = _apply_card_target_to_current_state(target_request, card_id)
+	await _animate_ai_pending_result(result)
+
+
+func _apply_ai_target_choice(choice: Dictionary) -> void:
+	var should_finish: bool = not is_repeating_choice_target()
+	var result: Dictionary = _apply_choice_to_current_state(target_request, choice, should_finish)
+	await _animate_ai_pending_result(result)
+
+
+func _apply_ai_finish_target() -> void:
+	var result: Dictionary = _finish_target_turn_in_current_state()
+	await _animate_ai_pending_result(result)
+
+
+func _animate_ai_pending_result(result: Dictionary) -> void:
+	if result.status != game.RESULT_OK:
+		return
 	game.animation_running = true
 	game._set_action_buttons_enabled(false)
 	await game._animate_action_result(result)
@@ -610,11 +689,9 @@ func _apply_source_play_reactions_to_result(state: Dictionary, request: Dictiona
 func _finish_target_turn_in_current_state() -> Dictionary:
 	var state: Dictionary = game._get_live_game_state()
 	state.events = []
-	var result: Dictionary = game._make_action_result(game.RESULT_OK, "")
-	result.end_turn = true
-	game.target_logic.finish_choice(state, target_request)
-	_apply_source_play_reactions_to_result(state, target_request, result)
-	game._apply_end_turn_rules_to_state(state, result)
+	var result: Dictionary = game.target_logic.finish_choice(state, target_request)
+	if not result.has("pending_target"):
+		game._apply_end_turn_rules_to_state(state, result)
 	result.events = state.events
 	game._restore_game_state(state)
 	return result

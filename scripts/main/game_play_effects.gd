@@ -139,8 +139,6 @@ func _apply_played_card_effects_for_name(state: Dictionary, result: Dictionary, 
 		_apply_hlamovnik_effect(state, result, player_index)
 	elif name_key == UnitKeys.STRATEG_NAME:
 		_apply_strateg_effect(state, result, player_index)
-	elif name_key == UnitKeys.SPOROVIK_NAME:
-		_apply_sporovik_effect(state, player_index, opponent_index)
 	elif name_key == UnitKeys.ZERKALNYY_GOLEM_NAME:
 		_apply_zerkalnyy_golem_effect(state, result)
 
@@ -152,6 +150,15 @@ func _can_copy_play_effect(name_key: String) -> bool:
 		and name_key != UnitKeys.SLIZ_NAME
 		and name_key != UnitKeys.ZERKALNYY_GOLEM_NAME
 	)
+
+
+func can_copy_card_play_effect(card: Dictionary) -> bool:
+	if bool(card.get("face_down", false)):
+		return false
+	var unit: Resource = card.unit
+	if not String(unit.ability_symbols).contains("🃏"):
+		return false
+	return _can_copy_play_effect(String(unit.name_key))
 
 
 func _flip_all_top_units_face_down_in_state(state: Dictionary) -> void:
@@ -330,45 +337,6 @@ func _draw_strateg_preview_card(state: Dictionary, player_index: int) -> Diction
 	game._record_draw_event_in_state(state, player_index, card)
 	game._refill_deck_if_empty_in_state(state, player_index)
 	return card
-
-
-func _apply_sporovik_effect(state: Dictionary, player_index: int, opponent_index: int) -> void:
-	var own_count: int = 0
-	for y in range(game.GRID_HEIGHT):
-		for x in range(game.GRID_WIDTH):
-			var cell: Vector2i = Vector2i(x, y)
-			var stack: Array = game._get_stack_in_state(state, cell)
-			if stack.size() < 2:
-				continue
-			var card: Dictionary = stack[stack.size() - 1]
-			if int(card.owner) != player_index:
-				continue
-			stack.pop_back()
-			game._discard_card_in_state(state, player_index, card, {
-				"type": "board",
-				"cell": cell,
-				"face_down": bool(card.face_down)
-			})
-			own_count += 1
-	var opponent_count: int = 0
-	for y in range(game.GRID_HEIGHT):
-		for x in range(game.GRID_WIDTH):
-			if opponent_count >= own_count:
-				return
-			var cell: Vector2i = Vector2i(x, y)
-			var stack: Array = game._get_stack_in_state(state, cell)
-			if stack.size() < 2:
-				continue
-			var card: Dictionary = stack[stack.size() - 1]
-			if int(card.owner) != opponent_index:
-				continue
-			stack.pop_back()
-			game._discard_card_in_state(state, opponent_index, card, {
-				"type": "board",
-				"cell": cell,
-				"face_down": bool(card.face_down)
-			})
-			opponent_count += 1
 
 
 func _discard_cards_from_hand_end_in_state(state: Dictionary, player_index: int, count: int) -> void:

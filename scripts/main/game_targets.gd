@@ -30,6 +30,8 @@ func get_target_request(state: Dictionary, result: Dictionary) -> Dictionary:
 		return _get_sequence_request_if_available(state, result, "vihr_swap_neighbors", [])
 	if name_key == UnitKeys.LICH_NAME:
 		return _get_sequence_request_if_available(state, result, "lich_flip_own", [])
+	if name_key == UnitKeys.SPOROVIK_NAME:
+		return _get_sequence_request_if_available(state, result, "sporovik_own_full_stack", [])
 	if name_key == UnitKeys.TRUBADUR_NAME:
 		return _get_sequence_request_if_available(state, result, "trubadur_return_own", [])
 	if name_key == UnitKeys.AGITATOR_NAME:
@@ -101,6 +103,10 @@ func get_legal_target_cells(state: Dictionary, request: Dictionary) -> Array:
 		return _get_vihr_swap_neighbor_cells(state, request)
 	if kind == "lich_flip_own":
 		return _get_own_face_up_top_cells(state, int(request.player_index))
+	if kind == "sporovik_own_full_stack":
+		return _get_sporovik_full_stack_cells(state, int(request.player_index), Array(request.get("selected_cells", [])))
+	if kind == "sporovik_enemy_full_stack":
+		return _get_sporovik_full_stack_cells(state, game._opponent(int(request.player_index)), Array(request.get("selected_cells", [])))
 	if kind == "trubadur_return_own":
 		return _get_trubadur_return_cells(state, request)
 	if kind == "flip_own_face_down_up":
@@ -226,18 +232,22 @@ func is_repeating_choice_request(request: Dictionary) -> bool:
 		or kind == "primanka_pull"
 		or kind == "vihr_swap_neighbors"
 		or kind == "lich_flip_own"
+		or kind == "sporovik_own_full_stack"
 		or kind == "trubadur_return_own"
 	)
 
 
 func can_finish_choice_request(request: Dictionary) -> bool:
 	var kind: String = String(request.get("kind", ""))
+	if kind == "vihr_swap_neighbors":
+		return Array(request.get("selected_cells", [])).is_empty()
+	if kind == "sporovik_own_full_stack":
+		return true
 	return (
 		kind == "set_adjacent_barriers"
 		or kind == "optional_remove_barrier"
 		or kind == "swap_adjacent_stack_cards"
 		or kind == "primanka_pull"
-		or kind == "vihr_swap_neighbors"
 		or kind == "lich_flip_own"
 		or kind == "trubadur_return_own"
 	)
@@ -255,6 +265,8 @@ func get_end_turn_target_request(state: Dictionary) -> Dictionary:
 		"kind": "optional_remove_barrier",
 		"target_type": "choice",
 		"player_index": int(state.current_player),
+		"source_player": int(state.current_player),
+		"decision_player": int(state.current_player),
 		"edge": edge.duplicate()
 	}
 
@@ -267,7 +279,9 @@ func apply_ai_end_turn_choice(state: Dictionary, request: Dictionary) -> void:
 		finish_choice(state, request)
 
 
-func finish_choice(state: Dictionary, request: Dictionary) -> void:
+func finish_choice(state: Dictionary, request: Dictionary) -> Dictionary:
+	var result: Dictionary = game._make_action_result(game.RESULT_OK, "")
+	result.end_turn = true
 	var kind: String = String(request.get("kind", ""))
 	if kind == "optional_remove_barrier":
 		_remove_barrier_removal_options_for_player(state, int(request.player_index))
@@ -275,6 +289,17 @@ func finish_choice(state: Dictionary, request: Dictionary) -> void:
 		var count: int = int(request.get("count", 0))
 		if count > 0:
 			game._draw_cards_in_state(state, int(request.player_index), count)
+	elif kind == "sporovik_own_full_stack":
+		var own_count: int = int(request.get("own_count", 0))
+		if own_count > 0:
+			var next_request: Dictionary = request.duplicate(true)
+			next_request.kind = "sporovik_enemy_full_stack"
+			next_request.selected_cells = []
+			next_request.enemy_count = 0
+			if not get_legal_target_cells(state, next_request).is_empty():
+				result.end_turn = false
+				result.pending_target = next_request
+	return result
 
 
 func apply_target(state: Dictionary, request: Dictionary, target: Vector2i) -> Dictionary:
@@ -298,6 +323,10 @@ func apply_target(state: Dictionary, request: Dictionary, target: Vector2i) -> D
 		return _apply_vihr_swap_neighbor_target(state, request, target)
 	if kind == "lich_flip_own":
 		return _apply_lich_flip_own_target(state, request, target)
+	if kind == "sporovik_own_full_stack":
+		return _apply_sporovik_own_full_stack_target(state, request, target)
+	if kind == "sporovik_enemy_full_stack":
+		return _apply_sporovik_enemy_full_stack_target(state, request, target)
 	if kind == "trubadur_return_own":
 		return _apply_trubadur_return_own_target(state, request, target)
 	if kind == "flip_own_face_down_up":
@@ -400,10 +429,13 @@ func _get_request_if_available_for_player(
 	target_type: String,
 	player_index: int
 ) -> Dictionary:
+	var source_player: int = int(result.card.owner)
 	var request: Dictionary = {
 		"kind": kind,
 		"target_type": target_type,
 		"player_index": player_index,
+		"source_player": source_player,
+		"decision_player": player_index,
 		"source_cell": result.cell,
 		"card_id": int(result.card.id)
 	}
@@ -427,6 +459,8 @@ func _get_sequence_request_if_available(state: Dictionary, result: Dictionary, k
 		"kind": kind,
 		"target_type": "cell_sequence",
 		"player_index": int(result.card.owner),
+		"source_player": int(result.card.owner),
+		"decision_player": int(result.card.owner),
 		"source_cell": result.cell,
 		"card_id": int(result.card.id),
 		"selected_cells": selected_cells.duplicate()
@@ -510,6 +544,23 @@ func _get_own_face_up_top_cells(state: Dictionary, player_index: int) -> Array:
 	return targets
 
 
+func _get_sporovik_full_stack_cells(state: Dictionary, owner: int, excluded_cells: Array) -> Array:
+	var targets: Array = []
+	for y in range(game.GRID_HEIGHT):
+		for x in range(game.GRID_WIDTH):
+			var cell: Vector2i = Vector2i(x, y)
+			if excluded_cells.has(cell):
+				continue
+			var stack: Array = game._get_stack_in_state(state, cell)
+			if stack.size() < 2:
+				continue
+			var card: Dictionary = stack[stack.size() - 1]
+			if int(card.owner) != owner:
+				continue
+			targets.append(cell)
+	return targets
+
+
 func _get_evacuator_target_cells(state: Dictionary, request: Dictionary) -> Array:
 	var player_index: int = int(request.player_index)
 	if state.players[player_index].deck.is_empty() and state.players[player_index].deck_template.is_empty():
@@ -560,9 +611,9 @@ func _get_open_top_unit_card_targets(state: Dictionary, request: Dictionary) -> 
 			if stack.is_empty():
 				continue
 			var card: Dictionary = stack[stack.size() - 1]
-			if bool(card.face_down):
-				continue
 			if int(card.id) == int(request.card_id):
+				continue
+			if not game.play_effect_logic.can_copy_card_play_effect(card):
 				continue
 			targets.append({
 				"cell": cell,
@@ -765,9 +816,28 @@ func _get_replay_board_card_cells(state: Dictionary, request: Dictionary) -> Arr
 			var cell: Vector2i = Vector2i(x, y)
 			if cell == source_cell:
 				continue
-			if game._can_play_card_in_state(preview_state, preview_card, cell):
+			if _can_replay_volk_to_cell(preview_state, preview_card, cell):
 				targets.append(cell)
 	return targets
+
+
+func _can_replay_volk_to_cell(state: Dictionary, card: Dictionary, cell: Vector2i) -> bool:
+	if not game._is_inside(cell):
+		return false
+	var player_index: int = int(card.owner)
+	var base_owner: int = game._get_base_owner_in_state(state, cell)
+	if base_owner == player_index:
+		return false
+	if base_owner == game._opponent(player_index):
+		return true
+	var stack: Array = game._get_stack_in_state(state, cell)
+	if stack.is_empty():
+		return true
+	if game._top_owner_in_state(state, cell) == player_index:
+		return true
+	if game._top_face_down_in_state(state, cell):
+		return true
+	return game.power_logic.can_attack_card(state, card, cell)
 
 
 func _get_move_covered_stack_to_neighbor_cells(state: Dictionary, request: Dictionary) -> Array:
@@ -910,7 +980,7 @@ func _get_move_destination_cells(state: Dictionary, owner: int, source_cell: Vec
 			if only_adjacent and not _are_unblocked_neighbors(state, source_cell, cell):
 				continue
 			var base_owner: int = game._get_base_owner_in_state(state, cell)
-			if base_owner == owner:
+			if base_owner != -1:
 				continue
 			var stack: Array = game._get_stack_in_state(state, cell)
 			if not stack.is_empty() and game._top_owner_in_state(state, cell) != owner:
@@ -1029,6 +1099,8 @@ func _apply_avtopoezd_source_target(state: Dictionary, request: Dictionary, targ
 		result.pending_hand_pick = {
 			"kind": "avtopoezd_replace",
 			"player_index": player_index,
+			"source_player": int(request.get("source_player", player_index)),
+			"decision_player": player_index,
 			"source_cell": target,
 			"card_id": int(request.card_id)
 		}
@@ -1162,6 +1234,41 @@ func _apply_lich_flip_own_target(state: Dictionary, request: Dictionary, target:
 	return _make_pending_sequence_result(next_request, [])
 
 
+func _apply_sporovik_own_full_stack_target(state: Dictionary, request: Dictionary, target: Vector2i) -> Dictionary:
+	var result: Dictionary = _discard_sporovik_full_stack_top(state, target)
+	if result.status != game.RESULT_OK:
+		return result
+	var next_request: Dictionary = request.duplicate(true)
+	var selected_cells: Array = Array(request.get("selected_cells", [])).duplicate()
+	selected_cells.append(target)
+	next_request.selected_cells = selected_cells
+	next_request.own_count = int(request.get("own_count", 0)) + 1
+	result.end_turn = false
+	result.pending_target = next_request
+	return result
+
+
+func _apply_sporovik_enemy_full_stack_target(state: Dictionary, request: Dictionary, target: Vector2i) -> Dictionary:
+	var result: Dictionary = _discard_sporovik_full_stack_top(state, target)
+	if result.status != game.RESULT_OK:
+		return result
+	var next_request: Dictionary = request.duplicate(true)
+	var selected_cells: Array = Array(request.get("selected_cells", [])).duplicate()
+	selected_cells.append(target)
+	var enemy_count: int = int(request.get("enemy_count", 0)) + 1
+	next_request.selected_cells = selected_cells
+	next_request.enemy_count = enemy_count
+	if enemy_count >= int(request.get("own_count", 0)):
+		result.end_turn = true
+		return result
+	if get_legal_target_cells(state, next_request).is_empty():
+		result.end_turn = true
+		return result
+	result.end_turn = false
+	result.pending_target = next_request
+	return result
+
+
 func _apply_trubadur_return_own_target(state: Dictionary, request: Dictionary, target: Vector2i) -> Dictionary:
 	var stack: Array = game._get_stack_in_state(state, target)
 	if stack.is_empty():
@@ -1213,6 +1320,22 @@ func _make_ok_target_result() -> Dictionary:
 func _apply_discard_top_target(state: Dictionary, target: Vector2i) -> Dictionary:
 	var stack: Array = game._get_stack_in_state(state, target)
 	if stack.is_empty():
+		return game._make_action_result(game.RESULT_INVALID, "empty_target")
+	var card: Dictionary = stack.pop_back()
+	var player_index: int = int(card.owner)
+	game._discard_card_in_state(state, player_index, card, {
+		"type": "board",
+		"cell": target,
+		"face_down": bool(card.face_down)
+	})
+	var result: Dictionary = game._make_action_result(game.RESULT_OK, "")
+	result.end_turn = true
+	return result
+
+
+func _discard_sporovik_full_stack_top(state: Dictionary, target: Vector2i) -> Dictionary:
+	var stack: Array = game._get_stack_in_state(state, target)
+	if stack.size() < 2:
 		return game._make_action_result(game.RESULT_INVALID, "empty_target")
 	var card: Dictionary = stack.pop_back()
 	var player_index: int = int(card.owner)
@@ -1308,6 +1431,8 @@ func _apply_copy_open_top_play_effect_card_target(state: Dictionary, request: Di
 	var top_card: Dictionary = target_stack[target_stack.size() - 1]
 	if bool(copied_card.face_down) or int(top_card.id) != int(copied_card.id):
 		return game._make_action_result(game.RESULT_INVALID, "bad_target")
+	if not game.play_effect_logic.can_copy_card_play_effect(copied_card):
+		return game._make_action_result(game.RESULT_INVALID, "bad_target")
 	var result: Dictionary = game._make_action_result(game.RESULT_OK, "")
 	result.card = source_card
 	result.cell = source_cell
@@ -1315,6 +1440,7 @@ func _apply_copy_open_top_play_effect_card_target(state: Dictionary, request: Di
 	result.end_turn = true
 	game.play_effect_logic.apply_copied_card_play_effects(state, result, copied_card)
 	if game._result_has_pending_action(result):
+		result.end_turn = false
 		return result
 	var target_request: Dictionary = get_target_request(state, result)
 	if not target_request.is_empty():
@@ -1733,11 +1859,7 @@ func _is_barrier_kind(kind: String) -> bool:
 
 
 func _get_barrier_edges(state: Dictionary) -> Array:
-	var edges: Array = []
-	for edge in game._get_all_board_edges():
-		if game._has_barrier_in_state(state, edge[0], edge[1]):
-			edges.append(edge)
-	return edges
+	return game._get_barrier_edges_in_state(state)
 
 
 func _get_optional_remove_barrier_choices(state: Dictionary, request: Dictionary) -> Array:
@@ -1802,18 +1924,15 @@ func _has_choice(choices: Array, choice: Dictionary) -> bool:
 
 
 func _add_barrier_to_state(state: Dictionary, first: Vector2i, second: Vector2i) -> void:
-	state.barriers[game._edge_key(first, second)] = true
+	game._add_barrier_to_state(state, first, second)
 
 
 func _remove_barrier_from_state(state: Dictionary, first: Vector2i, second: Vector2i) -> void:
-	state.barriers.erase(game._edge_key(first, second))
+	game._remove_barrier_from_state(state, first, second)
 
 
 func _remove_adjacent_barriers_from_state(state: Dictionary, cell: Vector2i) -> void:
-	for direction in [Vector2i.UP, Vector2i.DOWN, Vector2i.LEFT, Vector2i.RIGHT]:
-		var neighbor: Vector2i = cell + direction
-		if not game._is_inside(neighbor):
-			continue
+	for neighbor in game._get_board_neighbors(cell):
 		_remove_barrier_from_state(state, cell, neighbor)
 
 

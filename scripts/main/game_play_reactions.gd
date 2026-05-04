@@ -47,6 +47,8 @@ func apply_covered_card_reactions(state: Dictionary, result: Dictionary) -> void
 				"kind": "move_taran_to_neighbor",
 				"target_type": "cell",
 				"player_index": int(covered_card.owner),
+				"source_player": int(covering_card.owner),
+				"decision_player": int(covered_card.owner),
 				"source_cell": cell,
 				"card_id": int(covered_card.id)
 			}
@@ -57,6 +59,8 @@ func apply_covered_card_reactions(state: Dictionary, result: Dictionary) -> void
 			"kind": "replay_volk",
 			"target_type": "cell",
 			"player_index": int(covered_card.owner),
+			"source_player": int(covering_card.owner),
+			"decision_player": int(covered_card.owner),
 			"source_cell": cell,
 			"card_id": int(covered_card.id)
 		}
@@ -163,11 +167,8 @@ func _remove_barriers_adjacent_to_all_taran(state: Dictionary) -> void:
 
 
 func _remove_barriers_adjacent_to_cell(state: Dictionary, cell: Vector2i) -> void:
-	for direction in [Vector2i.UP, Vector2i.DOWN, Vector2i.LEFT, Vector2i.RIGHT]:
-		var neighbor: Vector2i = cell + direction
-		if not game._is_inside(neighbor):
-			continue
-		state.barriers.erase(game._edge_key(cell, neighbor))
+	for neighbor in game._get_board_neighbors(cell):
+		game._remove_barrier_from_state(state, cell, neighbor)
 
 
 func _move_taran_to_first_destination(state: Dictionary, source_cell: Vector2i, card: Dictionary) -> void:
