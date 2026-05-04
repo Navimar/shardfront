@@ -13,6 +13,17 @@ func _init(game_node: Node) -> void:
 
 func choose_action_variant(state: Dictionary, player_index: int) -> Dictionary:
 	var variants: Array = game._get_turn_variants_for_state(state, player_index)
+	return _choose_best_variant(state, player_index, variants)
+
+
+func choose_hand_play_action_variant(state: Dictionary, player_index: int) -> Dictionary:
+	var variants: Array = []
+	for hand_index in range(state.players[player_index].hand.size()):
+		variants.append_array(game._get_play_hand_variants_for_state(state, player_index, hand_index))
+	return _choose_best_variant(state, player_index, variants)
+
+
+func _choose_best_variant(state: Dictionary, player_index: int, variants: Array) -> Dictionary:
 	if variants.is_empty():
 		return {}
 

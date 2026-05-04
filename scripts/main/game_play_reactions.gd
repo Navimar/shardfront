@@ -13,6 +13,7 @@ func apply_played_card_reactions(state: Dictionary, result: Dictionary) -> void:
 	if not bool(result.get("played_card", false)):
 		return
 	_apply_cherepaha_play_rule(state, result)
+	_remove_barriers_adjacent_to_all_taran(state)
 
 
 func apply_covered_card_reactions(state: Dictionary, result: Dictionary) -> void:
@@ -34,7 +35,23 @@ func apply_covered_card_reactions(state: Dictionary, result: Dictionary) -> void
 		return
 
 	var covered_name: String = String(covered_card.unit.name_key)
-	if covered_name == UnitKeys.MINA_NAME:
+	if covered_name == UnitKeys.TARAN_NAME and int(covered_card.owner) == int(covering_card.owner):
+		_remove_barriers_adjacent_to_cell(state, cell)
+		var destinations: Array = _get_taran_destination_cells(state, cell, int(covered_card.owner))
+		if destinations.is_empty():
+			return
+		if game._is_ai_player(int(covered_card.owner)):
+			_move_taran_to_first_destination(state, cell, covered_card)
+		else:
+			result.pending_target = {
+				"kind": "move_taran_to_neighbor",
+				"target_type": "cell",
+				"player_index": int(covered_card.owner),
+				"source_cell": cell,
+				"card_id": int(covered_card.id)
+			}
+			result.end_turn = false
+	elif covered_name == UnitKeys.MINA_NAME:
 		covered_card.face_down = true
 		_discard_covering_card(state, result, cell, stack, covering_card)
 	elif covered_name == UnitKeys.MAKOVOE_POLE_NAME and int(covering_card.unit.power) >= 3:
@@ -111,3 +128,55 @@ func _apply_cherepaha_play_rule(state: Dictionary, result: Dictionary) -> void:
 		}
 	})
 	game._record_layout_stack_event_in_state(state, cell)
+
+
+func _remove_barriers_adjacent_to_all_taran(state: Dictionary) -> void:
+	for y in range(game.GRID_HEIGHT):
+		for x in range(game.GRID_WIDTH):
+			var cell: Vector2i = Vector2i(x, y)
+			var stack: Array = game._get_stack_in_state(state, cell)
+			if stack.is_empty():
+				continue
+			var card: Dictionary = stack[stack.size() - 1]
+			if bool(card.face_down):
+				continue
+			if String(card.unit.name_key) != UnitKeys.TARAN_NAME:
+				continue
+			_remove_barriers_adjacent_to_cell(state, cell)
+
+
+func _remove_barriers_adjacent_to_cell(state: Dictionary, cell: Vector2i) -> void:
+	for direction in [Vector2i.UP, Vector2i.DOWN, Vector2i.LEFT, Vector2i.RIGHT]:
+		var neighbor: Vector2i = cell + direction
+		if not game._is_inside(neighbor):
+			continue
+		state.barriers.erase(game._edge_key(cell, neighbor))
+
+
+func _move_taran_to_first_destination(state: Dictionary, source_cell: Vector2i, card: Dictionary) -> void:
+	var destinations: Array = _get_taran_destination_cells(state, source_cell, int(card.owner))
+	for target in destinations:
+		var source_stack: Array = game._get_stack_in_state(state, source_cell)
+		var card_index: int = game._find_card_index_in_array(source_stack, int(card.id))
+		if card_index < 0:
+			return
+		source_stack.remove_at(card_index)
+		game._get_stack_in_state(state, target).append(card)
+		game._record_layout_stack_event_in_state(state, source_cell)
+		game._record_layout_stack_event_in_state(state, target)
+		_remove_barriers_adjacent_to_cell(state, target)
+		return
+
+
+func _get_taran_destination_cells(state: Dictionary, source_cell: Vector2i, owner: int) -> Array:
+	var targets: Array = []
+	for direction in [Vector2i.UP, Vector2i.DOWN, Vector2i.LEFT, Vector2i.RIGHT]:
+		var target: Vector2i = source_cell + direction
+		if not game._is_inside(target):
+			continue
+		if game._has_barrier_in_state(state, source_cell, target):
+			continue
+		if game._get_base_owner_in_state(state, target) == owner:
+			continue
+		targets.append(target)
+	return targets

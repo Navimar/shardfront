@@ -34,28 +34,48 @@ func get_target_request(state: Dictionary, result: Dictionary) -> Dictionary:
 		return _get_sequence_request_if_available(state, result, "trubadur_return_own", [])
 	if name_key == UnitKeys.AGITATOR_NAME:
 		return _get_request_if_available(state, result, "flip_own_face_down_up", "cell")
+	if name_key == UnitKeys.ALHIMIK_NAME:
+		return _get_request_if_available(state, result, "swap_adjacent_stack_cards", "cell")
+	if name_key == UnitKeys.AVTOPOEZD_NAME:
+		if state.players[int(result.card.owner)].hand.is_empty():
+			return {}
+		return _get_request_if_available(state, result, "avtopoezd_replace_source", "cell")
 	if name_key == UnitKeys.BOEVOY_MAG_NAME:
 		return _get_request_if_available(state, result, "discard_adjacent_enemy", "cell")
+	if name_key == UnitKeys.DUH_BURI_NAME:
+		return _get_request_if_available_for_player(
+			state,
+			result,
+			"flip_own_top_down",
+			"cell",
+			game._opponent(int(result.card.owner))
+		)
 	if name_key == UnitKeys.DEMON_NAME:
 		return _get_request_if_available(state, result, "discard_own_open", "cell")
 	if name_key == UnitKeys.EVAKUATOR_NAME:
 		return _get_request_if_available(state, result, "evacuate_own", "cell")
+	if name_key == UnitKeys.MEDBRAT_NAME:
+		return _get_request_if_available(state, result, "return_own_any", "cell")
 	if name_key == UnitKeys.LESHIY_NAME:
 		return _get_request_if_available(state, result, "discard_unsupplied_enemy", "cell")
 	if name_key == UnitKeys.PUGALO_NAME:
 		return _get_request_if_available(state, result, "return_adjacent_top", "cell")
 	if name_key == UnitKeys.PRIZYVATEL_NAME:
-		return _get_request_if_available(state, result, "play_adjacent_deck_face_down", "cell")
+		return _get_request_if_available(state, result, "put_adjacent_deck_face_down", "cell")
 	if name_key == UnitKeys.SVETLYACHOK_NAME:
 		return _get_request_if_available(state, result, "flip_supplied_own_down", "cell")
 	if name_key == UnitKeys.STROITEL_NAME:
 		return _get_request_if_available(state, result, "add_barrier", "choice")
 	if name_key == UnitKeys.KARTOGRAF_NAME:
 		return _get_request_if_available(state, result, "move_barrier", "choice")
+	if name_key == UnitKeys.KOCHEVNIKI_NAME:
+		return _get_request_if_available(state, result, "move_own_base_anywhere", "cell")
 	if name_key == UnitKeys.BOLOTNIK_NAME:
 		return _get_request_if_available(state, result, "bolotnik_move_barrier", "choice")
 	if name_key == UnitKeys.KREPOST_NAME:
 		return _get_request_if_available(state, result, "set_adjacent_barriers", "choice")
+	if name_key == UnitKeys.SHAMAN_NAME:
+		return _get_request_if_available(state, result, "shaman_base_move", "cell")
 	return {}
 
 
@@ -79,18 +99,36 @@ func get_legal_target_cells(state: Dictionary, request: Dictionary) -> Array:
 		return _get_trubadur_return_cells(state, request)
 	if kind == "flip_own_face_down_up":
 		return _get_own_face_down_top_cells(state, request)
+	if kind == "swap_adjacent_stack_cards":
+		return _get_adjacent_two_card_stack_cells(state, request)
+	if kind == "avtopoezd_replace_source":
+		return _get_top_cells_for_owner(state, int(request.player_index))
+	if kind == "flip_own_top_down":
+		return _get_own_face_up_top_cells(state, int(request.player_index))
 	if kind == "discard_adjacent_enemy":
 		return _get_adjacent_enemy_target_cells(state, request)
 	if kind == "discard_own_open":
 		return _get_own_open_top_cells(state, request)
 	if kind == "evacuate_own":
 		return _get_evacuator_target_cells(state, request)
+	if kind == "return_own_any":
+		return _get_any_own_card_cells(state, request)
 	if kind == "discard_unsupplied_enemy":
 		return _get_unsupplied_enemy_top_cells(state, request)
 	if kind == "return_adjacent_top":
 		return _get_adjacent_top_unit_cells(state, request)
-	if kind == "play_adjacent_deck_face_down":
-		return _get_adjacent_deck_face_down_cells(state, request)
+	if kind == "put_adjacent_deck_face_down":
+		return _get_adjacent_put_deck_face_down_cells(state, request)
+	if kind == "play_deck_face_down_twice":
+		return _get_deck_face_down_play_cells(state, request)
+	if kind == "play_top_deck_open":
+		return _get_top_deck_open_play_cells(state, request)
+	if kind == "move_taran_to_neighbor":
+		return _get_taran_move_destination_cells(state, request)
+	if kind == "move_own_base_anywhere":
+		return _get_move_own_base_anywhere_cells(state, request)
+	if kind == "shaman_base_move":
+		return _get_shaman_base_move_cells(state, request)
 	if kind == "flip_supplied_own_down":
 		return _get_supplied_own_top_cells(state, request)
 	if _is_barrier_kind(kind):
@@ -176,6 +214,7 @@ func can_finish_choice_request(request: Dictionary) -> bool:
 	return (
 		kind == "set_adjacent_barriers"
 		or kind == "optional_remove_barrier"
+		or kind == "swap_adjacent_stack_cards"
 		or kind == "primanka_pull"
 		or kind == "vihr_swap_neighbors"
 		or kind == "lich_flip_own"
@@ -242,16 +281,34 @@ func apply_target(state: Dictionary, request: Dictionary, target: Vector2i) -> D
 		return _apply_trubadur_return_own_target(state, request, target)
 	if kind == "flip_own_face_down_up":
 		return _apply_flip_top_card_target(state, target, false)
+	if kind == "swap_adjacent_stack_cards":
+		return _apply_swap_adjacent_stack_cards_target(state, target)
+	if kind == "avtopoezd_replace_source":
+		return _apply_avtopoezd_source_target(state, request, target)
+	if kind == "flip_own_top_down":
+		return _apply_flip_top_card_target(state, target, true)
 	if kind == "discard_adjacent_enemy":
 		return _apply_discard_adjacent_enemy_target(state, target)
 	if kind == "discard_own_open" or kind == "discard_unsupplied_enemy":
 		return _apply_discard_top_target(state, target)
 	if kind == "evacuate_own":
 		return _apply_evacuator_target(state, request, target)
+	if kind == "return_own_any":
+		return _apply_return_own_any_target(state, request, target)
 	if kind == "return_adjacent_top":
 		return _apply_return_top_target(state, target)
-	if kind == "play_adjacent_deck_face_down":
-		return _apply_play_adjacent_deck_face_down_target(state, request, target)
+	if kind == "put_adjacent_deck_face_down":
+		return _apply_put_adjacent_deck_face_down_target(state, request, target)
+	if kind == "play_deck_face_down_twice":
+		return _apply_play_deck_face_down_sequence_target(state, request, target)
+	if kind == "play_top_deck_open":
+		return _apply_play_top_deck_open_target(state, request, target)
+	if kind == "move_taran_to_neighbor":
+		return _apply_move_taran_to_neighbor_target(state, request, target)
+	if kind == "move_own_base_anywhere":
+		return _apply_move_own_base_anywhere_target(state, request, target)
+	if kind == "shaman_base_move":
+		return _apply_shaman_base_move_target(state, request, target)
 	if kind == "flip_supplied_own_down":
 		return _apply_flip_top_card_target(state, target, true)
 	if _is_barrier_kind(kind):
@@ -293,10 +350,20 @@ func apply_choice(state: Dictionary, request: Dictionary, choice: Dictionary, va
 
 
 func _get_request_if_available(state: Dictionary, result: Dictionary, kind: String, target_type: String) -> Dictionary:
+	return _get_request_if_available_for_player(state, result, kind, target_type, int(result.card.owner))
+
+
+func _get_request_if_available_for_player(
+	state: Dictionary,
+	result: Dictionary,
+	kind: String,
+	target_type: String,
+	player_index: int
+) -> Dictionary:
 	var request: Dictionary = {
 		"kind": kind,
 		"target_type": target_type,
-		"player_index": int(result.card.owner),
+		"player_index": player_index,
 		"source_cell": result.cell,
 		"card_id": int(result.card.id)
 	}
@@ -304,7 +371,13 @@ func _get_request_if_available(state: Dictionary, result: Dictionary, kind: Stri
 		return {}
 	if target_type == "cell" and get_legal_target_cells(state, request).is_empty():
 		return {}
+	if target_type == "cell_sequence" and get_legal_target_cells(state, request).is_empty():
+		return {}
 	return request
+
+
+func get_direct_target_request(state: Dictionary, result: Dictionary, kind: String, target_type: String) -> Dictionary:
+	return _get_request_if_available(state, result, kind, target_type)
 
 
 func _get_sequence_request_if_available(state: Dictionary, result: Dictionary, kind: String, selected_cells: Array) -> Dictionary:
@@ -349,6 +422,21 @@ func _get_adjacent_enemy_target_cells(state: Dictionary, request: Dictionary) ->
 	return targets
 
 
+func _get_adjacent_two_card_stack_cells(state: Dictionary, request: Dictionary) -> Array:
+	var source_cell: Vector2i = request.source_cell
+	var targets: Array = []
+	for direction in [Vector2i.UP, Vector2i.DOWN, Vector2i.LEFT, Vector2i.RIGHT]:
+		var cell: Vector2i = source_cell + direction
+		if not game._is_inside(cell):
+			continue
+		if game._has_barrier_in_state(state, source_cell, cell):
+			continue
+		var stack: Array = game._get_stack_in_state(state, cell)
+		if stack.size() >= 2:
+			targets.append(cell)
+	return targets
+
+
 func _get_own_face_down_top_cells(state: Dictionary, request: Dictionary) -> Array:
 	var player_index: int = int(request.player_index)
 	var targets: Array = []
@@ -389,6 +477,17 @@ func _get_evacuator_target_cells(state: Dictionary, request: Dictionary) -> Arra
 		for x in range(game.GRID_WIDTH):
 			var cell: Vector2i = Vector2i(x, y)
 			if game._top_owner_in_state(state, cell) == player_index:
+				targets.append(cell)
+	return targets
+
+
+func _get_any_own_card_cells(state: Dictionary, request: Dictionary) -> Array:
+	var player_index: int = int(request.player_index)
+	var targets: Array = []
+	for y in range(game.GRID_HEIGHT):
+		for x in range(game.GRID_WIDTH):
+			var cell: Vector2i = Vector2i(x, y)
+			if _find_topmost_card_index_for_owner(state, cell, player_index) >= 0:
 				targets.append(cell)
 	return targets
 
@@ -437,7 +536,7 @@ func _get_adjacent_top_unit_cells(state: Dictionary, request: Dictionary) -> Arr
 	return targets
 
 
-func _get_adjacent_deck_face_down_cells(state: Dictionary, request: Dictionary) -> Array:
+func _get_adjacent_put_deck_face_down_cells(state: Dictionary, request: Dictionary) -> Array:
 	var source_cell: Vector2i = request.source_cell
 	var player_index: int = int(request.player_index)
 	if state.players[player_index].deck.is_empty() and state.players[player_index].deck_template.is_empty():
@@ -449,10 +548,87 @@ func _get_adjacent_deck_face_down_cells(state: Dictionary, request: Dictionary) 
 			continue
 		if game._has_barrier_in_state(state, source_cell, cell):
 			continue
-		if game._get_base_owner_in_state(state, cell) != -1:
+		var base_owner: int = game._get_base_owner_in_state(state, cell)
+		if base_owner == player_index:
 			continue
-		var stack: Array = game._get_stack_in_state(state, cell)
-		if not stack.is_empty() and game._top_owner_in_state(state, cell) != player_index:
+		targets.append(cell)
+	return targets
+
+
+func _get_deck_face_down_play_cells(state: Dictionary, request: Dictionary) -> Array:
+	var player_index: int = int(request.player_index)
+	if state.players[player_index].deck.is_empty() and state.players[player_index].deck_template.is_empty():
+		return []
+	var targets: Array = []
+	var card: Dictionary = _get_deck_preview_card(state, player_index, true)
+	if card.is_empty():
+		return targets
+	for y in range(game.GRID_HEIGHT):
+		for x in range(game.GRID_WIDTH):
+			var cell: Vector2i = Vector2i(x, y)
+			if game._can_play_card_in_state(state, card, cell):
+				targets.append(cell)
+	return targets
+
+
+func _get_top_deck_open_play_cells(state: Dictionary, request: Dictionary) -> Array:
+	var player_index: int = int(request.player_index)
+	if state.players[player_index].deck.is_empty() and state.players[player_index].deck_template.is_empty():
+		return []
+	var targets: Array = []
+	var card: Dictionary = _get_deck_preview_card(state, player_index, false)
+	if card.is_empty():
+		return targets
+	for y in range(game.GRID_HEIGHT):
+		for x in range(game.GRID_WIDTH):
+			var cell: Vector2i = Vector2i(x, y)
+			if game._can_play_card_in_state(state, card, cell):
+				targets.append(cell)
+	return targets
+
+
+func _get_taran_move_destination_cells(state: Dictionary, request: Dictionary) -> Array:
+	var source_cell: Vector2i = request.source_cell
+	var owner: int = int(request.player_index)
+	var targets: Array = []
+	for direction in [Vector2i.UP, Vector2i.DOWN, Vector2i.LEFT, Vector2i.RIGHT]:
+		var cell: Vector2i = source_cell + direction
+		if not game._is_inside(cell):
+			continue
+		if game._has_barrier_in_state(state, source_cell, cell):
+			continue
+		if game._get_base_owner_in_state(state, cell) == owner:
+			continue
+		targets.append(cell)
+	return targets
+
+
+func _get_move_own_base_anywhere_cells(state: Dictionary, request: Dictionary) -> Array:
+	var player_index: int = int(request.player_index)
+	var own_base: Vector2i = state.players[player_index].base
+	var opponent_base: Vector2i = state.players[game._opponent(player_index)].base
+	var targets: Array = []
+	for y in range(game.GRID_HEIGHT):
+		for x in range(game.GRID_WIDTH):
+			var cell: Vector2i = Vector2i(x, y)
+			if cell == own_base or cell == opponent_base:
+				continue
+			targets.append(cell)
+	return targets
+
+
+func _get_shaman_base_move_cells(state: Dictionary, request: Dictionary) -> Array:
+	var player_index: int = int(request.player_index)
+	var own_base: Vector2i = state.players[player_index].base
+	var opponent_base: Vector2i = state.players[game._opponent(player_index)].base
+	var targets: Array = [opponent_base]
+	for direction in [Vector2i.UP, Vector2i.DOWN, Vector2i.LEFT, Vector2i.RIGHT]:
+		var cell: Vector2i = own_base + direction
+		if not game._is_inside(cell):
+			continue
+		if cell == opponent_base:
+			continue
+		if game._has_barrier_in_state(state, own_base, cell):
 			continue
 		targets.append(cell)
 	return targets
@@ -504,8 +680,7 @@ func _get_move_adjacent_top_to_neighbor_cells(state: Dictionary, request: Dictio
 			targets.append(cell)
 		return targets
 	var first_cell: Vector2i = selected_cells[0]
-	var owner: int = game._top_owner_in_state(state, first_cell)
-	return _get_move_destination_cells(state, owner, first_cell, true)
+	return _get_unrestricted_move_destination_cells(state, first_cell, true)
 
 
 func _get_primanka_pull_cells(state: Dictionary, request: Dictionary) -> Array:
@@ -546,8 +721,20 @@ func _get_vihr_swap_neighbor_cells(state: Dictionary, request: Dictionary) -> Ar
 
 
 func _get_trubadur_return_cells(state: Dictionary, request: Dictionary) -> Array:
-	var targets: Array = _get_top_cells_for_owner(state, int(request.player_index))
-	targets.erase(request.source_cell)
+	var targets: Array = []
+	var player_index: int = int(request.player_index)
+	for y in range(game.GRID_HEIGHT):
+		for x in range(game.GRID_WIDTH):
+			var cell: Vector2i = Vector2i(x, y)
+			if cell == request.source_cell:
+				continue
+			var stack: Array = game._get_stack_in_state(state, cell)
+			if stack.is_empty():
+				continue
+			var top_card: Dictionary = stack[stack.size() - 1]
+			if int(top_card.owner) != player_index:
+				continue
+			targets.append(cell)
 	return targets
 
 
@@ -573,13 +760,49 @@ func _get_move_destination_cells(state: Dictionary, owner: int, source_cell: Vec
 				continue
 			if only_adjacent and not _are_unblocked_neighbors(state, source_cell, cell):
 				continue
-			if game._get_base_owner_in_state(state, cell) != -1:
+			var base_owner: int = game._get_base_owner_in_state(state, cell)
+			if base_owner == owner:
 				continue
 			var stack: Array = game._get_stack_in_state(state, cell)
 			if not stack.is_empty() and game._top_owner_in_state(state, cell) != owner:
 				continue
 			targets.append(cell)
 	return targets
+
+
+func _get_unrestricted_move_destination_cells(state: Dictionary, source_cell: Vector2i, only_adjacent: bool) -> Array:
+	var targets: Array = []
+	var owner: int = game._top_owner_in_state(state, source_cell)
+	for y in range(game.GRID_HEIGHT):
+		for x in range(game.GRID_WIDTH):
+			var cell: Vector2i = Vector2i(x, y)
+			if cell == source_cell:
+				continue
+			if only_adjacent and not _are_unblocked_neighbors(state, source_cell, cell):
+				continue
+			var base_owner: int = game._get_base_owner_in_state(state, cell)
+			if base_owner == owner:
+				continue
+			targets.append(cell)
+	return targets
+
+
+func _get_deck_preview_card(state: Dictionary, player_index: int, face_down: bool) -> Dictionary:
+	var deck: Array = state.players[player_index].deck
+	if deck.is_empty():
+		return {}
+	var card: Dictionary = deck[deck.size() - 1].duplicate(true)
+	card.owner = player_index
+	card.face_down = face_down
+	return card
+
+
+func _find_topmost_card_index_for_owner(state: Dictionary, cell: Vector2i, owner: int) -> int:
+	var stack: Array = game._get_stack_in_state(state, cell)
+	for index in range(stack.size() - 1, -1, -1):
+		if int(stack[index].owner) == owner:
+			return index
+	return -1
 
 
 func _are_unblocked_neighbors(state: Dictionary, first: Vector2i, second: Vector2i) -> bool:
@@ -591,6 +814,93 @@ func _are_unblocked_neighbors(state: Dictionary, first: Vector2i, second: Vector
 
 func _apply_discard_adjacent_enemy_target(state: Dictionary, target: Vector2i) -> Dictionary:
 	return _apply_discard_top_target(state, target)
+
+
+func _apply_swap_adjacent_stack_cards_target(state: Dictionary, target: Vector2i) -> Dictionary:
+	var stack: Array = game._get_stack_in_state(state, target)
+	if stack.size() < 2:
+		return game._make_action_result(game.RESULT_INVALID, "bad_target")
+	var top_index: int = stack.size() - 1
+	var second_index: int = stack.size() - 2
+	var top_card: Dictionary = stack[top_index]
+	stack[top_index] = stack[second_index]
+	stack[second_index] = top_card
+	game._record_layout_stack_event_in_state(state, target)
+	return _make_ok_target_result()
+
+
+func _apply_avtopoezd_source_target(state: Dictionary, request: Dictionary, target: Vector2i) -> Dictionary:
+	var player_index: int = int(request.player_index)
+	var hand: Array = state.players[player_index].hand
+	if hand.is_empty():
+		return game._make_action_result(game.RESULT_INVALID, "empty_hand")
+	var result: Dictionary = game._make_action_result(game.RESULT_OK, "")
+	if game._is_ai_player(player_index):
+		_apply_avtopoezd_replace_with_hand_index(state, player_index, target, 0)
+		result.end_turn = true
+	else:
+		result.pending_hand_pick = {
+			"kind": "avtopoezd_replace",
+			"player_index": player_index,
+			"source_cell": target,
+			"card_id": int(request.card_id)
+		}
+		result.end_turn = false
+	return result
+
+
+func apply_hand_pick(state: Dictionary, request: Dictionary, hand_index: int) -> Dictionary:
+	var result: Dictionary = game._make_action_result(game.RESULT_INVALID, "bad_hand_index")
+	var player_index: int = int(request.player_index)
+	var hand: Array = state.players[player_index].hand
+	if hand_index < 0 or hand_index >= hand.size():
+		return result
+	var kind: String = String(request.get("kind", ""))
+	if kind == "avtopoezd_replace":
+		_apply_avtopoezd_replace_with_hand_index(state, player_index, request.source_cell, hand_index)
+	else:
+		return result
+	result.status = game.RESULT_OK
+	result.error = ""
+	result.end_turn = true
+	return result
+
+
+func _apply_avtopoezd_replace_with_hand_index(
+	state: Dictionary,
+	player_index: int,
+	cell: Vector2i,
+	hand_index: int
+) -> void:
+	var stack: Array = game._get_stack_in_state(state, cell)
+	if stack.is_empty():
+		return
+	var old_card: Dictionary = stack.pop_back()
+	game._return_card_to_hand_in_state(state, player_index, old_card, {
+		"type": "board",
+		"cell": cell,
+		"face_down": bool(old_card.face_down)
+	})
+	var hand: Array = state.players[player_index].hand
+	var new_card: Dictionary = hand[hand_index]
+	hand.remove_at(hand_index)
+	new_card.owner = player_index
+	new_card.face_down = false
+	stack.append(new_card)
+	game._record_action_event_in_state(state, {
+		"type": "play_card",
+		"card_id": int(new_card.id),
+		"player_index": player_index,
+		"unit": new_card.unit,
+		"cell": cell,
+		"face_down": false,
+		"stack_cards": game._get_stack_card_snapshots_in_state(state, cell),
+		"source": {
+			"type": "hand",
+			"hand_index": hand_index
+		}
+	})
+	game._record_layout_stack_event_in_state(state, cell)
 
 
 func _apply_swap_own_enemy_top_target(state: Dictionary, request: Dictionary, target: Vector2i) -> Dictionary:
@@ -620,6 +930,8 @@ func _apply_move_own_top_anywhere_target(state: Dictionary, request: Dictionary,
 func _apply_move_adjacent_top_to_neighbor_target(state: Dictionary, request: Dictionary, target: Vector2i) -> Dictionary:
 	var selected_cells: Array = Array(request.get("selected_cells", []))
 	if selected_cells.is_empty():
+		if _get_unrestricted_move_destination_cells(state, target, true).is_empty():
+			return game._make_action_result(game.RESULT_INVALID, "bad_target")
 		return _make_pending_sequence_result(request, [target])
 	_move_top_card(state, selected_cells[0], target)
 	return _make_ok_target_result()
@@ -755,6 +1067,24 @@ func _apply_return_top_target(state: Dictionary, target: Vector2i) -> Dictionary
 	return result
 
 
+func _apply_return_own_any_target(state: Dictionary, request: Dictionary, target: Vector2i) -> Dictionary:
+	var player_index: int = int(request.player_index)
+	var stack: Array = game._get_stack_in_state(state, target)
+	var card_index: int = _find_topmost_card_index_for_owner(state, target, player_index)
+	if card_index < 0:
+		return game._make_action_result(game.RESULT_INVALID, "empty_target")
+	var card: Dictionary = stack[card_index]
+	stack.remove_at(card_index)
+	game._return_card_to_hand_in_state(state, player_index, card, {
+		"type": "board",
+		"cell": target,
+		"face_down": bool(card.face_down)
+	})
+	var result: Dictionary = game._make_action_result(game.RESULT_OK, "")
+	result.end_turn = true
+	return result
+
+
 func _apply_evacuator_target(state: Dictionary, request: Dictionary, target: Vector2i) -> Dictionary:
 	var player_index: int = int(request.player_index)
 	var stack: Array = game._get_stack_in_state(state, target)
@@ -797,7 +1127,152 @@ func _apply_evacuator_target(state: Dictionary, request: Dictionary, target: Vec
 	return result
 
 
-func _apply_play_adjacent_deck_face_down_target(state: Dictionary, request: Dictionary, target: Vector2i) -> Dictionary:
+func _apply_play_deck_face_down_sequence_target(state: Dictionary, request: Dictionary, target: Vector2i) -> Dictionary:
+	var player_index: int = int(request.player_index)
+	var played_count: int = int(request.get("played_count", 0))
+	var result: Dictionary = _play_top_deck_card_to_cell(state, player_index, target, true)
+	if result.status != game.RESULT_OK:
+		return result
+	played_count += 1
+	if played_count >= 2:
+		result.end_turn = true
+		return result
+	var next_request: Dictionary = request.duplicate(true)
+	next_request.played_count = played_count
+	if get_legal_target_cells(state, next_request).is_empty():
+		result.end_turn = true
+		return result
+	result.end_turn = false
+	result.pending_target = next_request
+	return result
+
+
+func _apply_play_top_deck_open_target(state: Dictionary, request: Dictionary, target: Vector2i) -> Dictionary:
+	return _play_top_deck_card_to_cell(state, int(request.player_index), target, false)
+
+
+func _apply_move_taran_to_neighbor_target(state: Dictionary, request: Dictionary, target: Vector2i) -> Dictionary:
+	var source_cell: Vector2i = request.source_cell
+	var source_stack: Array = game._get_stack_in_state(state, source_cell)
+	var card_index: int = game._find_card_index_in_array(source_stack, int(request.card_id))
+	if card_index < 0:
+		return game._make_action_result(game.RESULT_INVALID, "empty_target")
+	var card: Dictionary = source_stack[card_index]
+	source_stack.remove_at(card_index)
+	game._get_stack_in_state(state, target).append(card)
+	game._record_layout_stack_event_in_state(state, source_cell)
+	game._record_layout_stack_event_in_state(state, target)
+	_remove_adjacent_barriers_from_state(state, target)
+	var result: Dictionary = game._make_action_result(game.RESULT_OK, "")
+	result.end_turn = true
+	return result
+
+
+func _apply_move_own_base_anywhere_target(state: Dictionary, request: Dictionary, target: Vector2i) -> Dictionary:
+	var player_index: int = int(request.player_index)
+	_discard_stack_at_cell(state, target)
+	state.players[player_index].base = target
+	var result: Dictionary = game._make_action_result(game.RESULT_OK, "")
+	result.end_turn = true
+	return result
+
+
+func _apply_shaman_base_move_target(state: Dictionary, request: Dictionary, target: Vector2i) -> Dictionary:
+	var player_index: int = int(request.player_index)
+	var opponent_index: int = game._opponent(player_index)
+	var own_base: Vector2i = state.players[player_index].base
+	if target == state.players[opponent_index].base:
+		state.players[player_index].base = state.players[opponent_index].base
+		state.players[opponent_index].base = own_base
+	else:
+		_discard_stack_at_cell(state, target)
+		state.players[player_index].base = target
+		_place_top_deck_face_down_without_legality(state, player_index, own_base)
+	var result: Dictionary = game._make_action_result(game.RESULT_OK, "")
+	result.end_turn = true
+	return result
+
+
+func _discard_stack_at_cell(state: Dictionary, cell: Vector2i) -> void:
+	var stack: Array = game._get_stack_in_state(state, cell)
+	while not stack.is_empty():
+		var card: Dictionary = stack.pop_back()
+		game._discard_card_in_state(state, int(card.owner), card, {
+			"type": "board",
+			"cell": cell,
+			"face_down": bool(card.face_down)
+		})
+
+
+func _place_top_deck_face_down_without_legality(state: Dictionary, player_index: int, target: Vector2i) -> void:
+	if not game._refill_deck_if_empty_in_state(state, player_index):
+		return
+	var deck: Array = state.players[player_index].deck
+	if deck.is_empty():
+		return
+	var card: Dictionary = deck.pop_back()
+	card.owner = player_index
+	card.face_down = true
+	game._place_card_in_state(state, card, target)
+	game._record_action_event_in_state(state, {
+		"type": "play_card",
+		"card_id": int(card.id),
+		"player_index": player_index,
+		"unit": card.unit,
+		"cell": target,
+		"face_down": true,
+		"stack_cards": game._get_stack_card_snapshots_in_state(state, target),
+		"source": {
+			"type": "base",
+			"face_down": true
+		}
+	})
+	game._record_layout_stack_event_in_state(state, target)
+	game._refill_deck_if_empty_in_state(state, player_index)
+
+
+func _play_top_deck_card_to_cell(state: Dictionary, player_index: int, target: Vector2i, face_down: bool) -> Dictionary:
+	if not game._refill_deck_if_empty_in_state(state, player_index):
+		return game._make_action_result(game.RESULT_INVALID, "empty_deck")
+	var deck: Array = state.players[player_index].deck
+	if deck.is_empty():
+		return game._make_action_result(game.RESULT_INVALID, "empty_deck")
+	var preview_card: Dictionary = deck[deck.size() - 1]
+	preview_card.owner = player_index
+	preview_card.face_down = face_down
+	if not game._can_play_card_in_state(state, preview_card, target):
+		return game._make_action_result(game.RESULT_INVALID, "cannot_play_card")
+	var card: Dictionary = deck.pop_back()
+	card.owner = player_index
+	card.face_down = face_down
+	game._place_card_in_state(state, card, target)
+	game._record_action_event_in_state(state, {
+		"type": "play_card",
+		"card_id": int(card.id),
+		"player_index": player_index,
+		"unit": card.unit,
+		"cell": target,
+		"face_down": face_down,
+		"stack_cards": game._get_stack_card_snapshots_in_state(state, target),
+		"source": {
+			"type": "base",
+			"face_down": face_down
+		}
+	})
+	game._record_layout_stack_event_in_state(state, target)
+	game._refill_deck_if_empty_in_state(state, player_index)
+	var result: Dictionary = game._make_action_result(game.RESULT_OK, "")
+	result.card = card
+	result.cell = target
+	result.played_card = true
+	result.end_turn = true
+	game._apply_after_action_rules_to_state(state, result)
+	if not game._result_has_pending_action(result):
+		game._apply_stack_reactions_after_play_to_state(state, result)
+	return result
+
+
+func _apply_put_adjacent_deck_face_down_target(state: Dictionary, request: Dictionary, target: Vector2i) -> Dictionary:
 	var player_index: int = int(request.player_index)
 	if not game._refill_deck_if_empty_in_state(state, player_index):
 		return game._make_action_result(game.RESULT_INVALID, "empty_deck")
@@ -1002,6 +1477,14 @@ func _add_barrier_to_state(state: Dictionary, first: Vector2i, second: Vector2i)
 
 func _remove_barrier_from_state(state: Dictionary, first: Vector2i, second: Vector2i) -> void:
 	state.barriers.erase(game._edge_key(first, second))
+
+
+func _remove_adjacent_barriers_from_state(state: Dictionary, cell: Vector2i) -> void:
+	for direction in [Vector2i.UP, Vector2i.DOWN, Vector2i.LEFT, Vector2i.RIGHT]:
+		var neighbor: Vector2i = cell + direction
+		if not game._is_inside(neighbor):
+			continue
+		_remove_barrier_from_state(state, cell, neighbor)
 
 
 func _add_barrier_removal_option(state: Dictionary, player_index: int, edge: Array) -> void:

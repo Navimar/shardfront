@@ -22,6 +22,9 @@ func can_play_card(state: Dictionary, card: Dictionary, cell: Vector2i) -> bool:
 		return false
 
 	var stack: Array = game._get_stack_in_state(state, cell)
+	if _is_card_name(card, UnitKeys.GNOM_NAME):
+		return _can_play_gnom(state, card, cell, base_owner, stack)
+
 	if bool(card.face_down):
 		if base_owner != -1:
 			return false
@@ -51,6 +54,14 @@ func get_play_access_info(state: Dictionary, card: Dictionary, cell: Vector2i) -
 	if not _is_target_allowed_by_turn_restrictions(state, card, cell):
 		return {}
 	var player_index: int = int(card.owner)
+	if _is_card_name(card, UnitKeys.GNOM_NAME):
+		var gnom_stack: Array = game._get_stack_in_state(state, cell)
+		if _can_play_gnom(state, card, cell, game._get_base_owner_in_state(state, cell), gnom_stack):
+			return {
+				"kind": "gnom",
+				"sources": _get_current_supply_play_source_cells(state, player_index, cell)
+			}
+		return {}
 	if game._get_supplied_cells_in_state(state, player_index).has(cell):
 		return {
 			"kind": "standard",
@@ -141,3 +152,20 @@ func _is_card_name(card: Dictionary, name_key: String) -> bool:
 	if bool(card.face_down):
 		return false
 	return String(card.unit.name_key) == name_key
+
+
+func _can_play_gnom(
+	state: Dictionary,
+	card: Dictionary,
+	cell: Vector2i,
+	base_owner: int,
+	stack: Array
+) -> bool:
+	var player_index: int = int(card.owner)
+	if base_owner != -1:
+		return false
+	if stack.is_empty():
+		return false
+	if not game._get_supplied_cells_in_state(state, player_index).has(cell):
+		return false
+	return true
