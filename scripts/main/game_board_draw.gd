@@ -2,6 +2,8 @@ extends RefCounted
 
 const PLAYABLE_SUPPLY_COLOR: Color = Color(0.88, 0.08, 0.06, 1.0)
 const SPECIAL_PLAYABLE_COLOR: Color = Color(1.0, 0.82, 0.12, 1.0)
+const TARGET_MARKER_COLOR: Color = Color(1.0, 0.03, 0.02, 1.0)
+const TARGET_MARKER_OUTLINE_COLOR: Color = Color(0.22, 0.0, 0.0, 1.0)
 const ARROW_OUTLINE_COLOR: Color = Color(0.22, 0.03, 0.02, 1.0)
 const BARRIER_FRAME_COLOR: Color = Color(0.02, 0.015, 0.01)
 const BARRIER_SHINE_COLOR: Color = Color(1.0, 0.86, 0.48, 0.55)
@@ -38,6 +40,7 @@ func on_supply_line_layer_draw() -> void:
 func on_barrier_layer_draw() -> void:
 	var playable_cells: Dictionary = game._get_playable_cells_for_ui_pending_action()
 	_draw_playable_arrow_heads(playable_cells)
+	_draw_target_markers(playable_cells)
 	_draw_barriers()
 
 
@@ -80,6 +83,8 @@ func _draw_playable_supply_lines(playable_cells: Dictionary) -> void:
 func _draw_special_playable_cells(playable_cells: Dictionary) -> void:
 	for cell in playable_cells.keys():
 		if _get_playable_access_kind(playable_cells[cell]) == "standard":
+			continue
+		if _get_playable_access_kind(playable_cells[cell]) == "target":
 			continue
 		var rect: Rect2 = _get_cell_rect_on_layer(cell, game.supply_line_layer)
 		var marker_rect: Rect2 = rect.grow(-8.0)
@@ -170,6 +175,37 @@ func _draw_playable_arrow_heads(playable_cells: Dictionary) -> void:
 			if supply_edges.get(from_cell, {}).has(cell):
 				continue
 			_draw_playable_arrow_head_between(from_cell, cell, playable_cells, _get_playable_access_color(playable_cells[cell]))
+
+
+func _draw_target_markers(playable_cells: Dictionary) -> void:
+	for cell in playable_cells.keys():
+		if _get_playable_access_kind(playable_cells[cell]) != "target":
+			continue
+		_draw_target_marker(cell)
+
+
+func _draw_target_marker(cell: Vector2i) -> void:
+	var rect: Rect2 = _get_cell_rect_on_layer(cell, game.barrier_layer)
+	var center: Vector2 = rect.get_center()
+	var radius: float = min(rect.size.x, rect.size.y) * 0.22
+	var inner_radius: float = radius * 0.48
+	var line_width: float = 5.0
+	var outline_width: float = line_width + 4.0
+	_draw_target_marker_lines(center, radius, outline_width, TARGET_MARKER_OUTLINE_COLOR)
+	_draw_target_marker_lines(center, radius, line_width, TARGET_MARKER_COLOR)
+	game.barrier_layer.draw_arc(center, radius, 0.0, TAU, 48, TARGET_MARKER_OUTLINE_COLOR, outline_width, true)
+	game.barrier_layer.draw_arc(center, radius, 0.0, TAU, 48, TARGET_MARKER_COLOR, line_width, true)
+	game.barrier_layer.draw_arc(center, inner_radius, 0.0, TAU, 32, TARGET_MARKER_OUTLINE_COLOR, outline_width * 0.75, true)
+	game.barrier_layer.draw_arc(center, inner_radius, 0.0, TAU, 32, TARGET_MARKER_COLOR, line_width * 0.75, true)
+
+
+func _draw_target_marker_lines(center: Vector2, radius: float, width: float, color: Color) -> void:
+	var gap: float = radius * 0.34
+	var length: float = radius * 1.45
+	game.barrier_layer.draw_line(center + Vector2(-length, 0.0), center + Vector2(-gap, 0.0), color, width, true)
+	game.barrier_layer.draw_line(center + Vector2(gap, 0.0), center + Vector2(length, 0.0), color, width, true)
+	game.barrier_layer.draw_line(center + Vector2(0.0, -length), center + Vector2(0.0, -gap), color, width, true)
+	game.barrier_layer.draw_line(center + Vector2(0.0, gap), center + Vector2(0.0, length), color, width, true)
 
 
 func _draw_playable_arrow_head_between(
