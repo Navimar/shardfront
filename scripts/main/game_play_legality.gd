@@ -12,6 +12,8 @@ func _init(game_node: Node) -> void:
 func can_play_card(state: Dictionary, card: Dictionary, cell: Vector2i) -> bool:
 	if not game._is_inside(cell):
 		return false
+	if not _is_target_allowed_by_turn_restrictions(state, card, cell):
+		return false
 	var player_index: int = int(card.owner)
 	var base_owner: int = game._get_base_owner_in_state(state, cell)
 	if base_owner == player_index:
@@ -45,6 +47,8 @@ func get_play_access_kind(state: Dictionary, card: Dictionary, cell: Vector2i) -
 
 func get_play_access_info(state: Dictionary, card: Dictionary, cell: Vector2i) -> Dictionary:
 	if not game._is_inside(cell):
+		return {}
+	if not _is_target_allowed_by_turn_restrictions(state, card, cell):
 		return {}
 	var player_index: int = int(card.owner)
 	if game._get_supplied_cells_in_state(state, player_index).has(cell):
@@ -105,6 +109,32 @@ func _get_supply_source_cells_for_target(supply_edges: Dictionary, source_cells:
 		if edges.has(target):
 			sources.append(from_cell)
 	return sources
+
+
+func _is_target_allowed_by_turn_restrictions(state: Dictionary, card: Dictionary, cell: Vector2i) -> bool:
+	if bool(card.face_down):
+		return true
+	var player_index: int = int(card.owner)
+	if not _has_turn_restriction(state, player_index, "no_latnik_cell"):
+		return true
+	return not _is_open_latnik_cell(state, cell)
+
+
+func _has_turn_restriction(state: Dictionary, player_index: int, kind: String) -> bool:
+	if not state.has("turn_restrictions"):
+		return false
+	for restriction in state.turn_restrictions:
+		if int(restriction.get("player_index", -1)) == player_index and String(restriction.get("kind", "")) == kind:
+			return true
+	return false
+
+
+func _is_open_latnik_cell(state: Dictionary, cell: Vector2i) -> bool:
+	var stack: Array = game._get_stack_in_state(state, cell)
+	if stack.is_empty():
+		return false
+	var top_card: Dictionary = stack[stack.size() - 1]
+	return _is_card_name(top_card, UnitKeys.LATNIK_NAME)
 
 
 func _is_card_name(card: Dictionary, name_key: String) -> bool:

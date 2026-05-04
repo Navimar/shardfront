@@ -56,7 +56,7 @@ func can_attack_card(state: Dictionary, attack_card: Dictionary, target_cell: Ve
 
 func _get_bashnya_defense_bonus(state: Dictionary, player_index: int, cell: Vector2i) -> int:
 	var base: Vector2i = state.players[player_index].base
-	if _are_orthogonal_neighbors(base, cell):
+	if _are_unblocked_orthogonal_neighbors(state, base, cell):
 		return 1
 	return 0
 
@@ -72,6 +72,8 @@ func _get_manoprovod_power(state: Dictionary, player_index: int, cell: Vector2i)
 	for direction in [Vector2i.UP, Vector2i.DOWN, Vector2i.LEFT, Vector2i.RIGHT]:
 		var neighbor: Vector2i = cell + direction
 		if not game._is_inside(neighbor):
+			continue
+		if game._has_barrier_in_state(state, cell, neighbor):
 			continue
 		if game._top_owner_in_state(state, neighbor) != player_index:
 			continue
@@ -91,6 +93,8 @@ func _get_namestnik_defense_bonus(state: Dictionary, cell: Vector2i) -> int:
 	return int(covered_card.unit.power)
 
 
-func _are_orthogonal_neighbors(first: Vector2i, second: Vector2i) -> bool:
+func _are_unblocked_orthogonal_neighbors(state: Dictionary, first: Vector2i, second: Vector2i) -> bool:
 	var diff: Vector2i = first - second
-	return abs(diff.x) + abs(diff.y) == 1
+	if abs(diff.x) + abs(diff.y) != 1:
+		return false
+	return not game._has_barrier_in_state(state, first, second)

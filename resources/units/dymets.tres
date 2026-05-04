@@ -10,5 +10,5 @@ name_key = "UNIT_DYMETS_NAME"
 description_key = "UNIT_DYMETS_DESCRIPTION"
 power = 6
 ability_symbols = "⏳"
-implementation_status = "unimplemented"
+implementation_status = "implemented"
 portrait = ExtResource("2_portrait")
