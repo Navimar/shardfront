@@ -20,6 +20,7 @@ func choose_action_variant(state: Dictionary, player_index: int) -> Dictionary:
 	var best_score: float = -INF
 	var best_tiebreak: float = -INF
 	var has_best_variant: bool = false
+	var before_tempo: float = evaluate_win_tempo(state, player_index)
 	for variant in variants:
 		var candidate_state: Dictionary = game._duplicate_game_state(state)
 		var result: Dictionary = game._apply_action_variant_to_state(candidate_state, variant)
@@ -28,7 +29,7 @@ func choose_action_variant(state: Dictionary, player_index: int) -> Dictionary:
 		if _is_state_won_by_player(candidate_state, player_index):
 			return variant
 		var score: float = _score_candidate_state(candidate_state, result, player_index)
-		var tiebreak: float = _score_variant_tiebreak(state, candidate_state, variant, player_index)
+		var tiebreak: float = _score_variant_tiebreak(before_tempo, candidate_state, variant, player_index)
 		if not has_best_variant or score > best_score + AI_SCORE_EPSILON or (abs(score - best_score) <= AI_SCORE_EPSILON and tiebreak > best_tiebreak):
 			has_best_variant = true
 			best_score = score
@@ -98,8 +99,7 @@ func _score_candidate_state(state: Dictionary, result: Dictionary, player_index:
 	return min(score, _score_tempo_race(projected_state, player_index))
 
 
-func _score_variant_tiebreak(before_state: Dictionary, after_state: Dictionary, variant: Dictionary, player_index: int) -> float:
-	var before_tempo: float = evaluate_win_tempo(before_state, player_index)
+func _score_variant_tiebreak(before_tempo: float, after_state: Dictionary, variant: Dictionary, player_index: int) -> float:
 	var after_tempo: float = evaluate_win_tempo(after_state, player_index)
 	var tempo_gain: float = before_tempo - after_tempo
 	return tempo_gain * 100.0 + _get_action_tiebreak_priority(variant)
@@ -221,9 +221,11 @@ func _get_tempo_distance_map_from_start(
 	var distances = {}
 	var parents = {}
 	var unvisited: Array = []
-	var supply_edges: Dictionary = game._get_supply_edges_in_state(state, player_index)
-	var supply_origins: Dictionary = game._get_supply_origin_cells_in_state(state, player_index)
-	var supplied_cells: Dictionary = game._get_supplied_cells_in_state(state, player_index)
+	var supply_result: Dictionary = game.supply_logic.calculate_supply_result(state, player_index)
+	var supply_edges: Dictionary = supply_result.edges
+	var supply_origins: Dictionary = supply_result.origins
+	var supplied_cells: Dictionary = supply_result.supplied
+	var threatened_cells: Dictionary = _get_opponent_supply_threat_cells(state, player_index)
 
 	distances[start] = 0.0
 	parents[start] = start
@@ -239,7 +241,7 @@ func _get_tempo_distance_map_from_start(
 			if target_is_enemy_base and next == target:
 				step_cost = 0.0
 			else:
-				step_cost = _get_cell_supply_card_cost(state, player_index, next, override_cell, override_cost)
+				step_cost = _get_cell_supply_card_cost(state, player_index, next, threatened_cells, override_cell, override_cost)
 
 			var new_cost: float = current_cost + step_cost
 			if not distances.has(next) or new_cost < float(distances[next]):
@@ -315,11 +317,12 @@ func _get_cell_supply_card_cost(
 	state: Dictionary,
 	player_index: int,
 	cell: Vector2i,
+	threatened_cells: Dictionary,
 	override_cell: Vector2i = Vector2i(-1, -1),
 	override_cost: float = -1.0
 ) -> float:
 	if cell == override_cell and override_cost >= 0.0:
-		return override_cost + _get_tempo_threat_penalty(state, player_index, cell)
+		return override_cost + _get_tempo_threat_penalty(state, player_index, cell, threatened_cells)
 
 	var owner: int = game._top_owner_in_state(state, cell)
 	var base_cost: float
@@ -333,14 +336,14 @@ func _get_cell_supply_card_cost(
 		var power: int = game._top_power_in_state(state, cell)
 		base_cost = 2.0 + float(power)
 
-	return base_cost + _get_tempo_threat_penalty(state, player_index, cell)
+	return base_cost + _get_tempo_threat_penalty(state, player_index, cell, threatened_cells)
 
 
-func _get_tempo_threat_penalty(state: Dictionary, player_index: int, cell: Vector2i) -> float:
+func _get_tempo_threat_penalty(state: Dictionary, player_index: int, cell: Vector2i, threatened_cells: Dictionary) -> float:
 	var owner: int = game._top_owner_in_state(state, cell)
 	if owner != player_index and owner != -1:
 		return 0.0
-	if not _is_threatened_by_opponent_supply(state, player_index, cell):
+	if not threatened_cells.has(cell):
 		return 0.0
 
 	var own_power: int = 0
@@ -349,17 +352,19 @@ func _get_tempo_threat_penalty(state: Dictionary, player_index: int, cell: Vecto
 	return float(max(0, 5 - own_power))
 
 
-func _is_threatened_by_opponent_supply(state: Dictionary, player_index: int, cell: Vector2i) -> bool:
+func _get_opponent_supply_threat_cells(state: Dictionary, player_index: int) -> Dictionary:
 	var opponent_index: int = game._opponent(player_index)
-	var opponent_edges: Dictionary = game._get_supply_edges_in_state(state, opponent_index)
-	var opponent_origins: Dictionary = game._get_supply_origin_cells_in_state(state, opponent_index)
+	var opponent_supply_result: Dictionary = game.supply_logic.calculate_supply_result(state, opponent_index)
+	var opponent_edges: Dictionary = opponent_supply_result.edges
+	var opponent_origins: Dictionary = opponent_supply_result.origins
+	var threatened_cells: Dictionary = {}
 	for origin in opponent_origins.keys():
 		if game._top_owner_in_state(state, origin) != opponent_index:
 			continue
 		var edges: Dictionary = opponent_edges.get(origin, {})
-		if edges.has(cell):
-			return true
-	return false
+		for cell in edges.keys():
+			threatened_cells[cell] = true
+	return threatened_cells
 
 
 func _can_finish_with_hand_in_state(state: Dictionary, player_index: int) -> bool:

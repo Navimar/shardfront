@@ -4,6 +4,10 @@ const PLAYABLE_SUPPLY_COLOR: Color = Color(0.88, 0.08, 0.06, 1.0)
 const SPECIAL_PLAYABLE_COLOR: Color = Color(1.0, 0.82, 0.12, 1.0)
 const TARGET_MARKER_COLOR: Color = Color(1.0, 0.03, 0.02, 1.0)
 const TARGET_MARKER_OUTLINE_COLOR: Color = Color(0.22, 0.0, 0.0, 1.0)
+const TARGET_EDGE_COLOR: Color = Color(1.0, 0.04, 0.02, 0.9)
+const TARGET_EDGE_SELECTED_COLOR: Color = Color(1.0, 0.78, 0.08, 1.0)
+const TARGET_EDGE_WIDTH: float = 5.0
+const TARGET_EDGE_OUTLINE_WIDTH: float = 9.0
 const ARROW_OUTLINE_COLOR: Color = Color(0.22, 0.03, 0.02, 1.0)
 const BARRIER_FRAME_COLOR: Color = Color(0.02, 0.015, 0.01)
 const BARRIER_SHINE_COLOR: Color = Color(1.0, 0.86, 0.48, 0.55)
@@ -40,8 +44,9 @@ func on_supply_line_layer_draw() -> void:
 func on_barrier_layer_draw() -> void:
 	var playable_cells: Dictionary = game._get_playable_cells_for_ui_pending_action()
 	_draw_playable_arrow_heads(playable_cells)
-	_draw_target_markers(playable_cells)
 	_draw_barriers()
+	_draw_target_edges(game._get_playable_edges_for_ui_pending_action())
+	_draw_target_markers(playable_cells)
 
 
 func _draw_barriers() -> void:
@@ -182,6 +187,38 @@ func _draw_target_markers(playable_cells: Dictionary) -> void:
 		if _get_playable_access_kind(playable_cells[cell]) != "target":
 			continue
 		_draw_target_marker(cell)
+
+
+func _draw_target_edges(edges: Array) -> void:
+	for edge in edges:
+		_draw_target_edge(edge[0], edge[1], TARGET_EDGE_COLOR)
+	if game.pending_logic != null and not game.pending_logic.selected_target_edge.is_empty():
+		var selected_edge: Array = game.pending_logic.selected_target_edge
+		_draw_target_edge(selected_edge[0], selected_edge[1], TARGET_EDGE_SELECTED_COLOR)
+
+
+func _draw_target_edge(first: Vector2i, second: Vector2i, color: Color) -> void:
+	var hit_rect: Rect2 = _get_edge_rect_on_layer(first, second, game.barrier_layer)
+	var rect: Rect2 = _get_thin_edge_rect(hit_rect, first, second, TARGET_EDGE_WIDTH)
+	var outline_rect: Rect2 = _get_thin_edge_rect(hit_rect, first, second, TARGET_EDGE_OUTLINE_WIDTH)
+	game.barrier_layer.draw_rect(outline_rect, TARGET_MARKER_OUTLINE_COLOR)
+	game.barrier_layer.draw_rect(rect, color)
+
+
+func _get_thin_edge_rect(hit_rect: Rect2, first: Vector2i, second: Vector2i, width: float) -> Rect2:
+	if first.y == second.y:
+		return Rect2(
+			hit_rect.get_center().x - width * 0.5,
+			hit_rect.position.y,
+			width,
+			hit_rect.size.y
+		)
+	return Rect2(
+		hit_rect.position.x,
+		hit_rect.get_center().y - width * 0.5,
+		hit_rect.size.x,
+		width
+	)
 
 
 func _draw_target_marker(cell: Vector2i) -> void:
@@ -372,6 +409,12 @@ func _get_cell_rect_on_layer(cell: Vector2i, layer: Control) -> Rect2:
 	var layer_position: Vector2 = layer.get_global_rect().position
 	var cell_rect: Rect2 = cell_panel.get_global_rect()
 	return Rect2(cell_rect.position - layer_position, cell_rect.size)
+
+
+func _get_edge_rect_on_layer(first: Vector2i, second: Vector2i, layer: Control) -> Rect2:
+	var global_rect: Rect2 = game._get_board_edge_global_rect(first, second)
+	var layer_position: Vector2 = layer.get_global_rect().position
+	return Rect2(global_rect.position - layer_position, global_rect.size)
 
 
 func _get_rect_edge_point(rect: Rect2, direction: Vector2) -> Vector2:

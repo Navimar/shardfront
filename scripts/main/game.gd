@@ -13,6 +13,7 @@ const MAX_HAND: int = 7
 const TURN_MINOR_ACTIONS: int = 2
 const UNIT_DIR: String = "res://resources/units"
 const DECK_ALL_STATUSES: Array = []
+const DECK_UNIMPLEMENTED_STATUSES: Array = [UnitResource.IMPLEMENTATION_UNIMPLEMENTED]
 const DECK_IMPLEMENTED_UNTESTED_STATUSES: Array = [UnitResource.IMPLEMENTATION_IMPLEMENTED]
 const DECK_READY_STATUSES: Array = [UnitResource.IMPLEMENTATION_IMPLEMENTED, UnitResource.IMPLEMENTATION_TESTED]
 const DECK_UNIT_STATUSES: Array = DECK_IMPLEMENTED_UNTESTED_STATUSES
@@ -135,8 +136,22 @@ func _input(event: InputEvent) -> void:
 		return
 	if _is_ai_player(current_player):
 		return
-	if not (event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT):
+	if not (event is InputEventMouseButton and event.pressed):
 		return
+
+	if event.button_index == MOUSE_BUTTON_RIGHT and pending_logic.is_repeating_choice_target():
+		get_viewport().set_input_as_handled()
+		await pending_logic.finish_repeating_target()
+		return
+	if event.button_index != MOUSE_BUTTON_LEFT:
+		return
+
+	if pending_logic.action == "target" and pending_logic.is_choice_target():
+		var edge: Array = _get_board_edge_at_global_position(event.global_position)
+		if not edge.is_empty():
+			get_viewport().set_input_as_handled()
+			await pending_logic.try_apply_target_edge(edge)
+			return
 
 	var cell: Vector2i = _get_board_cell_at_global_position(event.global_position)
 	if cell == Vector2i(-1, -1):
@@ -930,16 +945,22 @@ func _make_selected_card_frame_style() -> StyleBoxFlat:
 
 
 func _get_action_text() -> String:
-	if _is_ai_player(current_player):
-		return "%s думает..." % players[current_player].name
 	if pending_logic.action == "hand":
 		return _tr_text("UI_STATUS_CHOOSE_HAND_CELL")
 	if pending_logic.action == "deck_face_down":
 		return _tr_text("UI_STATUS_CHOOSE_PATH_CELL")
 	if pending_logic.action == "target":
+		if pending_logic.is_choice_target():
+			if pending_logic.is_repeating_choice_target():
+				return "Выберите ребра. Правый клик завершает."
+			if not pending_logic.selected_target_edge.is_empty():
+				return "Выберите новое ребро."
+			return "Выберите ребро."
 		return "Выберите цель."
 	if pending_logic.action == "hand_discard":
 		return "Выберите карты для сброса (%d)." % pending_logic.hand_discard_count
+	if _is_ai_player(current_player):
+		return "%s думает..." % players[current_player].name
 	if minor_actions_spent > 0:
 		return _tr_text("UI_STATUS_MINOR_ACTIONS_LEFT")
 	return _tr_text("UI_STATUS_CHOOSE_ACTION")
@@ -961,6 +982,12 @@ func _get_playable_cells_for_ui_pending_action() -> Dictionary:
 				"sources": []
 			}
 	return playable
+
+
+func _get_playable_edges_for_ui_pending_action() -> Array:
+	if pending_logic.action == "target" and pending_logic.is_choice_target():
+		return pending_logic.get_target_edges()
+	return []
 
 
 func _get_board_pixel_size() -> Vector2:
@@ -1416,11 +1443,11 @@ func _get_view_player() -> int:
 func _on_hand_card_gui_input(event: InputEvent, unit_control: Control) -> void:
 	if game_over or animation_running:
 		return
-	if _is_ai_player(current_player):
-		return
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
 		if pending_logic.action == "hand_discard":
 			await pending_logic.try_discard_hand_card(int(unit_control.get_meta("card_id")))
+			return
+		if _is_ai_player(current_player):
 			return
 		if minor_actions_spent > 0:
 			return
@@ -1577,6 +1604,7 @@ func _make_action_variant(action_type: String, player_index: int, payload: Dicti
 		"hand_index": -1,
 		"cell": Vector2i(-1, -1),
 		"target_cell": Vector2i(-1, -1),
+		"target_choice": {},
 		"payload": payload
 	}
 	if payload.has("hand_index"):
@@ -1587,6 +1615,8 @@ func _make_action_variant(action_type: String, player_index: int, payload: Dicti
 		variant.play_access = payload.play_access
 	if payload.has("target_cell"):
 		variant.target_cell = payload.target_cell
+	if payload.has("target_choice"):
+		variant.target_choice = payload.target_choice
 	return variant
 
 
@@ -1647,12 +1677,20 @@ func _expand_variant_with_target_choices(state: Dictionary, variant: Dictionary)
 		return [variant]
 
 	var variants: Array = []
-	for target_cell in target_logic.get_legal_target_cells(simulation_state, result.pending_target):
-		var target_variant: Dictionary = variant.duplicate(true)
-		target_variant.target_cell = target_cell
-		target_variant.payload = Dictionary(target_variant.payload).duplicate(true)
-		target_variant.payload.target_cell = target_cell
-		variants.append(target_variant)
+	if String(result.pending_target.get("target_type", "cell")) == "choice":
+		for target_choice in target_logic.get_ai_target_choices(simulation_state, result.pending_target):
+			var choice_variant: Dictionary = variant.duplicate(true)
+			choice_variant.target_choice = target_choice
+			choice_variant.payload = Dictionary(choice_variant.payload).duplicate(true)
+			choice_variant.payload.target_choice = target_choice
+			variants.append(choice_variant)
+	else:
+		for target_cell in target_logic.get_legal_target_cells(simulation_state, result.pending_target):
+			var target_variant: Dictionary = variant.duplicate(true)
+			target_variant.target_cell = target_cell
+			target_variant.payload = Dictionary(target_variant.payload).duplicate(true)
+			target_variant.payload.target_cell = target_cell
+			variants.append(target_variant)
 	return variants
 
 
@@ -1714,16 +1752,20 @@ func _apply_action_variant_to_state(state: Dictionary, variant: Dictionary) -> D
 
 	_apply_after_action_rules_to_state(state, result)
 	if result.has("pending_target"):
-		var target_cell: Vector2i = variant.get("target_cell", Vector2i(-1, -1))
-		if target_cell == Vector2i(-1, -1):
-			result.end_turn = false
+		var target_type: String = String(result.pending_target.get("target_type", "cell"))
+		var target_result: Dictionary
+		if target_type == "choice" and not Dictionary(variant.get("target_choice", {})).is_empty():
+			target_result = target_logic.apply_choice(state, result.pending_target, variant.target_choice, false)
+		elif target_type != "choice" and variant.get("target_cell", Vector2i(-1, -1)) != Vector2i(-1, -1):
+			target_result = target_logic.apply_target(state, result.pending_target, variant.target_cell)
 		else:
-			var target_result: Dictionary = target_logic.apply_target(state, result.pending_target, target_cell)
+			result.end_turn = false
+			target_result = {}
+		if not target_result.is_empty():
 			if target_result.status != RESULT_OK:
 				target_result.events = state.events
 				return target_result
 			result.erase("pending_target")
-			result.target_cell = target_cell
 			result.end_turn = bool(target_result.end_turn)
 	if bool(result.get("end_turn", false)):
 		_apply_end_turn_rules_to_state(state)
@@ -2013,7 +2055,12 @@ func _on_board_cell_gui_input(event: InputEvent, cell_panel: PanelContainer) -> 
 		return
 	if _is_ai_player(current_player):
 		return
-	if not (event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT):
+	if not (event is InputEventMouseButton and event.pressed):
+		return
+	if event.button_index == MOUSE_BUTTON_RIGHT and pending_logic.is_repeating_choice_target():
+		await pending_logic.finish_repeating_target()
+		return
+	if event.button_index != MOUSE_BUTTON_LEFT:
 		return
 
 	var cell: Vector2i = cell_panel.get_meta("cell")
@@ -2031,6 +2078,28 @@ func _get_board_cell_at_global_position(global_position: Vector2) -> Vector2i:
 		if cell_panel.get_global_rect().has_point(global_position):
 			return cell
 	return Vector2i(-1, -1)
+
+
+func _get_board_edge_at_global_position(global_position: Vector2) -> Array:
+	for edge in pending_logic.get_target_edges():
+		if _get_board_edge_global_rect(edge[0], edge[1]).has_point(global_position):
+			return edge
+	return []
+
+
+func _get_board_edge_global_rect(first: Vector2i, second: Vector2i) -> Rect2:
+	var first_rect: Rect2 = board_cells[first].get_global_rect()
+	var second_rect: Rect2 = board_cells[second].get_global_rect()
+	var thickness: float = max(18.0, float(CELL_GAP) + 10.0)
+	if first.y == second.y:
+		var center_x: float = ((first_rect.position.x + first_rect.size.x) + second_rect.position.x) * 0.5
+		var top_y: float = max(first_rect.position.y, second_rect.position.y)
+		var height: float = min(first_rect.size.y, second_rect.size.y)
+		return Rect2(center_x - thickness * 0.5, top_y, thickness, height)
+	var center_y: float = ((first_rect.position.y + first_rect.size.y) + second_rect.position.y) * 0.5
+	var left_x: float = max(first_rect.position.x, second_rect.position.x)
+	var width: float = min(first_rect.size.x, second_rect.size.x)
+	return Rect2(left_x, center_y - thickness * 0.5, width, thickness)
 
 
 func _try_play_hand_card(cell: Vector2i) -> void:
