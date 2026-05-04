@@ -51,7 +51,11 @@ func can_attack_card(state: Dictionary, attack_card: Dictionary, target_cell: Ve
 		return false
 	if String(attack_card.unit.name_key) == UnitKeys.MEHROY_NAME:
 		return game._top_power_in_state(state, target_cell) > 4
-	return get_card_attack_power(attack_card) >= game._top_power_in_state(state, target_cell)
+	return _get_card_attack_power_for_target(state, attack_card, target_cell) >= game._top_power_in_state(state, target_cell)
+
+
+func _get_card_attack_power_for_target(state: Dictionary, attack_card: Dictionary, target_cell: Vector2i) -> int:
+	return get_card_attack_power(attack_card) + _get_ballista_attack_bonus(state, int(attack_card.owner), target_cell)
 
 
 func _get_bashnya_defense_bonus(state: Dictionary, player_index: int, cell: Vector2i) -> int:
@@ -91,6 +95,26 @@ func _get_namestnik_defense_bonus(state: Dictionary, cell: Vector2i) -> int:
 	if bool(covered_card.face_down):
 		return 0
 	return int(covered_card.unit.power)
+
+
+func _get_ballista_attack_bonus(state: Dictionary, player_index: int, target_cell: Vector2i) -> int:
+	for direction in [Vector2i.UP, Vector2i.DOWN, Vector2i.LEFT, Vector2i.RIGHT]:
+		var cell: Vector2i = target_cell + direction
+		if not game._is_inside(cell):
+			continue
+		if game._has_barrier_in_state(state, target_cell, cell):
+			continue
+		var stack: Array = game._get_stack_in_state(state, cell)
+		if stack.is_empty():
+			continue
+		var card: Dictionary = stack[stack.size() - 1]
+		if int(card.owner) != player_index:
+			continue
+		if bool(card.face_down):
+			continue
+		if String(card.unit.name_key) == UnitKeys.BALLISTA_NAME:
+			return 9
+	return 0
 
 
 func _are_unblocked_orthogonal_neighbors(state: Dictionary, first: Vector2i, second: Vector2i) -> bool:

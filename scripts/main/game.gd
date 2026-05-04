@@ -72,6 +72,7 @@ var minor_actions_spent: int = 0
 var game_over: bool = false
 var game_over_message: String = ""
 var turn_restrictions: Array = []
+var barrier_removal_options: Array = []
 var animation_running: bool = false
 var ai_running: bool = false
 var action_restriction_logic: RefCounted
@@ -106,6 +107,7 @@ var supply_line_layer: Control
 var barrier_layer: Control
 var draw_two_button: Button
 var deck_two_button: Button
+var finish_choice_button: Button
 var replay_button: Button
 var discard_button: Button
 var opponent_discard_button: Button
@@ -139,10 +141,6 @@ func _input(event: InputEvent) -> void:
 	if not (event is InputEventMouseButton and event.pressed):
 		return
 
-	if event.button_index == MOUSE_BUTTON_RIGHT and pending_logic.is_repeating_choice_target():
-		get_viewport().set_input_as_handled()
-		await pending_logic.finish_repeating_target()
-		return
 	if event.button_index != MOUSE_BUTTON_LEFT:
 		return
 
@@ -170,6 +168,7 @@ func _setup_game() -> void:
 	board.clear()
 	next_card_id = 1
 	turn_restrictions.clear()
+	barrier_removal_options.clear()
 	_clear_all_card_views()
 	for y in range(GRID_HEIGHT):
 		var row = []
@@ -371,6 +370,11 @@ func _build_ui() -> void:
 	deck_two_button.tooltip_text = _tr_text("UI_TOOLTIP_PATH")
 	deck_two_button.pressed.connect(_on_deck_two_pressed)
 	hand_content.add_child(deck_two_button)
+
+	finish_choice_button = Button.new()
+	finish_choice_button.visible = false
+	finish_choice_button.pressed.connect(_on_finish_choice_pressed)
+	hand_content.add_child(finish_choice_button)
 
 	replay_button = Button.new()
 	replay_button.text = _tr_text("UI_REPLAY")
@@ -582,6 +586,7 @@ func _sync_ui_chrome() -> void:
 
 	board_draw_logic.queue_board_redraw()
 	_refresh_discard_button()
+	_refresh_finish_choice_button()
 	_set_action_buttons_enabled(_can_press_minor_action_button())
 	replay_button.visible = game_over
 	_refresh_tempo_bar()
@@ -784,6 +789,19 @@ func _refresh_discard_button() -> void:
 	opponent_discard_button.disabled = opponent_discard.is_empty()
 
 
+func _refresh_finish_choice_button() -> void:
+	var can_finish: bool = pending_logic.can_finish_choice_target()
+	finish_choice_button.visible = can_finish
+	if not can_finish:
+		finish_choice_button.disabled = true
+		return
+	if pending_logic.is_repeating_choice_target():
+		finish_choice_button.text = "Готово"
+	else:
+		finish_choice_button.text = "Пропустить"
+	finish_choice_button.disabled = animation_running or _is_ai_player(current_player)
+
+
 func _on_discard_pressed() -> void:
 	_refresh_discard_dialog(_get_view_player())
 	discard_dialog.popup_centered()
@@ -952,7 +970,9 @@ func _get_action_text() -> String:
 	if pending_logic.action == "target":
 		if pending_logic.is_choice_target():
 			if pending_logic.is_repeating_choice_target():
-				return "Выберите ребра. Правый клик завершает."
+				return "Выберите ребра."
+			if pending_logic.can_finish_choice_target():
+				return "Выберите ребро или пропустите."
 			if not pending_logic.selected_target_edge.is_empty():
 				return "Выберите новое ребро."
 			return "Выберите ребро."
@@ -1538,7 +1558,8 @@ func _get_live_game_state() -> Dictionary:
 		"game_over": game_over,
 		"game_over_message": game_over_message,
 		"next_card_id": next_card_id,
-		"turn_restrictions": turn_restrictions
+		"turn_restrictions": turn_restrictions,
+		"barrier_removal_options": barrier_removal_options
 	}
 
 
@@ -1556,7 +1577,8 @@ func _duplicate_game_state(state: Dictionary) -> Dictionary:
 		"game_over": bool(state.game_over),
 		"game_over_message": String(state.game_over_message),
 		"next_card_id": int(state.get("next_card_id", next_card_id)),
-		"turn_restrictions": Array(state.get("turn_restrictions", [])).duplicate(true)
+		"turn_restrictions": Array(state.get("turn_restrictions", [])).duplicate(true),
+		"barrier_removal_options": Array(state.get("barrier_removal_options", [])).duplicate(true)
 	}
 
 
@@ -1570,6 +1592,7 @@ func _restore_game_state(state: Dictionary) -> void:
 	game_over_message = String(state.game_over_message)
 	next_card_id = int(state.get("next_card_id", next_card_id))
 	turn_restrictions = Array(state.get("turn_restrictions", [])).duplicate(true)
+	barrier_removal_options = Array(state.get("barrier_removal_options", [])).duplicate(true)
 
 
 func _duplicate_board(source_board: Array) -> Array:
@@ -1768,7 +1791,7 @@ func _apply_action_variant_to_state(state: Dictionary, variant: Dictionary) -> D
 			result.erase("pending_target")
 			result.end_turn = bool(target_result.end_turn)
 	if bool(result.get("end_turn", false)):
-		_apply_end_turn_rules_to_state(state)
+		_apply_end_turn_rules_to_state(state, result)
 	_record_supply_control_event_if_changed_in_state(state, supply_origin_before)
 	result.events = state.events
 	return result
@@ -1955,11 +1978,21 @@ func _apply_played_card_effect_rules_to_state(state: Dictionary, result: Diction
 		_redraw_hand_in_state(state, opponent_index)
 	elif name_key == UnitKeys.VARVAR_NAME:
 		_draw_until_power_at_least_in_state(state, player_index, 5)
+	elif name_key == UnitKeys.BAYUN_NAME:
+		_flip_all_top_units_face_down_in_state(state)
 
 
-func _apply_end_turn_rules_to_state(state: Dictionary) -> void:
+func _apply_end_turn_rules_to_state(state: Dictionary, result: Dictionary = {}) -> void:
 	if bool(state.game_over):
 		return
+	var end_turn_target_request: Dictionary = target_logic.get_end_turn_target_request(state)
+	if not end_turn_target_request.is_empty():
+		if _is_ai_player(int(state.current_player)) or result.is_empty():
+			target_logic.apply_ai_end_turn_choice(state, end_turn_target_request)
+		else:
+			result.pending_target = end_turn_target_request
+			result.end_turn = false
+			return
 	_trim_stacks_and_hands_in_state(state)
 	action_restriction_logic.remove_finished_turn_restrictions(state, int(state.current_player))
 	state.minor_actions_spent = 0
@@ -2038,6 +2071,16 @@ func _on_deck_two_pressed() -> void:
 	_sync_after_state_change_without_card_layout()
 
 
+func _on_finish_choice_pressed() -> void:
+	if game_over or animation_running:
+		return
+	if _is_ai_player(current_player):
+		return
+	if not pending_logic.can_finish_choice_target():
+		return
+	await pending_logic.finish_repeating_target()
+
+
 func _on_replay_pressed() -> void:
 	animation_running = false
 	ai_running = false
@@ -2056,9 +2099,6 @@ func _on_board_cell_gui_input(event: InputEvent, cell_panel: PanelContainer) -> 
 	if _is_ai_player(current_player):
 		return
 	if not (event is InputEventMouseButton and event.pressed):
-		return
-	if event.button_index == MOUSE_BUTTON_RIGHT and pending_logic.is_repeating_choice_target():
-		await pending_logic.finish_repeating_target()
 		return
 	if event.button_index != MOUSE_BUTTON_LEFT:
 		return
@@ -2242,11 +2282,29 @@ func _supply_cells_equal(first: Dictionary, second: Dictionary) -> bool:
 
 
 func _discard_card_in_state(state: Dictionary, player_index: int, card: Dictionary, source: Dictionary = {}) -> void:
+	if String(source.get("type", "")) == "board" and String(card.unit.name_key) == UnitKeys.FENIKS_NAME:
+		_return_card_to_hand_in_state(state, player_index, card, source)
+		return
 	card.owner = player_index
 	card.face_down = false
 	state.players[player_index].discard.append(card)
 	_record_action_event_in_state(state, {
 		"type": "discard_card",
+		"card_id": int(card.id),
+		"player_index": player_index,
+		"unit": card.unit,
+		"source": source
+	})
+	if String(source.get("type", "")) == "board":
+		_record_layout_stack_event_in_state(state, source.cell)
+
+
+func _return_card_to_hand_in_state(state: Dictionary, player_index: int, card: Dictionary, source: Dictionary = {}) -> void:
+	card.owner = player_index
+	card.face_down = false
+	state.players[player_index].hand.append(card)
+	_record_action_event_in_state(state, {
+		"type": "draw_card",
 		"card_id": int(card.id),
 		"player_index": player_index,
 		"unit": card.unit,
@@ -2281,12 +2339,44 @@ func _trim_stacks_and_hands_in_state(state: Dictionary) -> void:
 				})
 
 	for i in range(state.players.size()):
-		while state.players[i].hand.size() > MAX_HAND:
+		var max_hand_size: int = _get_max_hand_size_in_state(state, i)
+		while state.players[i].hand.size() > max_hand_size:
 			var discarded = state.players[i].hand.pop_back()
 			_discard_card_in_state(state, i, discarded, {
 				"type": "hand",
 				"hand_index": state.players[i].hand.size()
 			})
+
+
+func _get_max_hand_size_in_state(state: Dictionary, player_index: int) -> int:
+	var max_size: int = MAX_HAND
+	for y in range(GRID_HEIGHT):
+		for x in range(GRID_WIDTH):
+			var stack: Array = state.board[y][x]
+			if stack.is_empty():
+				continue
+			var card: Dictionary = stack[stack.size() - 1]
+			if int(card.owner) != player_index:
+				continue
+			if bool(card.face_down):
+				continue
+			if String(card.unit.name_key) == UnitKeys.LAGER_NAME:
+				max_size += 1
+	return max_size
+
+
+func _flip_all_top_units_face_down_in_state(state: Dictionary) -> void:
+	for y in range(GRID_HEIGHT):
+		for x in range(GRID_WIDTH):
+			var cell: Vector2i = Vector2i(x, y)
+			var stack: Array = _get_stack_in_state(state, cell)
+			if stack.is_empty():
+				continue
+			var card: Dictionary = stack[stack.size() - 1]
+			if bool(card.face_down):
+				continue
+			card.face_down = true
+			_record_layout_stack_event_in_state(state, cell)
 
 
 func _draw_cards_in_state(state: Dictionary, player_index: int, count: int) -> Array:
@@ -2514,13 +2604,15 @@ func _end_turn() -> void:
 	if game_over:
 		_sync_after_state_change_without_card_layout()
 		return
-	_trim_stacks_and_hands()
 	var state: Dictionary = _get_live_game_state()
-	action_restriction_logic.remove_finished_turn_restrictions(state, current_player)
+	var result: Dictionary = _make_action_result(RESULT_OK, "")
+	result.end_turn = true
+	_apply_end_turn_rules_to_state(state, result)
 	_restore_game_state(state)
-	pending_logic.clear()
-	minor_actions_spent = 0
-	current_player = _opponent(current_player)
+	if result.has("pending_target"):
+		pending_logic.begin_target(result.pending_target)
+	else:
+		pending_logic.clear()
 	_sync_after_state_change_without_card_layout()
 
 
@@ -2691,7 +2783,9 @@ func _set_action_buttons_enabled(enabled: bool) -> void:
 	if not enabled or animation_running:
 		draw_two_button.disabled = true
 		deck_two_button.disabled = true
+		finish_choice_button.disabled = true
 		return
 	var state: Dictionary = _get_live_game_state()
 	draw_two_button.disabled = not action_restriction_logic.can_draw_card(state, current_player)
 	deck_two_button.disabled = not action_restriction_logic.can_play_path(state, current_player)
+	finish_choice_button.disabled = not pending_logic.can_finish_choice_target()

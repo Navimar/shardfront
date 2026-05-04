@@ -156,7 +156,7 @@ func _make_tempo_breakdown(
 
 
 func _get_tempo_hand_size(state: Dictionary, player_index: int) -> int:
-	return min(state.players[player_index].hand.size(), game.MAX_HAND)
+	return min(state.players[player_index].hand.size(), game._get_max_hand_size_in_state(state, player_index))
 
 
 func _get_path_tempo_result(

@@ -28,6 +28,9 @@ func _apply_covered_card_reactions(state: Dictionary, result: Dictionary) -> voi
 	if int(covering_card.id) != int(played_card.id):
 		return
 	var covered_card: Dictionary = stack[stack.size() - 2]
+	if String(covering_card.unit.name_key) == UnitKeys.ENT_NAME:
+		_return_covered_card_to_hand(state, cell, stack, covered_card)
+		return
 	if bool(covered_card.face_down):
 		return
 
@@ -37,6 +40,9 @@ func _apply_covered_card_reactions(state: Dictionary, result: Dictionary) -> voi
 		_discard_covering_card(state, result, cell, stack, covering_card)
 	elif covered_name == UnitKeys.MAKOVOE_POLE_NAME and int(covering_card.unit.power) >= 3:
 		_discard_covering_card(state, result, cell, stack, covering_card)
+	elif covered_name == UnitKeys.PAUK_NAME and int(covered_card.owner) != int(covering_card.owner):
+		covering_card.face_down = true
+		game._record_layout_stack_event_in_state(state, cell)
 
 
 func _discard_covering_card(
@@ -52,6 +58,18 @@ func _discard_covering_card(
 		"type": "board",
 		"cell": cell,
 		"face_down": bool(covering_card.face_down)
+	})
+
+
+func _return_covered_card_to_hand(state: Dictionary, cell: Vector2i, stack: Array, covered_card: Dictionary) -> void:
+	var covered_index: int = game._find_card_index_in_array(stack, int(covered_card.id))
+	if covered_index < 0:
+		return
+	stack.remove_at(covered_index)
+	game._return_card_to_hand_in_state(state, int(covered_card.owner), covered_card, {
+		"type": "board",
+		"cell": cell,
+		"face_down": bool(covered_card.face_down)
 	})
 
 

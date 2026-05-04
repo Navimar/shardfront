@@ -71,6 +71,10 @@ func is_repeating_choice_target() -> bool:
 	return is_choice_target() and game.target_logic.is_repeating_choice_request(target_request)
 
 
+func can_finish_choice_target() -> bool:
+	return is_choice_target() and game.target_logic.can_finish_choice_request(target_request)
+
+
 func can_discard_hand_card(card_id: int) -> bool:
 	if action != "hand_discard":
 		return false
@@ -95,7 +99,10 @@ func try_apply_target(cell: Vector2i) -> void:
 	game._set_action_buttons_enabled(false)
 	await game._animate_action_result(result)
 	game.animation_running = false
-	clear()
+	if result.has("pending_target"):
+		begin_target(result.pending_target)
+	else:
+		clear()
 	game._sync_after_state_change_without_card_layout()
 
 
@@ -130,7 +137,9 @@ func try_apply_target_edge(edge: Array) -> void:
 	game._set_action_buttons_enabled(false)
 	await game._animate_action_result(result)
 	game.animation_running = false
-	if should_finish:
+	if result.has("pending_target"):
+		begin_target(result.pending_target)
+	elif should_finish:
 		clear()
 	game._sync_after_state_change_without_card_layout()
 
@@ -138,7 +147,7 @@ func try_apply_target_edge(edge: Array) -> void:
 func finish_repeating_target() -> void:
 	if action != "target":
 		return
-	if not is_repeating_choice_target():
+	if not can_finish_choice_target():
 		return
 	var result: Dictionary = _finish_target_turn_in_current_state()
 	game.animation_running = true
@@ -191,7 +200,7 @@ func _apply_target_to_current_state(request: Dictionary, target: Vector2i) -> Di
 	var supply_origin_before: Dictionary = game._get_all_supply_origin_cells_in_state(state)
 	var result: Dictionary = game.target_logic.apply_target(state, request, target)
 	if result.status == game.RESULT_OK:
-		game._apply_end_turn_rules_to_state(state)
+		game._apply_end_turn_rules_to_state(state, result)
 		game._record_supply_control_event_if_changed_in_state(state, supply_origin_before)
 	result.events = state.events
 	game._restore_game_state(state)
@@ -204,10 +213,11 @@ func _apply_choice_to_current_state(request: Dictionary, choice: Dictionary, fin
 	var supply_origin_before: Dictionary = game._get_all_supply_origin_cells_in_state(state)
 	var result: Dictionary = game.target_logic.apply_choice(state, request, choice)
 	if result.status == game.RESULT_OK and finish_turn:
-		game._apply_end_turn_rules_to_state(state)
+		game._apply_end_turn_rules_to_state(state, result)
 	if result.status == game.RESULT_OK:
 		game._record_supply_control_event_if_changed_in_state(state, supply_origin_before)
-		result.end_turn = finish_turn
+		if not result.has("pending_target"):
+			result.end_turn = finish_turn
 	result.events = state.events
 	game._restore_game_state(state)
 	return result
@@ -216,9 +226,10 @@ func _apply_choice_to_current_state(request: Dictionary, choice: Dictionary, fin
 func _finish_target_turn_in_current_state() -> Dictionary:
 	var state: Dictionary = game._get_live_game_state()
 	state.events = []
-	game._apply_end_turn_rules_to_state(state)
 	var result: Dictionary = game._make_action_result(game.RESULT_OK, "")
 	result.end_turn = true
+	game.target_logic.finish_choice(state, target_request)
+	game._apply_end_turn_rules_to_state(state, result)
 	result.events = state.events
 	game._restore_game_state(state)
 	return result
