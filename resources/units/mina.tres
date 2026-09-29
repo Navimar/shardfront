@@ -9,6 +9,6 @@ id = "type-5e73bb6b-4f43-4e1d-842a-a3328fd607fb"
 name_key = "UNIT_MINA_NAME"
 description_key = "UNIT_MINA_DESCRIPTION"
 power = 3
-ability_symbols = "❗"
+ability_symbols = "🪤"
 implementation_status = "implemented"
 portrait = ExtResource("2_portrait")

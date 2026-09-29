@@ -1,5 +1,6 @@
 extends RefCounted
 
+const CardAbilities: Script = preload("res://scripts/main/card_abilities.gd")
 const UnitKeys: Script = preload("res://scripts/main/unit_keys.gd")
 
 var game: Node
@@ -19,11 +20,19 @@ func apply_played_card_effects(state: Dictionary, result: Dictionary) -> void:
 func apply_copied_card_play_effects(state: Dictionary, result: Dictionary, copied_card: Dictionary) -> void:
 	if bool(copied_card.get("face_down", false)):
 		return
-	var copied_name: String = String(copied_card.unit.name_key)
+	var visited: Array = Array(result.get("copied_play_card_ids", [])).duplicate()
+	if visited.has(int(copied_card.id)):
+		return
+	visited.append(int(copied_card.id))
+	result.copied_play_card_ids = visited
+	var copied_name: String = CardAbilities.name_key(copied_card)
 	if not _can_copy_play_effect(copied_name):
 		return
-	result.card.attack_power_override = game.power_logic.get_card_attack_power(copied_card)
+	if String(result.card.unit.name_key) == UnitKeys.HLAMOVNIK_NAME:
+		result.card.attack_power_override = int(copied_card.unit.power)
 	result.ability_name_key = copied_name
+	if copied_name == UnitKeys.SKARABEY_NAME:
+		game._apply_played_card_overflow_in_state(state, result.card, result.cell, copied_name)
 	_apply_played_card_effects_for_name(state, result, copied_name)
 
 
@@ -34,10 +43,6 @@ func _apply_played_card_effects_for_name(state: Dictionary, result: Dictionary, 
 
 	if name_key == UnitKeys.RYTSAR_NAME:
 		game._draw_cards_in_state(state, player_index, 1)
-	elif name_key == UnitKeys.ROBOT_NAME:
-		_apply_robot_effect(state, result, player_index)
-	elif name_key == UnitKeys.CHARODEY_NAME:
-		_apply_attack_bonus_by_optional_hand_discard(state, result, player_index)
 	elif name_key == UnitKeys.DIVERSANT_NAME:
 		game.action_restriction_logic.add_next_turn_random_hand_play_restriction(state, opponent_index, result.cell)
 	elif name_key == UnitKeys.GRIBNIK_NAME:
@@ -76,8 +81,8 @@ func _apply_played_card_effects_for_name(state: Dictionary, result: Dictionary, 
 		_discard_random_cards_from_hand_in_state(state, opponent_index, 1)
 	elif name_key == UnitKeys.MOZGOSHMYG_NAME:
 		_redraw_hand_in_state(state, opponent_index)
-	elif name_key == UnitKeys.PARTIZANY_NAME:
-		_apply_partizany_effect(state, player_index, opponent_index)
+	elif name_key == UnitKeys.PODRYVNIK_NAME:
+		game.tabletop_logic.apply_podryvnik(state, result)
 	elif name_key == UnitKeys.MELNIK_NAME:
 		if game._is_ai_player(player_index):
 			var discard_count: int = state.players[player_index].hand.size()
@@ -125,14 +130,7 @@ func _apply_played_card_effects_for_name(state: Dictionary, result: Dictionary, 
 		if not putnik_request.is_empty():
 			result.pending_target = putnik_request
 	elif name_key == UnitKeys.RANDOMAG_NAME:
-		var randomag_request: Dictionary = game.target_logic.get_direct_target_request(
-			state,
-			result,
-			"play_top_deck_open",
-			"cell"
-		)
-		if not randomag_request.is_empty():
-			result.pending_target = randomag_request
+		_apply_randomag_effect(state, result, player_index)
 	elif name_key == UnitKeys.ZARAZA_NAME:
 		_discard_enemy_units_that_lost_supply_in_state(state, result, opponent_index)
 	elif name_key == UnitKeys.HLAMOVNIK_NAME:
@@ -147,15 +145,77 @@ func _can_copy_play_effect(name_key: String) -> bool:
 	return (
 		name_key != UnitKeys.ROBOT_NAME
 		and name_key != UnitKeys.HLAMOVNIK_NAME
-		and name_key != UnitKeys.SLIZ_NAME
 		and name_key != UnitKeys.ZERKALNYY_GOLEM_NAME
 	)
+
+
+func _apply_randomag_effect(state: Dictionary, result: Dictionary, player_index: int) -> void:
+	var card: Dictionary = _draw_randomag_card_for_extra_hand_play(state, player_index)
+	if card.is_empty():
+		return
+	result.pending_extra_hand_play = {
+		"player_index": player_index,
+		"decision_player": player_index,
+		"forced_card_id": int(card.id),
+		"source_cell": result.cell,
+		"card_id": int(result.card.id)
+	}
+	result.end_turn = false
+
+
+func _draw_randomag_card_for_extra_hand_play(state: Dictionary, player_index: int) -> Dictionary:
+	if not game._refill_deck_if_empty_in_state(state, player_index):
+		return {}
+	var deck: Array = state.players[player_index].deck
+	if deck.is_empty():
+		return {}
+	var preview_card: Dictionary = deck[deck.size() - 1]
+	preview_card.owner = player_index
+	preview_card.face_down = false
+	if _get_randomag_extra_hand_play_cells(state, player_index, preview_card).is_empty():
+		return {}
+
+	var card: Dictionary = deck.pop_back()
+	card.owner = player_index
+	card.face_down = false
+	state.players[player_index].hand.append(card)
+	game._record_draw_event_in_state(state, player_index, card)
+	game._refill_deck_if_empty_in_state(state, player_index)
+	return card
+
+
+func _get_randomag_extra_hand_play_cells(state: Dictionary, player_index: int, card: Dictionary) -> Array:
+	var cells: Array = []
+	var supply_result: Dictionary = game.supply_logic.calculate_supply_result(state, player_index)
+	var play_cards: Array = [card]
+	if game._is_robot_card(card):
+		play_cards.clear()
+		var hand: Array = state.players[player_index].hand
+		for copied_card in game._get_robot_copy_cards_in_hand(hand, int(card.id), -1, true):
+			play_cards.append(game._make_robot_play_preview_card(card, copied_card))
+	if String(card.unit.name_key) == UnitKeys.HLAMOVNIK_NAME:
+		var discarded_cards: Array = game.tabletop_logic.get_hlamovnik_copy_cards(state)
+		if not discarded_cards.is_empty():
+			play_cards.clear()
+			for discarded in discarded_cards:
+				play_cards.append(game.tabletop_logic.make_hlamovnik_preview(card, discarded))
+	for play_card in play_cards:
+		for y in range(game.GRID_HEIGHT):
+			for x in range(game.GRID_WIDTH):
+				var cell: Vector2i = Vector2i(x, y)
+				if (
+					game.action_restriction_logic.can_play_hand_card(state, player_index, play_card, cell)
+					and game._can_play_card_in_state(state, play_card, cell, supply_result)
+					and not cells.has(cell)
+				):
+					cells.append(cell)
+	return cells
 
 
 func can_copy_card_play_effect(card: Dictionary) -> bool:
 	if bool(card.get("face_down", false)):
 		return false
-	var unit: Resource = card.unit
+	var unit: Resource = CardAbilities.ability_unit(card)
 	if not String(unit.ability_symbols).contains("🃏"):
 		return false
 	return _can_copy_play_effect(String(unit.name_key))
@@ -197,40 +257,13 @@ func _discard_enemy_units_that_lost_supply_in_state(state: Dictionary, result: D
 		})
 
 
-func _apply_attack_bonus_by_optional_hand_discard(state: Dictionary, result: Dictionary, player_index: int) -> void:
-	if state.players[player_index].hand.is_empty():
+func _apply_hlamovnik_effect(state: Dictionary, result: Dictionary, _player_index: int) -> void:
+	var cards: Array = game.tabletop_logic.get_hlamovnik_copy_cards(state, int(result.get("copied_card_id", -1)))
+	if not result.has("copied_card_id") or cards.is_empty():
 		return
-	if game._is_ai_player(player_index):
-		var hand: Array = state.players[player_index].hand
-		var hand_index: int = hand.size() - 1
-		var card: Dictionary = hand.pop_back()
-		game._discard_card_in_state(state, player_index, card, {
-			"type": "hand",
-			"hand_index": hand_index
-		})
-		result.card.attack_bonus = int(result.card.get("attack_bonus", 0)) + 10
-	else:
-		_set_pending_hand_discard_result(state, result, player_index, 1, [], {
-			"optional": true,
-			"attack_bonus": 10
-		})
-
-
-func _apply_robot_effect(state: Dictionary, result: Dictionary, player_index: int) -> void:
-	var hand: Array = state.players[player_index].hand
-	if hand.is_empty():
-		return
-	var copied_card: Dictionary = hand[0]
-	apply_copied_card_play_effects(state, result, copied_card)
-
-
-func _apply_hlamovnik_effect(state: Dictionary, result: Dictionary, player_index: int) -> void:
-	var discard: Array = state.players[player_index].discard
-	if discard.is_empty():
-		return
-	var copied_card: Dictionary = discard[discard.size() - 1]
-	apply_copied_card_play_effects(state, result, copied_card)
-
+	var copied: Dictionary = cards[0]
+	if String(copied.unit.ability_symbols).contains("🃏"):
+		apply_copied_card_play_effects(state, result, copied)
 
 func _apply_zerkalnyy_golem_effect(state: Dictionary, result: Dictionary) -> void:
 	var cell: Vector2i = result.cell
@@ -239,51 +272,8 @@ func _apply_zerkalnyy_golem_effect(state: Dictionary, result: Dictionary) -> voi
 	if golem_index <= 0:
 		return
 	var copied_card: Dictionary = stack[golem_index - 1]
-	apply_copied_card_play_effects(state, result, copied_card)
-
-
-func _apply_partizany_effect(state: Dictionary, player_index: int, opponent_index: int) -> void:
-	var discarded_any: bool = false
-	for y in range(game.GRID_HEIGHT):
-		for x in range(game.GRID_WIDTH):
-			var cell: Vector2i = Vector2i(x, y)
-			var stack: Array = game._get_stack_in_state(state, cell)
-			if stack.is_empty():
-				continue
-			var card: Dictionary = stack[stack.size() - 1]
-			if int(card.owner) != opponent_index:
-				continue
-			if not bool(card.face_down):
-				continue
-			stack.pop_back()
-			game._discard_card_in_state(state, opponent_index, card, {
-				"type": "board",
-				"cell": cell,
-				"face_down": true
-			})
-			discarded_any = true
-	if discarded_any:
-		return
-	for y in range(game.GRID_HEIGHT):
-		for x in range(game.GRID_WIDTH):
-			var cell: Vector2i = Vector2i(x, y)
-			var stack: Array = game._get_stack_in_state(state, cell)
-			if stack.is_empty():
-				continue
-			var card: Dictionary = stack[stack.size() - 1]
-			if int(card.owner) != opponent_index:
-				continue
-			if bool(card.face_down):
-				continue
-			if game.power_logic.get_card_power_in_cell(state, card, cell) > 2:
-				continue
-			stack.pop_back()
-			game._discard_card_in_state(state, opponent_index, card, {
-				"type": "board",
-				"cell": cell,
-				"face_down": false
-			})
-			return
+	if String(CardAbilities.ability_unit(copied_card).ability_symbols).contains("🃏"):
+		apply_copied_card_play_effects(state, result, copied_card)
 
 
 func _apply_strateg_effect(state: Dictionary, result: Dictionary, player_index: int) -> void:
@@ -432,23 +422,25 @@ func _redraw_hand_in_state(state: Dictionary, player_index: int) -> void:
 
 func _draw_until_power_at_least_in_state(state: Dictionary, player_index: int, minimum_power: int) -> void:
 	var deck: Array = state.players[player_index].deck
-	var hand: Array = state.players[player_index].hand
-	var checked_count: int = 0
-	var max_checks: int = state.players[player_index].deck_template.size()
-	while checked_count < max_checks:
-		game._refill_deck_if_empty_in_state(state, player_index)
-		if deck.is_empty():
-			return
+	var skipped: Array = []
+	var selected: Dictionary = {}
+	var max_checks: int = deck.size() + state.players[player_index].discard.size()
+	if game._is_solo_mode() and player_index == game.solo_logic.ENEMY_PLAYER_INDEX:
+		max_checks = max(max_checks, state.players[player_index].deck_template.size())
+	for check_index in range(max_checks):
+		if not game._refill_deck_if_empty_in_state(state, player_index):
+			break
 		var card: Dictionary = deck.pop_back()
-		checked_count += 1
 		if int(card.unit.power) >= minimum_power:
-			card.owner = player_index
-			card.face_down = false
-			hand.append(card)
-			game._record_draw_event_in_state(state, player_index, card)
-			game._refill_deck_if_empty_in_state(state, player_index)
-			return
-		game._discard_card_in_state(state, player_index, card, {
-			"type": "base"
-		})
+			selected = card
+			break
+		skipped.append(card)
+	# Keep rejected cards outside the refill pool until this search ends.
+	for card in skipped:
+		game._discard_card_in_state(state, player_index, card, {"type": "base"})
+	if not selected.is_empty():
+		selected.owner = player_index
+		selected.face_down = false
+		state.players[player_index].hand.append(selected)
+		game._record_draw_event_in_state(state, player_index, selected)
 	game._refill_deck_if_empty_in_state(state, player_index)

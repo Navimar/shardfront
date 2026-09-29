@@ -1,0 +1,427 @@
+{
+  "SaveName": "Пути Раскола — диагностика",
+  "EpochTime": 1789875280,
+  "Date": "9/20/2026 7:34:40 AM",
+  "VersionNumber": "v14.2.2",
+  "GameMode": "None",
+  "Tags": [],
+  "Gravity": 0.5,
+  "PlayArea": 0.5,
+  "Table": "Table_RPG",
+  "Sky": "Sky_Museum",
+  "Note": "",
+  "TabStates": {
+    "0": {
+      "title": "Rules",
+      "body": "",
+      "color": "Grey",
+      "visibleColor": {
+        "r": 0.5,
+        "g": 0.5,
+        "b": 0.5
+      },
+      "id": 0
+    },
+    "1": {
+      "title": "White",
+      "body": "",
+      "color": "White",
+      "visibleColor": {
+        "r": 1.0,
+        "g": 1.0,
+        "b": 1.0
+      },
+      "id": 1
+    },
+    "2": {
+      "title": "Brown",
+      "body": "",
+      "color": "Brown",
+      "visibleColor": {
+        "r": 0.443,
+        "g": 0.231,
+        "b": 0.09
+      },
+      "id": 2
+    },
+    "3": {
+      "title": "Red",
+      "body": "",
+      "color": "Red",
+      "visibleColor": {
+        "r": 0.856,
+        "g": 0.1,
+        "b": 0.094
+      },
+      "id": 3
+    },
+    "4": {
+      "title": "Orange",
+      "body": "",
+      "color": "Orange",
+      "visibleColor": {
+        "r": 0.956,
+        "g": 0.392,
+        "b": 0.113
+      },
+      "id": 4
+    },
+    "5": {
+      "title": "Yellow",
+      "body": "",
+      "color": "Yellow",
+      "visibleColor": {
+        "r": 0.905,
+        "g": 0.898,
+        "b": 0.172
+      },
+      "id": 5
+    },
+    "6": {
+      "title": "Green",
+      "body": "",
+      "color": "Green",
+      "visibleColor": {
+        "r": 0.192,
+        "g": 0.701,
+        "b": 0.168
+      },
+      "id": 6
+    },
+    "7": {
+      "title": "Blue",
+      "body": "",
+      "color": "Blue",
+      "visibleColor": {
+        "r": 0.118,
+        "g": 0.53,
+        "b": 1.0
+      },
+      "id": 7
+    },
+    "8": {
+      "title": "Teal",
+      "body": "",
+      "color": "Teal",
+      "visibleColor": {
+        "r": 0.129,
+        "g": 0.694,
+        "b": 0.607
+      },
+      "id": 8
+    },
+    "9": {
+      "title": "Purple",
+      "body": "",
+      "color": "Purple",
+      "visibleColor": {
+        "r": 0.627,
+        "g": 0.125,
+        "b": 0.941
+      },
+      "id": 9
+    },
+    "10": {
+      "title": "Pink",
+      "body": "",
+      "color": "Pink",
+      "visibleColor": {
+        "r": 0.96,
+        "g": 0.439,
+        "b": 0.807
+      },
+      "id": 10
+    },
+    "11": {
+      "title": "Black",
+      "body": "",
+      "color": "Black",
+      "visibleColor": {
+        "r": 0.25,
+        "g": 0.25,
+        "b": 0.25
+      },
+      "id": 11
+    }
+  },
+  "Grid": {
+    "Type": 0,
+    "Lines": false,
+    "Color": {
+      "r": 0.0,
+      "g": 0.0,
+      "b": 0.0
+    },
+    "Opacity": 0.75,
+    "ThickLines": false,
+    "Snapping": false,
+    "Offset": false,
+    "BothSnapping": false,
+    "xSize": 2.0,
+    "ySize": 2.0,
+    "PosOffset": {
+      "x": 0.0,
+      "y": 1.0,
+      "z": 0.0
+    }
+  },
+  "Lighting": {
+    "LightIntensity": 0.54,
+    "LightColor": {
+      "r": 1.0,
+      "g": 0.9804,
+      "b": 0.8902
+    },
+    "AmbientIntensity": 1.3,
+    "AmbientType": 0,
+    "AmbientSkyColor": {
+      "r": 0.5,
+      "g": 0.5,
+      "b": 0.5
+    },
+    "AmbientEquatorColor": {
+      "r": 0.5,
+      "g": 0.5,
+      "b": 0.5
+    },
+    "AmbientGroundColor": {
+      "r": 0.5,
+      "g": 0.5,
+      "b": 0.5
+    },
+    "ReflectionIntensity": 1.0,
+    "LutIndex": 0,
+    "LutContribution": 1.0
+  },
+  "Hands": {
+    "Enable": true,
+    "DisableUnused": false,
+    "Hiding": 0
+  },
+  "ComponentTags": {
+    "labels": []
+  },
+  "Turns": {
+    "Enable": false,
+    "Type": 0,
+    "TurnOrder": [],
+    "Reverse": false,
+    "SkipEmpty": false,
+    "DisableInteractions": false,
+    "PassTurns": true
+  },
+  "DecalPallet": [],
+  "LuaScript": "-- Пути Раскола v12: native Tabletop Simulator builder.\n--\n-- This script intentionally creates every object through the public TTS Lua\n-- API.  TTS itself assigns GUIDs and serializes the resulting save file.\n\n-- BEGIN GENERATED PUBLIC ASSETS\nlocal ASSET_URLS = {\n    [\"back_blue.jpeg\"] = \"https://files.catbox.moe/qjapiq.jpeg\",\n    [\"back_red.jpeg\"] = \"https://files.catbox.moe/br8c2k.jpeg\",\n    [\"barrier.jpg\"] = \"https://files.catbox.moe/8uf8tm.jpg\",\n    [\"barriers_12.jpg\"] = \"https://files.catbox.moe/lq5jhr.jpg\",\n    [\"base_blue.jpg\"] = \"https://files.catbox.moe/tkgepx.jpg\",\n    [\"base_red.jpg\"] = \"https://files.catbox.moe/6pqqpm.jpg\",\n    [\"bases.jpg\"] = \"https://files.catbox.moe/sdxehp.jpg\",\n    [\"board.jpg\"] = \"https://files.catbox.moe/yeu2rw.jpg\",\n    [\"cards_blue_1.jpg\"] = \"https://files.catbox.moe/8ox4g1.jpg\",\n    [\"cards_blue_2.jpg\"] = \"https://files.catbox.moe/6ejb7m.jpg\",\n    [\"cards_blue_3.jpg\"] = \"https://files.catbox.moe/0po7k4.jpg\",\n    [\"cards_blue_4.jpg\"] = \"https://files.catbox.moe/0f571g.jpg\",\n    [\"cards_blue_5.jpg\"] = \"https://files.catbox.moe/16rjba.jpg\",\n    [\"cards_blue_6.jpg\"] = \"https://files.catbox.moe/m4j1w7.jpg\",\n    [\"cards_red_1.jpg\"] = \"https://files.catbox.moe/9ex1kb.jpg\",\n    [\"cards_red_2.jpg\"] = \"https://files.catbox.moe/kvjgha.jpg\",\n    [\"cards_red_3.jpg\"] = \"https://files.catbox.moe/xep38h.jpg\",\n    [\"cards_red_4.jpg\"] = \"https://files.catbox.moe/c4cbxm.jpg\",\n    [\"cards_red_5.jpg\"] = \"https://files.catbox.moe/7z3gem.jpg\",\n    [\"cards_red_6.jpg\"] = \"https://files.catbox.moe/8ppmi1.jpg\",\n    [\"rules.jpg\"] = \"https://files.catbox.moe/ra3rdy.jpg\",\n    [\"rules_book.pdf\"] = \"https://files.catbox.moe/r0fe49.pdf\",\n}\n-- END GENERATED PUBLIC ASSETS\nlocal BUILD_TAG = \"puti_raskola_v12\"\nlocal busy = false\nlocal BOARD_WIDTH = 27.2\nlocal BOARD_HEIGHT = BOARD_WIDTH * 716 / 975\nlocal CELL_WIDTH = BOARD_WIDTH / 7\nlocal CELL_HEIGHT = BOARD_HEIGHT / 5\nlocal BOARD_VISUAL_OFFSET_X = -0.12\nlocal BOARD_VISUAL_OFFSET_Z = 0.12\nlocal BOARD_RENDER_WIDTH = 40 * 0.85\nlocal BOARD_RENDER_HEIGHT = BOARD_RENDER_WIDTH * 716 / 975\nlocal BASE_CELL_FILL = 0.84\nlocal TTS_CARD_WIDTH = 2.5\nlocal TTS_CARD_HEIGHT = 3.5\nlocal BASE_SCALE_X = BOARD_RENDER_WIDTH / 7 * BASE_CELL_FILL / TTS_CARD_WIDTH\nlocal BASE_SCALE_Z = BOARD_RENDER_HEIGHT / 5 * BASE_CELL_FILL / TTS_CARD_HEIGHT\nlocal HAND_POSITIONS = {\n    Blue = {x=-6, y=4, z=-14},\n    Red = {x=6, y=4, z=-14},\n}\n\nlocal function asset(name)\n    local url = ASSET_URLS[name]\n    assert(url ~= nil, \"Missing public asset URL: \" .. name)\n    return url\nend\n\nlocal function vec(x, y, z)\n    return {x, y, z}\nend\n\nlocal function ensureTable()\n    if Tables.getTable() ~= \"Table_RPG\" then\n        Tables.setTable(\"Rectangle\")\n    end\nend\n\nlocal function setCommon(object, name, tags, locked)\n    object.setName(name)\n    object.setTags(tags)\n    object.setLock(locked == true)\n    object.tooltip = true\n    return object\nend\n\nlocal function spawnDeckSheet(face, back, width, height, count, position, name, tags, sideways)\n    local deck = spawnObject({\n        type = \"DeckCustom\",\n        position = position,\n        rotation = {0, 180, 180},\n        sound = false,\n    })\n    deck.setCustomObject({\n        face = asset(face),\n        back = asset(back),\n        width = width,\n        height = height,\n        number = count,\n        sideways = sideways == true,\n        back_is_hidden = true,\n    })\n    setCommon(deck, name, tags, false)\n    return deck\nend\n\nlocal function shuffleDeckRepeatedly(deck, remaining)\n    if remaining <= 0 or deck == nil or deck.isDestroyed() then\n        return\n    end\n    deck.shuffle()\n    Wait.frames(function()\n        shuffleDeckRepeatedly(deck, remaining - 1)\n    end, 20)\nend\n\nlocal function spawnPlayerDeck(color, z)\n    local isBlue = color == \"blue\"\n    local display = isBlue and \"Колода — Синий игрок\" or \"Колода — Красный игрок\"\n    local prefix = isBlue and \"cards_blue_\" or \"cards_red_\"\n    local back = isBlue and \"back_blue.jpeg\" or \"back_red.jpeg\"\n    local tags = {BUILD_TAG, \"poti_live\", \"poti_main\", \"poti_\" .. color}\n    local specifications = {\n        {width=4, height=4, count=16},\n        {width=4, height=4, count=16},\n        {width=4, height=4, count=16},\n        {width=4, height=4, count=16},\n        {width=4, height=4, count=16},\n        {width=4, height=2, count=8},\n    }\n    local sheets = {}\n    for index, specification in ipairs(specifications) do\n        sheets[index] = spawnDeckSheet(\n            prefix .. tostring(index) .. \".jpg\",\n            back,\n            specification.width,\n            specification.height,\n            specification.count,\n            vec(-27 + (index - 1) * 3, 3, z),\n            display,\n            tags,\n            false\n        )\n        sheets[index].use_hands = true\n        sheets[index].setLock(true)\n    end\n\n    Wait.time(function()\n        for _, sheet in ipairs(sheets) do\n            if sheet ~= nil and not sheet.isDestroyed() then\n                sheet.shuffle()\n            end\n        end\n\n        local function finishDeck(deck)\n            Wait.condition(function()\n                if deck ~= nil and not deck.isDestroyed() then\n                    setCommon(deck, display, tags, false)\n                    deck.use_hands = true\n                    deck.setPosition(vec(-20, 2, z))\n                    deck.setRotation(vec(0, 180, 180))\n                    Wait.frames(function()\n                        shuffleDeckRepeatedly(deck, 3)\n                    end, 30)\n                end\n            end, function()\n                return deck ~= nil and not deck.isDestroyed() and deck.getQuantity() == 88\n            end, 12, function()\n                broadcastToAll(\"Не удалось собрать колоду из 88 карт: \" .. display, {1, 0.3, 0.3})\n            end)\n        end\n\n        local function mergeNext(deck, index, quantity)\n            if index > #sheets then\n                finishDeck(deck)\n                return\n            end\n            if deck == nil or deck.isDestroyed() or sheets[index] == nil or sheets[index].isDestroyed() then\n                broadcastToAll(\"Не удалось объединить листы колоды: \" .. display, {1, 0.3, 0.3})\n                return\n            end\n            local nextSheet = sheets[index]\n            local expectedQuantity = quantity + specifications[index].count\n            deck.setLock(false)\n            nextSheet.setLock(false)\n            local merged = deck.putObject(nextSheet)\n            if merged == nil then\n                broadcastToAll(\"Не удалось объединить листы колоды: \" .. display, {1, 0.3, 0.3})\n                return\n            end\n            merged.setLock(true)\n            Wait.condition(function()\n                mergeNext(merged, index + 1, expectedQuantity)\n            end, function()\n                return merged ~= nil and not merged.isDestroyed() and merged.getQuantity() == expectedQuantity\n            end, 5, function()\n                broadcastToAll(\"Не удалось объединить листы колоды: \" .. display, {1, 0.3, 0.3})\n            end)\n        end\n\n        mergeNext(sheets[1], 2, specifications[1].count)\n    end, 3)\nend\n\nlocal function spawnCard(face, back, position, rotation, name, tags, sideways)\n    local card = spawnObject({\n        type = \"CardCustom\",\n        position = position,\n        rotation = rotation or {0, 180, 0},\n        sound = false,\n    })\n    card.setCustomObject({\n        face = asset(face),\n        back = asset(back or face),\n        sideways = sideways == true,\n    })\n    setCommon(card, name, tags, false)\n    return card\nend\n\nlocal function spawnBarriers()\n    local tags = {BUILD_TAG, \"poti_live\", \"poti_barrier\"}\n    local barriers = spawnDeckSheet(\n        \"barriers_12.jpg\",\n        \"barrier.jpg\",\n        4,\n        3,\n        12,\n        vec(20, 2, 9.5),\n        \"Барьеры\",\n        tags,\n        false\n    )\n    barriers.setRotation(vec(0, 180, 0))\n    barriers.setScale(vec(0.2, 1, 0.2))\nend\n\nlocal function fitBaseToBoard(base)\n    local boards = getObjectsWithTag(\"poti_board\")\n    if base == nil or base.isDestroyed() or #boards == 0 then\n        return\n    end\n    local boardSize = boards[1].getVisualBoundsNormalized().size\n    local baseSize = base.getVisualBoundsNormalized().size\n    if boardSize.x <= 0 or boardSize.z <= 0 or baseSize.x <= 0 or baseSize.z <= 0 then\n        return\n    end\n    local scale = base.getScale()\n    base.setScale(vec(\n        scale.x * (boardSize.x / 7 * BASE_CELL_FILL) / baseSize.x,\n        scale.y,\n        scale.z * (boardSize.z / 5 * BASE_CELL_FILL) / baseSize.z\n    ))\nend\n\nlocal function spawnBases()\n    local redBase = spawnCard(\n        \"base_red.jpg\",\n        \"base_red.jpg\",\n        vec(BOARD_VISUAL_OFFSET_X - BOARD_WIDTH / 2 + 1.5 * CELL_WIDTH, 2,\n            BOARD_VISUAL_OFFSET_Z + BOARD_HEIGHT / 2 - 1.5 * CELL_HEIGHT),\n        vec(0, 180, 0),\n        \"База — Красный игрок\",\n        {BUILD_TAG, \"poti_live\", \"poti_base\", \"poti_red\"},\n        false\n    )\n    redBase.setScale(vec(BASE_SCALE_X, 1, BASE_SCALE_Z))\n\n    local blueBase = spawnCard(\n        \"base_blue.jpg\",\n        \"base_blue.jpg\",\n        vec(BOARD_VISUAL_OFFSET_X - BOARD_WIDTH / 2 + 5.5 * CELL_WIDTH, 2,\n            BOARD_VISUAL_OFFSET_Z + BOARD_HEIGHT / 2 - 3.5 * CELL_HEIGHT),\n        vec(0, 180, 0),\n        \"База — Синий игрок\",\n        {BUILD_TAG, \"poti_live\", \"poti_base\", \"poti_blue\"},\n        false\n    )\n    blueBase.setScale(vec(BASE_SCALE_X, 1, BASE_SCALE_Z))\n    Wait.frames(resizeBases, 5)\nend\n\nfunction resizeBases()\n    for _, base in ipairs(getObjectsWithTag(\"poti_base\")) do\n        fitBaseToBoard(base)\n    end\nend\n\nlocal function spawnLiveObjects()\n    spawnPlayerDeck(\"blue\", -6)\n    spawnPlayerDeck(\"red\", 6)\n    spawnBarriers()\n    spawnBases()\nend\n\nlocal function createBoard()\n    local board = spawnObject({\n        type = \"Custom_Board\",\n        position = vec(BOARD_VISUAL_OFFSET_X, 1, BOARD_VISUAL_OFFSET_Z),\n        rotation = vec(0, 180, 0),\n        scale = vec(0.85, 0.85, 0.85),\n        sound = false,\n    })\n    board.setCustomObject({image = asset(\"board.jpg\")})\n    setCommon(board, \"Пути Раскола — поле 7×5\", {BUILD_TAG, \"poti_static\", \"poti_board\"}, true)\nend\n\nlocal function createRuleBook()\n    local book = spawnObjectData({\n        data = {\n            Name = \"Custom_PDF\",\n            Transform = {\n                posX = 20, posY = 2, posZ = 0,\n                rotX = 0, rotY = 180, rotZ = 0,\n                scaleX = 3, scaleY = 1, scaleZ = 3,\n            },\n            Nickname = \"Пути Раскола — правила\",\n            Description = \"Листайте страницы кнопками PDF; Alt — увеличить.\",\n            CustomPDF = {\n                PDFUrl = asset(\"rules_book.pdf\"),\n                PDFPassword = \"\",\n                PDFPage = 0,\n                PDFPageOffset = 0,\n            },\n            Tags = {BUILD_TAG, \"poti_static\", \"poti_rules\"},\n            Locked = true,\n            Grid = false,\n            Snap = false,\n            Hands = false,\n        },\n    })\n    setCommon(book, \"Пути Раскола — правила\", {BUILD_TAG, \"poti_static\", \"poti_rules\"}, true)\nend\n\nlocal function createHand(color)\n    local hand = spawnObject({\n        type = \"HandTrigger\",\n        position = HAND_POSITIONS[color],\n        rotation = vec(0, 0, 0),\n        scale = vec(11, 4, 3),\n        sound = false,\n    })\n    hand.setValue(color)\n    hand.setLock(true)\nend\n\nfunction arrangeHands()\n    for _, hand in ipairs(Hands.getHands()) do\n        local color = hand.getValue()\n        if HAND_POSITIONS[color] ~= nil then\n            hand.setPosition(HAND_POSITIONS[color])\n            hand.setRotation(vec(0, 0, 0))\n            hand.setScale(vec(11, 4, 3))\n        end\n    end\nend\n\nlocal function ensurePlayerHands()\n    Hands.enable = true\n    Hands.disable_unused = false\n    if Player.Blue.getHandCount() == 0 then\n        createHand(\"Blue\")\n    end\n    if Player.Red.getHandCount() == 0 then\n        createHand(\"Red\")\n    end\n    arrangeHands()\nend\n\nlocal function makeSnapPoints()\n    local points = {}\n    for row = 0, 4 do\n        local z = BOARD_VISUAL_OFFSET_Z + BOARD_HEIGHT / 2 - (row + 0.5) * CELL_HEIGHT\n        for column = 0, 6 do\n            table.insert(points, {\n                position = vec(BOARD_VISUAL_OFFSET_X - BOARD_WIDTH / 2 + (column + 0.5) * CELL_WIDTH, 1.25, z),\n                rotation = vec(0, 180, 0),\n                rotation_snap = true,\n            })\n        end\n    end\n    for _, position in ipairs({\n        vec(-20, 1.25, -6),\n        vec(-20, 1.25, 6),\n        vec(20, 1.25, -6),\n        vec(20, 1.25, 6),\n        vec(20, 1.25, 9.5),\n    }) do\n        table.insert(points, {\n            position = position,\n            rotation = vec(0, 180, 0),\n            rotation_snap = true,\n        })\n    end\n    return points\nend\n\nlocal function createLayoutZones()\n    for row = 0, 4 do\n        local z = BOARD_VISUAL_OFFSET_Z + BOARD_HEIGHT / 2 - (row + 0.5) * CELL_HEIGHT\n        for column = 0, 6 do\n            local x = BOARD_VISUAL_OFFSET_X - BOARD_WIDTH / 2 + (column + 0.5) * CELL_WIDTH\n            local zone = spawnObject({\n                type = \"Layout\",\n                position = vec(x, 3, z),\n                rotation = vec(0, 0, 0),\n                scale = vec(CELL_WIDTH * 0.96, 5, CELL_HEIGHT * 0.96),\n                sound = false,\n            })\n            setCommon(\n                zone,\n                \"Раскладка \" .. tostring(column + 1) .. \"×\" .. tostring(row + 1),\n                {BUILD_TAG, \"poti_layout\", \"poti_main\"},\n                true\n            )\n            zone.LayoutZone.setOptions({\n                direction = 0,\n                meld_direction = 2,\n                new_object_facing = 1,\n                trigger_for_face_up = true,\n                trigger_for_face_down = false,\n                trigger_for_non_cards = false,\n                allow_swapping = true,\n                max_objects_per_new_group = 2,\n                max_objects_per_group = 2,\n                meld_sort = 0,\n                meld_reverse_sort = false,\n                meld_sort_existing = false,\n                sticky_cards = true,\n                horizontal_spread = 0,\n                vertical_spread = 0.4,\n                horizontal_group_padding = 0,\n                vertical_group_padding = 0,\n                split_added_decks = true,\n                combine_into_decks = false,\n                cards_per_deck = 0,\n                alternate_direction = false,\n                randomize = false,\n                instant_refill = false,\n                manual_only = false,\n            })\n        end\n    end\nend\n\nlocal function wireResetButton()\n    local buttons = getObjectsWithTag(\"poti_reset\")\n    if #buttons == 0 then\n        return\n    end\n    local button = buttons[1]\n    button.clearButtons()\n    button.createButton({\n        click_function = \"resetGame\",\n        function_owner = Global,\n        label = \"ЗАНОВО\",\n        position = {0, 0.55, 0},\n        rotation = {0, 0, 0},\n        width = 1500,\n        height = 620,\n        font_size = 285,\n        color = {0.76, 0.19, 0.15},\n        font_color = {1, 1, 1},\n        tooltip = \"Вернуть комплект в исходное состояние и перемешать колоды\",\n    })\nend\n\nlocal function createResetButton()\n    local button = spawnObject({\n        type = \"BlockSquare\",\n        position = vec(20, 2.2, -9.5),\n        rotation = vec(0, 180, 0),\n        scale = vec(3.2, 0.5, 1.5),\n        sound = false,\n    })\n    setCommon(button, \"Заново\", {BUILD_TAG, \"poti_static\", \"poti_reset\"}, true)\n    button.setColorTint({0.76, 0.19, 0.15})\n    Wait.frames(wireResetButton, 2)\nend\n\nlocal function destroyLiveObjects()\n    for _, object in ipairs(getAllObjects()) do\n        if object.hasTag(\"poti_live\") then\n            destroyObject(object)\n        else\n            local custom = object.getCustomObject()\n            local face = custom and (custom.face or custom.image) or \"\"\n            if object.type ~= \"Board\" and string.find(face, \"PutiRaskola\", 1, true) then\n                destroyObject(object)\n            end\n        end\n    end\nend\n\nfunction resetGame(_, playerColor, _)\n    if busy then\n        broadcastToColor(\"Перезагрузка уже выполняется\", playerColor, {1, 0.8, 0.2})\n        return\n    end\n    busy = true\n    broadcastToAll(\"Новая партия: возвращаю и перемешиваю комплект…\", {0.75, 0.9, 1})\n    destroyLiveObjects()\n    Wait.time(function()\n        spawnLiveObjects()\n        Wait.time(function()\n            busy = false\n            broadcastToAll(\"Пути Раскола готовы к новой партии\", {0.45, 1, 0.55})\n        end, 8)\n    end, 1)\nend\n\nlocal function buildAll()\n    ensureTable()\n    for _, object in ipairs(getAllObjects()) do\n        destroyObject(object)\n    end\n    for _, hand in ipairs(Hands.getHands()) do\n        destroyObject(hand)\n    end\n    Global.setSnapPoints({})\n    Wait.time(function()\n        createBoard()\n        createRuleBook()\n        createLayoutZones()\n        createHand(\"Blue\")\n        createHand(\"Red\")\n        createResetButton()\n        Global.setSnapPoints(makeSnapPoints())\n        spawnLiveObjects()\n        broadcastToAll(\"Пути Раскола собраны средствами Tabletop Simulator\", {0.45, 1, 0.55})\n    end, 1)\nend\n\nfunction rebuildModule()\n    buildAll()\nend\n\nfunction onObjectLeaveContainer(container, object)\n    if container == nil or object == nil or not container.hasTag(\"poti_main\") then\n        return\n    end\n    object.setTags(container.getTags())\n    object.use_hands = true\nend\n\nfunction onObjectNumberTyped(object, player_color, number)\n    if object == nil or number <= 0 or object.type ~= \"Deck\" then\n        return false\n    end\n    local name = object.getName()\n    if name ~= \"Колода — Синий игрок\" and name ~= \"Колода — Красный игрок\" then\n        return false\n    end\n    if Player[player_color].getHandCount() == 0 then\n        broadcastToColor(\"Сначала сядьте на место Blue или Red\", player_color, {1, 0.6, 0.2})\n        return true\n    end\n    object.use_hands = true\n    object.deal(math.min(number, object.getQuantity()), player_color)\n    return true\nend\n\nfunction onLoad()\n    ensureTable()\n    Wait.time(function()\n        ensurePlayerHands()\n        if #getObjectsWithTag(\"poti_board\") == 0 then\n            buildAll()\n        else\n            local hasRuleBook = false\n            for _, rules in ipairs(getObjectsWithTag(\"poti_rules\")) do\n                if rules.Book ~= nil then\n                    hasRuleBook = true\n                else\n                    destroyObject(rules)\n                end\n            end\n            if not hasRuleBook then\n                createRuleBook()\n            end\n            if #getObjectsWithTag(\"poti_layout\") == 0 then\n                createLayoutZones()\n            end\n            resizeBases()\n            wireResetButton()\n        end\n    end, 1)\nend\n",
+  "LuaScriptState": "",
+  "XmlUI": "<!-- Xml UI. See documentation: https://api.tabletopsimulator.com/ui/introUI/ -->",
+  "ObjectStates": [
+    {
+      "GUID": "af791d",
+      "Name": "HandTrigger",
+      "Transform": {
+        "posX": 0.0,
+        "posY": 4.0,
+        "posZ": -14.0,
+        "rotX": 0.0,
+        "rotY": 0.0,
+        "rotZ": 0.0,
+        "scaleX": 11.0,
+        "scaleY": 4.0,
+        "scaleZ": 3.0
+      },
+      "Nickname": "",
+      "Description": "",
+      "GMNotes": "",
+      "AltLookAngle": {
+        "x": 0.0,
+        "y": 0.0,
+        "z": 0.0
+      },
+      "ColorDiffuse": {
+        "r": 0.118,
+        "g": 0.53,
+        "b": 1.0,
+        "a": 0.0
+      },
+      "LayoutGroupSortIndex": 0,
+      "Value": 0,
+      "Locked": true,
+      "Grid": false,
+      "Snap": true,
+      "IgnoreFoW": false,
+      "MeasureMovement": false,
+      "DragSelectable": true,
+      "Autoraise": true,
+      "Sticky": true,
+      "Tooltip": true,
+      "GridProjection": false,
+      "HideWhenFaceDown": false,
+      "Hands": false,
+      "FogColor": "Blue",
+      "LuaScript": "",
+      "LuaScriptState": "",
+      "XmlUI": ""
+    },
+    {
+      "GUID": "af4765",
+      "Name": "HandTrigger",
+      "Transform": {
+        "posX": 0.0,
+        "posY": 4.0,
+        "posZ": 14.0,
+        "rotX": 0.0,
+        "rotY": 0.0,
+        "rotZ": 0.0,
+        "scaleX": 11.0,
+        "scaleY": 4.0,
+        "scaleZ": 3.0
+      },
+      "Nickname": "",
+      "Description": "",
+      "GMNotes": "",
+      "AltLookAngle": {
+        "x": 0.0,
+        "y": 0.0,
+        "z": 0.0
+      },
+      "ColorDiffuse": {
+        "r": 0.856,
+        "g": 0.1,
+        "b": 0.094,
+        "a": 0.0
+      },
+      "LayoutGroupSortIndex": 0,
+      "Value": 0,
+      "Locked": true,
+      "Grid": false,
+      "Snap": true,
+      "IgnoreFoW": false,
+      "MeasureMovement": false,
+      "DragSelectable": true,
+      "Autoraise": true,
+      "Sticky": true,
+      "Tooltip": true,
+      "GridProjection": false,
+      "HideWhenFaceDown": false,
+      "Hands": false,
+      "FogColor": "Red",
+      "LuaScript": "",
+      "LuaScriptState": "",
+      "XmlUI": ""
+    },
+    {
+      "GUID": "27f441",
+      "Name": "Custom_Board",
+      "Transform": {
+        "posX": 0.0,
+        "posY": 1.0,
+        "posZ": 0.0,
+        "rotX": 0.0,
+        "rotY": 180.0,
+        "rotZ": 0.0,
+        "scaleX": 1.25,
+        "scaleY": 1.25,
+        "scaleZ": 1.25
+      },
+      "Nickname": "Пути Раскола — поле 7×5",
+      "Description": "",
+      "GMNotes": "",
+      "AltLookAngle": {
+        "x": 0.0,
+        "y": 0.0,
+        "z": 0.0
+      },
+      "ColorDiffuse": {
+        "r": 0.7132353,
+        "g": 0.7132353,
+        "b": 0.7132353
+      },
+      "LayoutGroupSortIndex": 0,
+      "Value": 0,
+      "Locked": true,
+      "Grid": true,
+      "Snap": true,
+      "IgnoreFoW": false,
+      "MeasureMovement": false,
+      "DragSelectable": true,
+      "Autoraise": true,
+      "Sticky": true,
+      "Tooltip": true,
+      "GridProjection": false,
+      "HideWhenFaceDown": false,
+      "Hands": false,
+      "CustomImage": {
+        "ImageURL": "https://files.catbox.moe/yeu2rw.jpg",
+        "ImageSecondaryURL": "",
+        "ImageScalar": 1.0,
+        "WidthScale": 1.3650349650349651
+      },
+      "LuaScript": "",
+      "LuaScriptState": "",
+      "XmlUI": ""
+    },
+    {
+      "GUID": "c76348",
+      "Name": "Card",
+      "Transform": {
+        "posX": -16.0,
+        "posY": 2.0,
+        "posZ": -6.0,
+        "rotX": 0.0,
+        "rotY": 180.0,
+        "rotZ": 180.0,
+        "scaleX": 0.92,
+        "scaleY": 1.0,
+        "scaleZ": 0.92
+      },
+      "Nickname": "Споровик",
+      "Description": "Сбрось с любого количества своих полных стеков верхнее существо. Сбрось верхнее существо с такого же количества полных стеков соперинка.",
+      "GMNotes": "{\"pcio_type\":\"type-b7271c04-e48d-4873-9f0f-a02106e51fe2\",\"owner\":\"blue\",\"trigger\":\"🃏\"}",
+      "AltLookAngle": {
+        "x": 0.0,
+        "y": 0.0,
+        "z": 0.0
+      },
+      "ColorDiffuse": {
+        "r": 0.7132353,
+        "g": 0.7132353,
+        "b": 0.7132353
+      },
+      "LayoutGroupSortIndex": 0,
+      "Value": 1,
+      "Locked": false,
+      "Grid": true,
+      "Snap": true,
+      "IgnoreFoW": false,
+      "MeasureMovement": false,
+      "DragSelectable": true,
+      "Autoraise": true,
+      "Sticky": true,
+      "Tooltip": true,
+      "GridProjection": false,
+      "HideWhenFaceDown": true,
+      "Hands": true,
+      "Tags": [
+        "poti_live",
+        "poti_main",
+        "poti_blue"
+      ],
+      "CardID": 10142,
+      "SidewaysCard": true,
+      "CustomDeck": {
+        "101": {
+          "FaceURL": "https://files.catbox.moe/8ox4g1.jpg",
+          "BackURL": "https://files.catbox.moe/qjapiq.jpeg",
+          "NumWidth": 10,
+          "NumHeight": 7,
+          "BackIsHidden": true,
+          "UniqueBack": false,
+          "Type": 0
+        }
+      },
+      "LuaScript": "",
+      "LuaScriptState": "",
+      "XmlUI": ""
+    }
+  ]
+}

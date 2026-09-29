@@ -1,5 +1,6 @@
 extends RefCounted
 
+const CardAbilities: Script = preload("res://scripts/main/card_abilities.gd")
 const UnitKeys: Script = preload("res://scripts/main/unit_keys.gd")
 
 var game: Node
@@ -28,13 +29,14 @@ func apply_covered_card_reactions(state: Dictionary, result: Dictionary) -> void
 	if int(covering_card.id) != int(played_card.id):
 		return
 	var covered_card: Dictionary = stack[stack.size() - 2]
-	if String(covering_card.unit.name_key) == UnitKeys.ENT_NAME:
+	var covering_name: String = String(result.get("ability_name_key", String(covering_card.unit.name_key)))
+	if covering_name == UnitKeys.ENT_NAME:
 		_return_covered_card_to_hand(state, cell, stack, covered_card)
 		return
 	if bool(covered_card.face_down):
 		return
 
-	var covered_name: String = String(covered_card.unit.name_key)
+	var covered_name: String = CardAbilities.name_key(covered_card)
 	if covered_name == UnitKeys.TARAN_NAME and int(covered_card.owner) == int(covering_card.owner):
 		_remove_barriers_adjacent_to_cell(state, cell)
 		var destinations: Array = _get_taran_destination_cells(state, cell, int(covered_card.owner))
@@ -54,7 +56,7 @@ func apply_covered_card_reactions(state: Dictionary, result: Dictionary) -> void
 			}
 			result.end_turn = false
 	elif covered_name == UnitKeys.VOLK_NAME:
-		covered_card.attack_power_override = int(covering_card.unit.power)
+		covered_card.attack_power_override = int(covering_card.get("copied_power", covering_card.unit.power))
 		var volk_request: Dictionary = {
 			"kind": "replay_volk",
 			"target_type": "cell",
@@ -75,7 +77,7 @@ func apply_covered_card_reactions(state: Dictionary, result: Dictionary) -> void
 	elif covered_name == UnitKeys.MINA_NAME:
 		covered_card.face_down = true
 		_discard_covering_card(state, result, cell, stack, covering_card)
-	elif covered_name == UnitKeys.MAKOVOE_POLE_NAME and int(covering_card.unit.power) >= 3:
+	elif covered_name == UnitKeys.MAKOVOE_POLE_NAME and int(covering_card.get("copied_power", covering_card.unit.power)) >= 3:
 		_discard_covering_card(state, result, cell, stack, covering_card)
 	elif covered_name == UnitKeys.PAUK_NAME and int(covered_card.owner) != int(covering_card.owner):
 		covering_card.face_down = true
@@ -114,7 +116,7 @@ func _apply_cherepaha_play_rule(state: Dictionary, result: Dictionary) -> void:
 	var card: Dictionary = result.card
 	if bool(card.face_down):
 		return
-	if String(card.unit.name_key) != UnitKeys.CHEREPAHA_NAME:
+	if String(result.get("ability_name_key", String(card.unit.name_key))) != UnitKeys.CHEREPAHA_NAME:
 		return
 
 	var player_index: int = int(card.owner)
@@ -161,7 +163,7 @@ func _remove_barriers_adjacent_to_all_taran(state: Dictionary) -> void:
 			var card: Dictionary = stack[stack.size() - 1]
 			if bool(card.face_down):
 				continue
-			if String(card.unit.name_key) != UnitKeys.TARAN_NAME:
+			if CardAbilities.active_name_key(state, cell) != UnitKeys.TARAN_NAME:
 				continue
 			_remove_barriers_adjacent_to_cell(state, cell)
 

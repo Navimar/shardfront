@@ -28,6 +28,10 @@ func _animate_action_event(event: Dictionary) -> void:
 		await _animate_draw_event(event)
 	elif event_type == "discard_card":
 		await _animate_discard_event(event)
+	elif event_type == "show_hand":
+		await game.tabletop_logic.show_hand(event)
+	elif event_type == game.ANIMATION_REVEAL_HAND_CARD:
+		await _animate_reveal_hand_card_event(event)
 	elif event_type == game.ANIMATION_LAYOUT_STACK:
 		await _animate_layout_stack_event(event)
 	elif event_type == game.ANIMATION_SUPPLY_CONTROL:
@@ -61,6 +65,13 @@ func _animate_discard_event(event: Dictionary) -> void:
 	game._finish_discard_card_animation(card_control)
 
 
+func _animate_reveal_hand_card_event(event: Dictionary) -> void:
+	var card_control: Control = game._get_or_create_event_card_view(event)
+	if int(event.player_index) != game._get_view_player():
+		await game.get_tree().create_timer(game.CARD_REVEAL_DURATION).timeout
+	game._finish_reveal_hand_card_animation(card_control, event)
+
+
 func _animate_layout_stack_event(event: Dictionary) -> void:
 	var cell: Vector2i = event.cell
 	var stack_container: Control = game.board_cell_stacks[cell]
@@ -77,6 +88,7 @@ func _animate_layout_stack_event(event: Dictionary) -> void:
 		var is_covered: bool = i < stack.size() - 1
 		game._configure_card_view(card_control, card, bool(card.face_down), false, is_covered)
 		card_control.tooltip_text = game._get_card_tooltip(card)
+		game._prepare_board_card_interaction(card_control, cell)
 		game._attach_card_view_to_container(card_control, stack_container)
 		card_control.z_index = i
 		stack_container.move_child(card_control, i)

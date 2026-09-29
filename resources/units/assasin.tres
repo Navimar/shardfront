@@ -10,5 +10,5 @@ name_key = "UNIT_ASSASIN_NAME"
 description_key = "UNIT_ASSASIN_DESCRIPTION"
 power = 6
 ability_symbols = "🃏"
-implementation_status = "deferred"
+implementation_status = "implemented"
 portrait = ExtResource("2_portrait")

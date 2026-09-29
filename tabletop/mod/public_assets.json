@@ -1,0 +1,116 @@
+{
+  "provider": "catbox",
+  "updated_at": "2026-09-25T16:24:40.854342+00:00",
+  "assets": {
+    "back_blue.jpeg": {
+      "url": "https://files.catbox.moe/qjapiq.jpeg",
+      "sha256": "a1f86e344b684a52efa01ba29f810d05eb78c4721bf7fbd7fe6f8511d3b46b3c",
+      "size": 291086
+    },
+    "back_red.jpeg": {
+      "url": "https://files.catbox.moe/br8c2k.jpeg",
+      "sha256": "4aa64f3af2e5975a3b8102355eac08d0f4f1ed5fb38e3750d3fe44bf0843e270",
+      "size": 311970
+    },
+    "barrier.jpg": {
+      "url": "https://files.catbox.moe/8uf8tm.jpg",
+      "sha256": "3fe06a25f0a66bf0edde839ace97fb98aa04b425c4f68cfc8d524ef318b51766",
+      "size": 17264
+    },
+    "barriers_12.jpg": {
+      "url": "https://files.catbox.moe/lq5jhr.jpg",
+      "sha256": "d760402ff83afc5a79cc933230fa0eae9f784900d042a8921d8a7465bac2118b",
+      "size": 197726
+    },
+    "base_blue.jpg": {
+      "url": "https://files.catbox.moe/tkgepx.jpg",
+      "sha256": "75b8c089043409b0b18f3c2466777175b300c4e1e89a8c04f6d2ab7c164e62c9",
+      "size": 361205
+    },
+    "base_red.jpg": {
+      "url": "https://files.catbox.moe/6pqqpm.jpg",
+      "sha256": "5608c28fdf8364d68513dbc817ec690218f9deb1106b15be631913a9b8a87c74",
+      "size": 460587
+    },
+    "bases.jpg": {
+      "url": "https://files.catbox.moe/sdxehp.jpg",
+      "sha256": "8b78fe5918cbd712fef9abd3f9971538420de4bdaf0b568feb8206a284687e32",
+      "size": 822119
+    },
+    "board.jpg": {
+      "url": "https://files.catbox.moe/yeu2rw.jpg",
+      "sha256": "dcfffc9bd846770d3a08623d8619e983c1782d17114dcd7d3c72b89aac636898",
+      "size": 101899
+    },
+    "cards_blue_1.jpg": {
+      "url": "https://files.catbox.moe/8ox4g1.jpg",
+      "sha256": "f65afa33677bb5fc4734f9140d12cd45471b16cfd5ac0afa5423932b9babc9b8",
+      "size": 7284316
+    },
+    "cards_blue_2.jpg": {
+      "url": "https://files.catbox.moe/6ejb7m.jpg",
+      "sha256": "b15b6995e406779a384d10e360f0b87a5ec58207e4277368da0c2dabc92c2ed7",
+      "size": 6704657
+    },
+    "cards_blue_3.jpg": {
+      "url": "https://files.catbox.moe/0po7k4.jpg",
+      "sha256": "f9bc498de1fdd5c106abce249bfb1e50d8caafb71439f1d0059983cdf451d200",
+      "size": 7093002
+    },
+    "cards_blue_4.jpg": {
+      "url": "https://files.catbox.moe/0f571g.jpg",
+      "sha256": "43e4efc2ef297a54f5f4998e00b4c298c9c50894d38505c82d4d058078bf60d0",
+      "size": 7635329
+    },
+    "cards_blue_5.jpg": {
+      "url": "https://files.catbox.moe/16rjba.jpg",
+      "sha256": "65e21788e2bf9bab0605ac15032c1efb64f715495a818f947c33846c833fbfc4",
+      "size": 7827911
+    },
+    "cards_blue_6.jpg": {
+      "url": "https://files.catbox.moe/m4j1w7.jpg",
+      "sha256": "026a895aff9abffd1ed2572996d142e7bcf4bb9b000c951e99c7af2c7b647076",
+      "size": 3974508
+    },
+    "cards_red_1.jpg": {
+      "url": "https://files.catbox.moe/9ex1kb.jpg",
+      "sha256": "c179c4c4065629213e64e3475d50930bda93adfb8509d8e299acf3fbfb217a68",
+      "size": 7217900
+    },
+    "cards_red_2.jpg": {
+      "url": "https://files.catbox.moe/kvjgha.jpg",
+      "sha256": "911be024478459e56d8ae1fb2c2d6933894e45bb7d228132e621df6d353023cb",
+      "size": 6627945
+    },
+    "cards_red_3.jpg": {
+      "url": "https://files.catbox.moe/xep38h.jpg",
+      "sha256": "270f80dcc6b127d48a0054fc3bc6e4ec75e47b93735ab316e38b8e8ecbf0a042",
+      "size": 7024497
+    },
+    "cards_red_4.jpg": {
+      "url": "https://files.catbox.moe/c4cbxm.jpg",
+      "sha256": "8feb3db3685e68603d16c50378568e55ee6dff49cadd27bead71a8cbe68c9bb2",
+      "size": 7551017
+    },
+    "cards_red_5.jpg": {
+      "url": "https://files.catbox.moe/7z3gem.jpg",
+      "sha256": "8ad9cb4f52a64da63326548951b6e5d923f1bd31219dfba6cd951a0140adf5c9",
+      "size": 7748678
+    },
+    "cards_red_6.jpg": {
+      "url": "https://files.catbox.moe/8ppmi1.jpg",
+      "sha256": "fed96266581c0f9c2c7be35bf153756f0d3631e77d160e87c597f58b06550f10",
+      "size": 3937576
+    },
+    "rules.jpg": {
+      "url": "https://files.catbox.moe/ra3rdy.jpg",
+      "sha256": "2b36e47df908ed9f61f2b06454891c1cee6ad0d30789174564c7fb0c9a2cf91e",
+      "size": 1217645
+    },
+    "rules_book.pdf": {
+      "url": "https://files.catbox.moe/r0fe49.pdf",
+      "sha256": "6536d84c0bd82969a29d32b71c17e21eaea4f5a8b619ab9789dde0f8b69c81f9",
+      "size": 2085489
+    }
+  }
+}

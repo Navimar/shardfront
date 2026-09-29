@@ -1,5 +1,7 @@
 extends RefCounted
 
+const CardAbilities: Script = preload("res://scripts/main/card_abilities.gd")
+
 
 var topology: RefCounted
 var barriers: RefCounted
@@ -61,3 +63,7 @@ func has_barrier(state: Dictionary, first: Vector2i, second: Vector2i) -> bool:
 
 func edge_key(first_cell: Vector2i, second_cell: Vector2i) -> String:
 	return topology.edge_key(first_cell, second_cell)
+
+
+func active_name_key(state: Dictionary, cell: Vector2i) -> String:
+	return CardAbilities.active_name_key(state, cell)

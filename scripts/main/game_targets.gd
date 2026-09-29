@@ -16,6 +16,8 @@ func get_target_request(state: Dictionary, result: Dictionary) -> Dictionary:
 		return {}
 
 	var name_key: String = String(result.get("ability_name_key", String(card.unit.name_key)))
+	if name_key in [UnitKeys.BOEVOY_MAG_NAME, UnitKeys.PUGALO_NAME, UnitKeys.VSADNIK_NAME, UnitKeys.AGITATOR_NAME, UnitKeys.LESHIY_NAME, UnitKeys.AVTOPOEZD_NAME, UnitKeys.PARTIZANY_NAME, UnitKeys.ASSASIN_NAME]:
+		return game.tabletop_logic.target_request(state, result, name_key)
 	if name_key == UnitKeys.FOKUSNIK_NAME:
 		return _get_sequence_request_if_available(state, result, "swap_own_enemy_top", [])
 	if name_key == UnitKeys.GUSENITSA_NAME:
@@ -89,6 +91,8 @@ func get_target_request(state: Dictionary, result: Dictionary) -> Dictionary:
 
 func get_legal_target_cells(state: Dictionary, request: Dictionary) -> Array:
 	var kind: String = String(request.get("kind", ""))
+	if game.tabletop_logic.handles(kind):
+		return game.tabletop_logic.cell_targets(state, request)
 	if kind == "swap_own_enemy_top":
 		return _get_swap_own_enemy_top_cells(state, request)
 	if kind == "swap_same_side_top":
@@ -156,6 +160,8 @@ func get_legal_target_cells(state: Dictionary, request: Dictionary) -> Array:
 
 func get_legal_target_cards(state: Dictionary, request: Dictionary) -> Array:
 	var kind: String = String(request.get("kind", ""))
+	if game.tabletop_logic.handles(kind):
+		return game.tabletop_logic.card_targets(state, request)
 	if kind == "return_own_any":
 		return _get_any_own_card_targets(state, request)
 	if kind == "copy_open_top_play_effect":
@@ -165,6 +171,8 @@ func get_legal_target_cards(state: Dictionary, request: Dictionary) -> Array:
 
 func get_legal_target_choices(state: Dictionary, request: Dictionary) -> Array:
 	var kind: String = String(request.get("kind", ""))
+	if game.tabletop_logic.handles(kind):
+		return game.tabletop_logic.choices(state, request)
 	if kind == "add_barrier":
 		return _get_add_barrier_choices(state, false)
 	if kind == "move_barrier":
@@ -239,6 +247,10 @@ func is_repeating_choice_request(request: Dictionary) -> bool:
 
 func can_finish_choice_request(request: Dictionary) -> bool:
 	var kind: String = String(request.get("kind", ""))
+	if kind == "any_replace_own":
+		return true
+	if kind == "primanka_pull":
+		return false
 	if kind == "vihr_swap_neighbors":
 		return Array(request.get("selected_cells", [])).is_empty()
 	if kind == "sporovik_own_full_stack":
@@ -247,7 +259,6 @@ func can_finish_choice_request(request: Dictionary) -> bool:
 		kind == "set_adjacent_barriers"
 		or kind == "optional_remove_barrier"
 		or kind == "swap_adjacent_stack_cards"
-		or kind == "primanka_pull"
 		or kind == "lich_flip_own"
 		or kind == "trubadur_return_own"
 	)
@@ -302,13 +313,52 @@ func finish_choice(state: Dictionary, request: Dictionary) -> Dictionary:
 	return result
 
 
-func apply_target(state: Dictionary, request: Dictionary, target: Vector2i) -> Dictionary:
+func autofinish_pending_target_if_empty(state: Dictionary, result: Dictionary) -> Dictionary:
+	if String(result.get("status", "")) != game.RESULT_OK:
+		return result
+	if not result.has("pending_target"):
+		return result
+	var request: Dictionary = result.pending_target
+	if not can_finish_choice_request(request):
+		return result
+	if _has_legal_pending_target_options(state, request):
+		return result
+
+	var finish_result: Dictionary = finish_choice(state, request)
+	result.erase("pending_target")
+	result.end_turn = bool(finish_result.get("end_turn", true))
+	var pending_keys: Array = [
+		"pending_target",
+		"pending_hand_discard",
+		"pending_hand_pick",
+		"pending_discard_pick",
+		"pending_strateg",
+		"pending_extra_hand_play"
+	]
+	for pending_key in pending_keys:
+		if finish_result.has(pending_key):
+			result[pending_key] = finish_result[pending_key]
+	return result
+
+
+func _has_legal_pending_target_options(state: Dictionary, request: Dictionary) -> bool:
+	var target_type: String = String(request.get("target_type", "cell"))
+	if target_type in ["choice", "option"]:
+		return not get_legal_target_choices(state, request).is_empty()
+	if target_type == "card":
+		return not get_legal_target_cards(state, request).is_empty()
+	return not get_legal_target_cells(state, request).is_empty()
+
+
+func _apply_target_effect(state: Dictionary, request: Dictionary, target: Vector2i) -> Dictionary:
 	var result: Dictionary = game._make_action_result(game.RESULT_INVALID, "bad_target")
 	var legal_targets: Array = get_legal_target_cells(state, request)
 	if not legal_targets.has(target):
 		return result
 
 	var kind: String = String(request.get("kind", ""))
+	if game.tabletop_logic.handles(kind):
+		return game.tabletop_logic.apply_cell_target(state, request, target)
 	if kind == "swap_own_enemy_top":
 		return _apply_swap_own_enemy_top_target(state, request, target)
 	if kind == "swap_same_side_top":
@@ -381,6 +431,8 @@ func apply_card_target(state: Dictionary, request: Dictionary, card_id: int) -> 
 		return result
 
 	var kind: String = String(request.get("kind", ""))
+	if game.tabletop_logic.handles(kind):
+		return game.tabletop_logic.apply_card_target(state, request, card_id)
 	if kind == "return_own_any":
 		return _apply_return_own_any_card_target(state, request, card_id)
 	if kind == "copy_open_top_play_effect":
@@ -394,6 +446,8 @@ func apply_choice(state: Dictionary, request: Dictionary, choice: Dictionary, va
 		return result
 
 	var kind: String = String(request.get("kind", ""))
+	if game.tabletop_logic.handles(kind):
+		return game.tabletop_logic.apply_choice(state, request, choice)
 	if kind == "add_barrier":
 		_add_barrier_to_state(state, choice.edge[0], choice.edge[1])
 	elif kind == "move_barrier" or kind == "bolotnik_move_barrier":
@@ -439,6 +493,8 @@ func _get_request_if_available_for_player(
 		"source_cell": result.cell,
 		"card_id": int(result.card.id)
 	}
+	if result.has("copied_play_card_ids"):
+		request.copied_play_card_ids = Array(result.copied_play_card_ids).duplicate()
 	if target_type == "choice" and get_legal_target_choices(state, request).is_empty():
 		return {}
 	if target_type == "cell" and get_legal_target_cells(state, request).is_empty():
@@ -465,6 +521,11 @@ func _get_sequence_request_if_available(state: Dictionary, result: Dictionary, k
 		"card_id": int(result.card.id),
 		"selected_cells": selected_cells.duplicate()
 	}
+	if kind == "primanka_pull":
+		var captured_ids: Array = []
+		for cell in _get_primanka_pull_cells(state, request):
+			captured_ids.append(int(game._get_stack_in_state(state, cell).back().id))
+		request.remaining_card_ids = captured_ids
 	if get_legal_target_cells(state, request).is_empty():
 		return {}
 	return request
@@ -563,7 +624,7 @@ func _get_sporovik_full_stack_cells(state: Dictionary, owner: int, excluded_cell
 
 func _get_evacuator_target_cells(state: Dictionary, request: Dictionary) -> Array:
 	var player_index: int = int(request.player_index)
-	if state.players[player_index].deck.is_empty() and state.players[player_index].deck_template.is_empty():
+	if not game._has_available_deck_cards_in_state(state, player_index):
 		return []
 	var targets: Array = []
 	for y in range(game.GRID_HEIGHT):
@@ -611,7 +672,7 @@ func _get_open_top_unit_card_targets(state: Dictionary, request: Dictionary) -> 
 			if stack.is_empty():
 				continue
 			var card: Dictionary = stack[stack.size() - 1]
-			if int(card.id) == int(request.card_id):
+			if int(card.id) == int(request.card_id) or Array(request.get("copied_play_card_ids", [])).has(int(card.id)):
 				continue
 			if not game.play_effect_logic.can_copy_card_play_effect(card):
 				continue
@@ -673,7 +734,7 @@ func _get_adjacent_top_unit_cells(state: Dictionary, request: Dictionary) -> Arr
 func _get_adjacent_put_deck_face_down_cells(state: Dictionary, request: Dictionary) -> Array:
 	var source_cell: Vector2i = request.source_cell
 	var player_index: int = int(request.player_index)
-	if state.players[player_index].deck.is_empty() and state.players[player_index].deck_template.is_empty():
+	if not game._has_available_deck_cards_in_state(state, player_index):
 		return []
 	var targets: Array = []
 	for direction in [Vector2i.UP, Vector2i.DOWN, Vector2i.LEFT, Vector2i.RIGHT]:
@@ -691,7 +752,7 @@ func _get_adjacent_put_deck_face_down_cells(state: Dictionary, request: Dictiona
 
 func _get_deck_face_down_play_cells(state: Dictionary, request: Dictionary) -> Array:
 	var player_index: int = int(request.player_index)
-	if state.players[player_index].deck.is_empty() and state.players[player_index].deck_template.is_empty():
+	if not game._has_available_deck_cards_in_state(state, player_index):
 		return []
 	var targets: Array = []
 	var card: Dictionary = _get_deck_preview_card(state, player_index, true)
@@ -707,7 +768,7 @@ func _get_deck_face_down_play_cells(state: Dictionary, request: Dictionary) -> A
 
 func _get_top_deck_open_play_cells(state: Dictionary, request: Dictionary) -> Array:
 	var player_index: int = int(request.player_index)
-	if state.players[player_index].deck.is_empty() and state.players[player_index].deck_template.is_empty():
+	if not game._has_available_deck_cards_in_state(state, player_index):
 		return []
 	var targets: Array = []
 	var card: Dictionary = _get_deck_preview_card(state, player_index, false)
@@ -745,7 +806,7 @@ func _get_move_own_base_anywhere_cells(state: Dictionary, request: Dictionary) -
 	for y in range(game.GRID_HEIGHT):
 		for x in range(game.GRID_WIDTH):
 			var cell: Vector2i = Vector2i(x, y)
-			if cell == own_base or cell == opponent_base:
+			if cell == own_base or cell == opponent_base or _are_unblocked_neighbors(state, cell, opponent_base):
 				continue
 			targets.append(cell)
 	return targets
@@ -803,41 +864,25 @@ func _get_replay_board_card_cells(state: Dictionary, request: Dictionary) -> Arr
 	if location.is_empty():
 		return []
 	var source_cell: Vector2i = location.cell
-	var stack: Array = game._get_stack_in_state(state, source_cell)
 	var card_index: int = int(location.index)
 	var preview_state: Dictionary = game._duplicate_game_state(state)
 	var preview_stack: Array = game._get_stack_in_state(preview_state, source_cell)
 	var preview_card: Dictionary = preview_stack[card_index]
 	preview_stack.remove_at(card_index)
 	preview_card.face_down = false
+	var preview_supply_result: Dictionary = game.supply_logic.calculate_supply_result(
+		preview_state,
+		int(preview_card.owner)
+	)
 	var targets: Array = []
 	for y in range(game.GRID_HEIGHT):
 		for x in range(game.GRID_WIDTH):
 			var cell: Vector2i = Vector2i(x, y)
 			if cell == source_cell:
 				continue
-			if _can_replay_volk_to_cell(preview_state, preview_card, cell):
+			if game._can_play_card_in_state(preview_state, preview_card, cell, preview_supply_result):
 				targets.append(cell)
 	return targets
-
-
-func _can_replay_volk_to_cell(state: Dictionary, card: Dictionary, cell: Vector2i) -> bool:
-	if not game._is_inside(cell):
-		return false
-	var player_index: int = int(card.owner)
-	var base_owner: int = game._get_base_owner_in_state(state, cell)
-	if base_owner == player_index:
-		return false
-	if base_owner == game._opponent(player_index):
-		return true
-	var stack: Array = game._get_stack_in_state(state, cell)
-	if stack.is_empty():
-		return true
-	if game._top_owner_in_state(state, cell) == player_index:
-		return true
-	if game._top_face_down_in_state(state, cell):
-		return true
-	return game.power_logic.can_attack_card(state, card, cell)
 
 
 func _get_move_covered_stack_to_neighbor_cells(state: Dictionary, request: Dictionary) -> Array:
@@ -913,6 +958,8 @@ func _get_primanka_pull_cells(state: Dictionary, request: Dictionary) -> Array:
 		if game._has_barrier_in_state(state, source_cell, cell):
 			continue
 		if game._top_owner_in_state(state, cell) != opponent_index:
+			continue
+		if request.has("remaining_card_ids") and not Array(request.remaining_card_ids).has(int(game._get_stack_in_state(state, cell).back().id)):
 			continue
 		targets.append(cell)
 	return targets
@@ -1039,21 +1086,11 @@ func _find_card_cell_and_index_in_board(state: Dictionary, card_id: int) -> Dict
 
 
 func _get_covered_own_card_info(state: Dictionary, request: Dictionary) -> Dictionary:
-	var source_cell: Vector2i = request.source_cell
-	var source_stack: Array = game._get_stack_in_state(state, source_cell)
-	var source_index: int = game._find_card_index_in_array(source_stack, int(request.card_id))
-	if source_index <= 0:
+	var stack: Array = game._get_stack_in_state(state, request.source_cell)
+	var index: int = game._find_card_index_in_array(stack, int(request.card_id)) - 1
+	if index < 0 or int(stack[index].owner) != int(request.player_index):
 		return {}
-	var player_index: int = int(request.player_index)
-	for index in range(source_index - 1, -1, -1):
-		var card: Dictionary = source_stack[index]
-		if int(card.owner) == player_index:
-			return {
-				"cell": source_cell,
-				"index": index
-			}
-	return {}
-
+	return {"cell": request.source_cell, "index": index}
 
 func _target_cards_have_card_id(targets: Array, card_id: int) -> bool:
 	for target in targets:
@@ -1116,7 +1153,7 @@ func apply_hand_pick(state: Dictionary, request: Dictionary, hand_index: int) ->
 		return result
 	var kind: String = String(request.get("kind", ""))
 	if kind == "avtopoezd_replace":
-		_apply_avtopoezd_replace_with_hand_index(state, player_index, request.source_cell, hand_index)
+		_apply_avtopoezd_replace_with_hand_index(state, player_index, request.source_cell, hand_index, int(request.get("selected_card_id", -1)))
 	else:
 		return result
 	result.status = game.RESULT_OK
@@ -1129,12 +1166,17 @@ func _apply_avtopoezd_replace_with_hand_index(
 	state: Dictionary,
 	player_index: int,
 	cell: Vector2i,
-	hand_index: int
+	hand_index: int,
+	selected_card_id: int = -1
 ) -> void:
 	var stack: Array = game._get_stack_in_state(state, cell)
 	if stack.is_empty():
 		return
-	var old_card: Dictionary = stack.pop_back()
+	var old_index: int = stack.size() - 1 if selected_card_id < 0 else game._find_card_index_in_array(stack, selected_card_id)
+	if old_index < 0:
+		return
+	var old_card: Dictionary = stack[old_index]
+	stack.remove_at(old_index)
 	game._return_card_to_hand_in_state(state, player_index, old_card, {
 		"type": "board",
 		"cell": cell,
@@ -1145,7 +1187,8 @@ func _apply_avtopoezd_replace_with_hand_index(
 	hand.remove_at(hand_index)
 	new_card.owner = player_index
 	new_card.face_down = false
-	stack.append(new_card)
+	stack.insert(old_index, new_card)
+	game.tabletop_logic.resolve_continuous(state)
 	game._record_action_event_in_state(state, {
 		"type": "play_card",
 		"card_id": int(new_card.id),
@@ -1197,18 +1240,20 @@ func _apply_move_adjacent_top_to_neighbor_target(state: Dictionary, request: Dic
 
 
 func _apply_primanka_pull_target(state: Dictionary, request: Dictionary, target: Vector2i) -> Dictionary:
-	var source_cell: Vector2i = request.source_cell
-	var source_stack: Array = game._get_stack_in_state(state, source_cell)
-	var target_stack: Array = game._get_stack_in_state(state, target)
-	if source_stack.is_empty() or target_stack.is_empty():
-		return game._make_action_result(game.RESULT_INVALID, "empty_target")
-	var pulled_card: Dictionary = target_stack.pop_back()
-	var primanka_index: int = source_stack.size() - 1
-	source_stack.insert(primanka_index, pulled_card)
+	var next: Dictionary = request.duplicate(true)
+	if not next.has("remaining_card_ids"):
+		next.remaining_card_ids = []
+		for cell in _get_primanka_pull_cells(state, request):
+			next.remaining_card_ids.append(int(game._get_stack_in_state(state, cell).back().id))
+	var pulled: Dictionary = game._get_stack_in_state(state, target).pop_back()
+	game._get_stack_in_state(state, request.source_cell).append(pulled)
+	next.remaining_card_ids.erase(int(pulled.id))
 	game._record_layout_stack_event_in_state(state, target)
-	game._record_layout_stack_event_in_state(state, source_cell)
-	return _make_pending_sequence_result(request, [])
-
+	game._record_layout_stack_event_in_state(state, request.source_cell)
+	game.tabletop_logic.resolve_continuous(state)
+	if _get_primanka_pull_cells(state, next).is_empty():
+		return _make_ok_target_result()
+	return _make_pending_sequence_result(next, [])
 
 func _apply_vihr_swap_neighbor_target(state: Dictionary, request: Dictionary, target: Vector2i) -> Dictionary:
 	var selected_cells: Array = Array(request.get("selected_cells", []))
@@ -1438,6 +1483,7 @@ func _apply_copy_open_top_play_effect_card_target(state: Dictionary, request: Di
 	result.cell = source_cell
 	result.played_card = true
 	result.end_turn = true
+	result.copied_play_card_ids = Array(request.get("copied_play_card_ids", [])).duplicate()
 	game.play_effect_logic.apply_copied_card_play_effects(state, result, copied_card)
 	if game._result_has_pending_action(result):
 		result.end_turn = false
@@ -1875,6 +1921,8 @@ func _get_optional_remove_barrier_choices(state: Dictionary, request: Dictionary
 
 func _barrier_choice_keeps_bases_connected(state: Dictionary, add_edges: Array, remove_edges: Array) -> bool:
 	var preview_state: Dictionary = game._duplicate_game_state(state)
+	if _get_barrier_edges(state).size() + add_edges.size() - remove_edges.size() > 12:
+		return false
 	for edge in remove_edges:
 		_remove_barrier_from_state(preview_state, edge[0], edge[1])
 	for edge in add_edges:
@@ -1975,3 +2023,10 @@ func _remove_barrier_removal_options_for_player(state: Dictionary, player_index:
 			continue
 		kept.append(option)
 	state.barrier_removal_options = kept
+
+
+func apply_target(state: Dictionary, request: Dictionary, target: Vector2i) -> Dictionary:
+	var result: Dictionary = _apply_target_effect(state, request, target)
+	if result.status == game.RESULT_OK:
+		game.tabletop_logic.resolve_continuous(state)
+	return result

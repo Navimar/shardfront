@@ -1,0 +1,1370 @@
+{
+  "schema_version": 3,
+  "widgets": [
+    {
+      "type": "cardPile",
+      "spreadDirection": "up",
+      "layoutType": "spread",
+      "height": 152,
+      "x": 1236.2,
+      "id": "8becb4e3-3d73-4ad8-b550-bd5afdac261e",
+      "z": 548249,
+      "width": 152,
+      "y": 8.6,
+      "allowedDecks": [
+        "2e2fa71b-7cfa-4c83-ba0a-a7903217bb05",
+        "25bc05f3-0279-4f69-877a-403a73a44007",
+        "a3e74743-f848-4222-9af8-ac5067d24472"
+      ],
+      "dragging": null
+    },
+    {
+      "layoutType": "spread",
+      "type": "cardPile",
+      "spreadDirection": "up",
+      "width": 152,
+      "height": 152,
+      "z": 548241,
+      "y": 183.1,
+      "x": 1068.3,
+      "allowedDecks": [
+        "a3e74743-f848-4222-9af8-ac5067d24472",
+        "2e2fa71b-7cfa-4c83-ba0a-a7903217bb05",
+        "25bc05f3-0279-4f69-877a-403a73a44007"
+      ],
+      "id": "2841e3f4-920a-4326-95b9-42809520b56e",
+      "dragging": null
+    },
+    {
+      "height": 152,
+      "id": "0eec7d8c-ea90-4d1c-b2da-01e4bc73cf34",
+      "x": 217.7,
+      "draggingType": null,
+      "y": 11.3,
+      "spreadDirection": "up",
+      "type": "cardPile",
+      "width": 152,
+      "z": 548255,
+      "layoutType": "spread",
+      "allowedDecks": [
+        "2e2fa71b-7cfa-4c83-ba0a-a7903217bb05",
+        "25bc05f3-0279-4f69-877a-403a73a44007",
+        "a3e74743-f848-4222-9af8-ac5067d24472"
+      ],
+      "dragging": null
+    },
+    {
+      "type": "cardPile",
+      "spreadDirection": "up",
+      "height": 152,
+      "z": 548258,
+      "y": 361,
+      "width": 152,
+      "draggingType": null,
+      "x": 896.2,
+      "layoutType": "spread",
+      "allowedDecks": [
+        "a3e74743-f848-4222-9af8-ac5067d24472",
+        "2e2fa71b-7cfa-4c83-ba0a-a7903217bb05",
+        "25bc05f3-0279-4f69-877a-403a73a44007"
+      ],
+      "id": "b11e6fcf-6eb0-44af-8219-548df4925b52",
+      "dragging": null
+    },
+    {
+      "height": 152,
+      "draggingType": null,
+      "x": 216.8,
+      "id": "2c807a8d-f2f5-4ed1-9a29-452944917f22",
+      "y": 360.4,
+      "spreadDirection": "up",
+      "type": "cardPile",
+      "width": 152,
+      "z": 548262,
+      "layoutType": "spread",
+      "allowedDecks": [
+        "a3e74743-f848-4222-9af8-ac5067d24472",
+        "2e2fa71b-7cfa-4c83-ba0a-a7903217bb05",
+        "25bc05f3-0279-4f69-877a-403a73a44007"
+      ],
+      "dragging": null
+    },
+    {
+      "type": "cardPile",
+      "spreadDirection": "up",
+      "layoutType": "spread",
+      "height": 152,
+      "z": 548240,
+      "width": 152,
+      "draggingType": null,
+      "x": 896.5,
+      "y": 184,
+      "allowedDecks": [
+        "a3e74743-f848-4222-9af8-ac5067d24472",
+        "2e2fa71b-7cfa-4c83-ba0a-a7903217bb05",
+        "25bc05f3-0279-4f69-877a-403a73a44007"
+      ],
+      "id": "38af70ed-2269-4666-b82c-0222c8271231",
+      "dragging": null
+    },
+    {
+      "faceTemplate": {
+        "includeBorder": "heavy",
+        "includeRadius": false,
+        "objects": [
+          {
+            "type": "image",
+            "x": 0,
+            "y": 0,
+            "w": 150,
+            "h": 24,
+            "valueType": "static",
+            "value": "",
+            "color": "rgb(196,191,36)"
+          }
+        ]
+      },
+      "type": "cardDeck",
+      "cardWidth": 150,
+      "snapAngles": [
+        0,
+        90,
+        180,
+        270
+      ],
+      "backTemplate": null,
+      "parent": "9e4ede25-abc7-4212-8f41-6a8fcfec0bff",
+      "autoShuffle": true,
+      "x": 1452.1499999999999,
+      "y": 39.3,
+      "z": 49,
+      "cardTypes": {},
+      "showUnflipped": true,
+      "id": "e413a7cf-1afd-4053-bf62-3d829b42e7c8",
+      "owner": null,
+      "cardHeight": 24,
+      "dragging": null
+    },
+    {
+      "layoutType": "spread",
+      "spreadDirection": "up",
+      "type": "cardPile",
+      "width": 152,
+      "height": 152,
+      "z": 548276,
+      "y": 710.1,
+      "x": 216.5,
+      "allowedDecks": [
+        "a3e74743-f848-4222-9af8-ac5067d24472",
+        "2e2fa71b-7cfa-4c83-ba0a-a7903217bb05",
+        "25bc05f3-0279-4f69-877a-403a73a44007"
+      ],
+      "id": "bc7a4aaa-2e19-451a-bcb6-6c8380e53091",
+      "dragging": null
+    },
+    {
+      "faceTemplate": {
+        "includeBorder": "heavy",
+        "includeRadius": true,
+        "objects": [
+          {
+            "type": "image",
+            "x": 0,
+            "y": 0,
+            "w": 140,
+            "h": 93.44827586206898,
+            "color": "rgb(237,235,235)",
+            "valueType": "dynamic",
+            "value": "image"
+          },
+          {
+            "type": "image",
+            "x": 0,
+            "y": 0,
+            "w": 27.35632183908044,
+            "h": 33.79310344827585,
+            "valueType": "static",
+            "value": "",
+            "color": "rgba(135,164,210,0.71)"
+          },
+          {
+            "type": "text",
+            "x": 2.183908045977006,
+            "y": 0,
+            "w": 22.298850574712635,
+            "fontSize": 36,
+            "valueType": "dynamic",
+            "value": "c",
+            "textAlign": "center",
+            "textFont": "interstate"
+          },
+          {
+            "type": "image",
+            "x": 0,
+            "y": 80.45977011494253,
+            "w": 140,
+            "h": 21.83908045977011,
+            "valueType": "static",
+            "value": "package://userassets/ec29a907-a011-48b6-a48b-59b3264015c1.jpg",
+            "color": "rgb(255,255,255)"
+          },
+          {
+            "type": "image",
+            "x": 0,
+            "y": 102.0689655172414,
+            "w": 140,
+            "h": 19.77011494252873,
+            "valueType": "static",
+            "value": "",
+            "color": "rgb(171,191,224)"
+          },
+          {
+            "type": "text",
+            "x": 5.862068965517241,
+            "y": 102.18390804597702,
+            "w": 111.72413793103449,
+            "fontSize": 18,
+            "valueType": "dynamic",
+            "value": "name",
+            "textAlign": "center",
+            "textFont": ""
+          },
+          {
+            "type": "text",
+            "x": 1.2643678160919525,
+            "y": 81.0344827586207,
+            "w": 137.93103448275866,
+            "fontSize": 6,
+            "valueType": "dynamic",
+            "value": "text",
+            "textAlign": "left",
+            "textFont": null
+          },
+          {
+            "type": "image",
+            "x": 117.4712643678161,
+            "y": 102.0689655172414,
+            "w": 22.528735632183896,
+            "h": 17.70114942528734,
+            "valueType": "static",
+            "value": "",
+            "color": "rgba(135,164,210,0.69)"
+          },
+          {
+            "type": "text",
+            "x": 117.47126436781609,
+            "y": 102.87356321839081,
+            "w": 22.298850574712638,
+            "fontSize": 16,
+            "valueType": "dynamic",
+            "value": "s",
+            "textAlign": "center",
+            "textFont": null
+          }
+        ]
+      },
+      "cardWidth": 140,
+      "type": "cardDeck",
+      "backTemplate": {
+        "includeBorder": "heavy",
+        "includeRadius": true,
+        "objects": [
+          {
+            "type": "image",
+            "x": 0,
+            "y": 0,
+            "w": 140,
+            "h": 120,
+            "valueType": "static",
+            "value": "package://userassets/f01992f6-f692-49b9-9f5c-9f2830fea8c1.jpeg",
+            "color": "rgb(171,191,224)"
+          }
+        ]
+      },
+      "parent": "7fc1bee7-faf1-4902-aa2b-2ad256dd8045",
+      "x": 67.2,
+      "draggingType": null,
+      "autoShuffle": true,
+      "y": 471,
+      "enlarge": "normal",
+      "z": 547771,
+      "cardTypes": {},
+      "showUnflipped": true,
+      "owner": null,
+      "onRemoveFromHand": null,
+      "id": "2e2fa71b-7cfa-4c83-ba0a-a7903217bb05",
+      "cardHeight": 120,
+      "dragging": null
+    },
+    {
+      "type": "cardPile",
+      "spreadDirection": "up",
+      "layoutType": "spread",
+      "height": 152,
+      "x": 385,
+      "id": "47c641c9-b6bf-4483-be79-41a5eb1194df",
+      "z": 548275,
+      "width": 152,
+      "y": 710.4,
+      "allowedDecks": [
+        "a3e74743-f848-4222-9af8-ac5067d24472",
+        "2e2fa71b-7cfa-4c83-ba0a-a7903217bb05",
+        "25bc05f3-0279-4f69-877a-403a73a44007"
+      ],
+      "dragging": null
+    },
+    {
+      "spreadDirection": "up",
+      "type": "cardPile",
+      "height": 152,
+      "y": 537.7,
+      "z": 548267,
+      "width": 152,
+      "draggingType": null,
+      "x": 559.2,
+      "layoutType": "spread",
+      "allowedDecks": [
+        "a3e74743-f848-4222-9af8-ac5067d24472",
+        "2e2fa71b-7cfa-4c83-ba0a-a7903217bb05",
+        "25bc05f3-0279-4f69-877a-403a73a44007"
+      ],
+      "id": "790bcc14-685d-4581-8ee3-0aa7920a51a1",
+      "dragging": null
+    },
+    {
+      "faceTemplate": {
+        "includeBorder": "heavy",
+        "includeRadius": true,
+        "objects": [
+          {
+            "type": "image",
+            "x": 0,
+            "y": 0,
+            "w": 140,
+            "h": 93.44827586206898,
+            "color": "rgb(237,235,235)",
+            "valueType": "dynamic",
+            "value": "image"
+          },
+          {
+            "type": "image",
+            "x": 0,
+            "y": 0,
+            "w": 27.35632183908044,
+            "h": 33.79310344827585,
+            "valueType": "static",
+            "value": "",
+            "color": "rgba(210,135,136,0.71)"
+          },
+          {
+            "type": "text",
+            "x": 2.183908045977006,
+            "y": 0,
+            "w": 22.298850574712635,
+            "fontSize": 36,
+            "valueType": "dynamic",
+            "value": "c",
+            "textAlign": "center",
+            "textFont": "interstate"
+          },
+          {
+            "type": "image",
+            "x": 0,
+            "y": 80.45977011494253,
+            "w": 140,
+            "h": 21.83908045977011,
+            "valueType": "static",
+            "value": "package://userassets/98d825d7-6a74-49d3-9143-8941aebedd0b.jpg",
+            "color": "rgb(255,255,255)"
+          },
+          {
+            "type": "image",
+            "x": 0,
+            "y": 102.0689655172414,
+            "w": 140,
+            "h": 19.77011494252873,
+            "valueType": "static",
+            "value": "",
+            "color": "rgb(224,171,172)"
+          },
+          {
+            "type": "text",
+            "x": 5.862068965517241,
+            "y": 102.18390804597702,
+            "w": 111.72413793103449,
+            "fontSize": 18,
+            "valueType": "dynamic",
+            "value": "name",
+            "textAlign": "center",
+            "textFont": ""
+          },
+          {
+            "type": "text",
+            "x": 1.2643678160919525,
+            "y": 81.0344827586207,
+            "w": 137.93103448275866,
+            "fontSize": 6,
+            "valueType": "dynamic",
+            "value": "text",
+            "textAlign": "left",
+            "textFont": null
+          },
+          {
+            "type": "image",
+            "x": 117.4712643678161,
+            "y": 102.0689655172414,
+            "w": 22.528735632183896,
+            "h": 17.70114942528734,
+            "valueType": "static",
+            "value": "",
+            "color": "rgba(210,135,138,0.69)"
+          },
+          {
+            "type": "text",
+            "x": 117.47126436781609,
+            "y": 102.87356321839081,
+            "w": 22.298850574712638,
+            "fontSize": 16,
+            "valueType": "dynamic",
+            "value": "s",
+            "textAlign": "center",
+            "textFont": null
+          }
+        ]
+      },
+      "cardWidth": 140,
+      "type": "cardDeck",
+      "backTemplate": {
+        "includeBorder": "heavy",
+        "includeRadius": true,
+        "objects": [
+          {
+            "type": "image",
+            "x": 0,
+            "y": 0,
+            "w": 140,
+            "h": 120,
+            "valueType": "static",
+            "value": "package://userassets/64ab1a8a-943c-4fac-b91c-265e92de075d.jpeg",
+            "color": "rgb(171,191,224)"
+          }
+        ]
+      },
+      "parent": "76e8cde2-b920-4457-a1f9-7730a034c3db",
+      "x": 67,
+      "draggingType": null,
+      "autoShuffle": true,
+      "z": 1102582,
+      "enlarge": "normal",
+      "y": 690.1,
+      "cardTypes": {},
+      "showUnflipped": true,
+      "onRemoveFromHand": null,
+      "id": "25bc05f3-0279-4f69-877a-403a73a44007",
+      "cardHeight": 120,
+      "owner": null,
+      "dragging": null
+    },
+    {
+      "type": "cardPile",
+      "spreadDirection": "up",
+      "layoutType": "spread",
+      "height": 152,
+      "x": 218.9,
+      "id": "e0aad623-cff1-4688-8f47-a8b0b37dd38d",
+      "z": 548269,
+      "width": 152,
+      "y": 538.3,
+      "allowedDecks": [
+        "a3e74743-f848-4222-9af8-ac5067d24472",
+        "2e2fa71b-7cfa-4c83-ba0a-a7903217bb05",
+        "25bc05f3-0279-4f69-877a-403a73a44007"
+      ],
+      "dragging": null
+    },
+    {
+      "type": "cardPile",
+      "spreadDirection": "up",
+      "layoutType": "spread",
+      "height": 152,
+      "x": 895.9,
+      "id": "2067d3de-c370-481a-8392-4300dea19f03",
+      "z": 548272,
+      "width": 152,
+      "y": 710.7,
+      "allowedDecks": [
+        "a3e74743-f848-4222-9af8-ac5067d24472",
+        "2e2fa71b-7cfa-4c83-ba0a-a7903217bb05",
+        "25bc05f3-0279-4f69-877a-403a73a44007"
+      ],
+      "dragging": null
+    },
+    {
+      "height": 152,
+      "x": 1237.4,
+      "id": "6a8dbbac-9e77-479d-b7b2-3528ee3d6256",
+      "draggingType": null,
+      "y": 535.6,
+      "spreadDirection": "up",
+      "type": "cardPile",
+      "width": 152,
+      "z": 548263,
+      "layoutType": "spread",
+      "allowedDecks": [
+        "a3e74743-f848-4222-9af8-ac5067d24472",
+        "2e2fa71b-7cfa-4c83-ba0a-a7903217bb05",
+        "25bc05f3-0279-4f69-877a-403a73a44007"
+      ],
+      "dragging": null
+    },
+    {
+      "type": "cardPile",
+      "spreadDirection": "up",
+      "layoutType": "spread",
+      "height": 152,
+      "x": 1235.3,
+      "id": "f6566e23-7a7c-4000-89c0-a3c79c24a52f",
+      "z": 548256,
+      "width": 152,
+      "y": 357.7,
+      "allowedDecks": [
+        "a3e74743-f848-4222-9af8-ac5067d24472",
+        "2e2fa71b-7cfa-4c83-ba0a-a7903217bb05",
+        "25bc05f3-0279-4f69-877a-403a73a44007"
+      ],
+      "dragging": null
+    },
+    {
+      "type": "cardPile",
+      "spreadDirection": "up",
+      "layoutType": "spread",
+      "height": 152,
+      "x": 556.8,
+      "id": "45207d17-7dca-4f46-8919-bd36d36df72c",
+      "z": 548274,
+      "width": 152,
+      "y": 709.5,
+      "allowedDecks": [
+        "a3e74743-f848-4222-9af8-ac5067d24472",
+        "2e2fa71b-7cfa-4c83-ba0a-a7903217bb05",
+        "25bc05f3-0279-4f69-877a-403a73a44007"
+      ],
+      "dragging": null
+    },
+    {
+      "spreadDirection": "up",
+      "type": "cardPile",
+      "height": 152,
+      "y": 183.4,
+      "z": 548238,
+      "width": 152,
+      "draggingType": null,
+      "x": 217.1,
+      "layoutType": "spread",
+      "allowedDecks": [
+        "a3e74743-f848-4222-9af8-ac5067d24472",
+        "2e2fa71b-7cfa-4c83-ba0a-a7903217bb05",
+        "25bc05f3-0279-4f69-877a-403a73a44007"
+      ],
+      "id": "5ec8366d-2496-492f-acb4-bee03791b97d",
+      "dragging": null
+    },
+    {
+      "type": "cardPile",
+      "spreadDirection": "up",
+      "layoutType": "spread",
+      "height": 152,
+      "x": 386.2,
+      "id": "9fbbdebe-2cd7-43ef-ae9f-e570f1c9e908",
+      "z": 548254,
+      "width": 152,
+      "y": 11.6,
+      "allowedDecks": [
+        "25bc05f3-0279-4f69-877a-403a73a44007",
+        "2e2fa71b-7cfa-4c83-ba0a-a7903217bb05",
+        "a3e74743-f848-4222-9af8-ac5067d24472"
+      ],
+      "dragging": null
+    },
+    {
+      "faceTemplate": {
+        "includeBorder": "heavy",
+        "includeRadius": true,
+        "objects": [
+          {
+            "type": "image",
+            "x": 0,
+            "y": 0,
+            "w": 140,
+            "h": 140,
+            "color": "white",
+            "valueType": "dynamic",
+            "value": "image"
+          }
+        ]
+      },
+      "type": "cardDeck",
+      "cardWidth": 140,
+      "parent": null,
+      "backTemplate": null,
+      "autoShuffle": true,
+      "x": 1451.6,
+      "z": 36,
+      "enlarge": null,
+      "y": 412.5,
+      "cardTypes": {},
+      "showUnflipped": true,
+      "id": "a3e74743-f848-4222-9af8-ac5067d24472",
+      "owner": null,
+      "cardHeight": 140,
+      "dragging": null
+    },
+    {
+      "type": "cardPile",
+      "layoutType": "spread",
+      "spreadDirection": "up",
+      "height": 152,
+      "x": 1067.7,
+      "id": "84972ff5-0de4-4981-8108-af15aeefa1f1",
+      "z": 548271,
+      "width": 152,
+      "y": 709.8,
+      "allowedDecks": [
+        "a3e74743-f848-4222-9af8-ac5067d24472",
+        "2e2fa71b-7cfa-4c83-ba0a-a7903217bb05",
+        "25bc05f3-0279-4f69-877a-403a73a44007"
+      ],
+      "dragging": null
+    },
+    {
+      "id": "hand",
+      "type": "hand",
+      "x": 242.3,
+      "y": 873.2,
+      "z": 1,
+      "height": 126.8,
+      "width": 1124.2,
+      "dragging": null
+    },
+    {
+      "height": 152,
+      "x": 1235.6,
+      "id": "9296af28-04ba-42f6-9830-7aa8c0cd0429",
+      "draggingType": null,
+      "y": 180.7,
+      "spreadDirection": "up",
+      "type": "cardPile",
+      "width": 152,
+      "z": 548242,
+      "layoutType": "spread",
+      "allowedDecks": [
+        "a3e74743-f848-4222-9af8-ac5067d24472",
+        "2e2fa71b-7cfa-4c83-ba0a-a7903217bb05",
+        "25bc05f3-0279-4f69-877a-403a73a44007"
+      ],
+      "dragging": null
+    },
+    {
+      "layoutType": "spread",
+      "type": "cardPile",
+      "spreadDirection": "up",
+      "width": 152,
+      "height": 152,
+      "z": 548266,
+      "y": 536.8,
+      "x": 729.5,
+      "allowedDecks": [
+        "a3e74743-f848-4222-9af8-ac5067d24472",
+        "2e2fa71b-7cfa-4c83-ba0a-a7903217bb05",
+        "25bc05f3-0279-4f69-877a-403a73a44007"
+      ],
+      "id": "40de4b50-65a2-4325-8c0c-74f897592ac0",
+      "dragging": null
+    },
+    {
+      "layoutType": "spread",
+      "spreadDirection": "up",
+      "type": "cardPile",
+      "width": 152,
+      "height": 152,
+      "y": 181.9,
+      "z": 548239,
+      "x": 727.7,
+      "allowedDecks": [
+        "a3e74743-f848-4222-9af8-ac5067d24472",
+        "2e2fa71b-7cfa-4c83-ba0a-a7903217bb05",
+        "25bc05f3-0279-4f69-877a-403a73a44007"
+      ],
+      "id": "43646e47-5aeb-4d24-a550-11c332879f80",
+      "dragging": null
+    },
+    {
+      "type": "seat",
+      "seatIndex": 0,
+      "id": "96a0890e-936e-4617-a544-d487ebef6439",
+      "x": 23.6,
+      "y": 914,
+      "z": 1048,
+      "seatedUser": null,
+      "seatInitials": null,
+      "seatLabel": null,
+      "seatColor": "blue",
+      "draggingType": null,
+      "dragging": null
+    },
+    {
+      "type": "cardPile",
+      "spreadDirection": "up",
+      "layoutType": "spread",
+      "height": 152,
+      "x": 1068.9,
+      "id": "ad40ca44-34b7-42ee-bb7f-cf2e23f1487a",
+      "z": 548250,
+      "width": 152,
+      "y": 11,
+      "allowedDecks": [
+        "2e2fa71b-7cfa-4c83-ba0a-a7903217bb05",
+        "25bc05f3-0279-4f69-877a-403a73a44007",
+        "a3e74743-f848-4222-9af8-ac5067d24472"
+      ],
+      "dragging": null
+    },
+    {
+      "type": "cardPile",
+      "id": "37f537a3-9770-4a9b-b64c-da1feec92491",
+      "x": 1415.6,
+      "y": 542.5,
+      "z": 966583,
+      "width": 152,
+      "height": 132,
+      "allowedDecks": null,
+      "hasShuffleButton": true,
+      "dragging": null
+    },
+    {
+      "type": "cardPile",
+      "id": "7fc1bee7-faf1-4902-aa2b-2ad256dd8045",
+      "x": 34.2,
+      "y": 448,
+      "z": 547873,
+      "width": 152,
+      "height": 132,
+      "allowedDecks": [
+        "2e2fa71b-7cfa-4c83-ba0a-a7903217bb05"
+      ],
+      "hasShuffleButton": false,
+      "draggingType": null,
+      "dragging": null
+    },
+    {
+      "type": "cardPile",
+      "spreadDirection": "up",
+      "layoutType": "spread",
+      "height": 152,
+      "x": 1235,
+      "id": "b4d1d4d9-3e70-4eff-b960-06a343e1e181",
+      "z": 548270,
+      "width": 152,
+      "y": 707.4,
+      "allowedDecks": [
+        "a3e74743-f848-4222-9af8-ac5067d24472",
+        "2e2fa71b-7cfa-4c83-ba0a-a7903217bb05",
+        "25bc05f3-0279-4f69-877a-403a73a44007"
+      ],
+      "dragging": null
+    },
+    {
+      "type": "cardPile",
+      "spreadDirection": "up",
+      "height": 152,
+      "y": 359.8,
+      "z": 548260,
+      "width": 152,
+      "draggingType": null,
+      "x": 557.1,
+      "layoutType": "spread",
+      "allowedDecks": [
+        "a3e74743-f848-4222-9af8-ac5067d24472",
+        "2e2fa71b-7cfa-4c83-ba0a-a7903217bb05",
+        "25bc05f3-0279-4f69-877a-403a73a44007"
+      ],
+      "id": "7722a9ec-db42-4376-8262-b06556b3afd1",
+      "dragging": null
+    },
+    {
+      "type": "cardPile",
+      "id": "9e4ede25-abc7-4212-8f41-6a8fcfec0bff",
+      "x": 1404.3,
+      "y": 61.3,
+      "z": 18010,
+      "width": 181.7,
+      "height": 42,
+      "allowedDecks": [
+        "e413a7cf-1afd-4053-bf62-3d829b42e7c8"
+      ],
+      "hasShuffleButton": true,
+      "draggingType": null,
+      "dragging": null
+    },
+    {
+      "type": "cardPile",
+      "spreadDirection": "up",
+      "layoutType": "spread",
+      "height": 152,
+      "x": 558,
+      "id": "500abc38-af5b-4ee9-ad55-7ec3824390be",
+      "z": 548253,
+      "width": 152,
+      "y": 10.7,
+      "allowedDecks": [
+        "a3e74743-f848-4222-9af8-ac5067d24472",
+        "2e2fa71b-7cfa-4c83-ba0a-a7903217bb05",
+        "25bc05f3-0279-4f69-877a-403a73a44007"
+      ],
+      "dragging": null
+    },
+    {
+      "layoutType": "spread",
+      "spreadDirection": "up",
+      "type": "cardPile",
+      "width": 152,
+      "height": 152,
+      "y": 538.9,
+      "z": 548265,
+      "x": 898.3,
+      "allowedDecks": [
+        "a3e74743-f848-4222-9af8-ac5067d24472",
+        "2e2fa71b-7cfa-4c83-ba0a-a7903217bb05",
+        "25bc05f3-0279-4f69-877a-403a73a44007"
+      ],
+      "id": "13d30642-6ce1-436a-bea0-ec4b78300937",
+      "dragging": null
+    },
+    {
+      "hasShuffleButton": false,
+      "type": "cardPile",
+      "width": 152,
+      "height": 132,
+      "y": 667.1,
+      "z": 547872,
+      "draggingType": null,
+      "x": 34,
+      "allowedDecks": [
+        "5acfd685-5240-4cb6-845d-2462468e7270",
+        "25bc05f3-0279-4f69-877a-403a73a44007"
+      ],
+      "id": "76e8cde2-b920-4457-a1f9-7730a034c3db",
+      "dragging": null
+    },
+    {
+      "type": "automationButton",
+      "clickRoutine": {
+        "steps": [
+          {
+            "id": "32040bd8-d686-4a0e-80c7-298180dc2af5",
+            "func": "MOVE_CARDS_BETWEEN_HOLDERS",
+            "args": {
+              "objects": {
+                "type": "query",
+                "queryWidgetTypes": [
+                  "card",
+                  "piece"
+                ],
+                "collections": [
+                  "8054846c-142e-4976-988c-a93d482b7f56"
+                ],
+                "holders": []
+              },
+              "to": {
+                "type": "literal",
+                "value": []
+              },
+              "quantity": {
+                "type": "literal",
+                "value": "all"
+              },
+              "moveFlip": {
+                "type": "literal",
+                "value": "faceUp"
+              }
+            }
+          },
+          {
+            "id": "307c05bc-ff75-4e03-847b-0f7a1456df4c",
+            "func": "MOVE_CARDS_BETWEEN_HOLDERS",
+            "args": {
+              "objects": {
+                "type": "query",
+                "queryWidgetTypes": [
+                  "card",
+                  "piece"
+                ],
+                "collections": [
+                  "e123e813-4496-4eb5-b970-d28228a86d6a"
+                ]
+              },
+              "to": {
+                "type": "literal",
+                "value": []
+              },
+              "quantity": {
+                "type": "literal",
+                "value": "all"
+              },
+              "moveFlip": {
+                "type": "literal",
+                "value": "faceUp"
+              }
+            }
+          },
+          {
+            "id": "cb10a93c-0aff-4881-8da2-3e04194189a9",
+            "func": "MOVE_CARDS_BETWEEN_HOLDERS",
+            "args": {
+              "objects": {
+                "type": "query",
+                "queryWidgetTypes": [
+                  "card",
+                  "piece"
+                ],
+                "collections": [
+                  "2e2fa71b-7cfa-4c83-ba0a-a7903217bb05"
+                ]
+              },
+              "quantity": {
+                "type": "literal",
+                "value": "all"
+              },
+              "to": {
+                "type": "literal",
+                "value": [
+                  "7fc1bee7-faf1-4902-aa2b-2ad256dd8045"
+                ]
+              },
+              "moveFlip": {
+                "type": "literal",
+                "value": "faceDown"
+              }
+            }
+          },
+          {
+            "id": "2ce5ce1f-c29d-4b74-a33f-e6b78a2b48e7",
+            "func": "SHUFFLE_CARDS",
+            "args": {
+              "holders": {
+                "type": "literal",
+                "value": [
+                  "7fc1bee7-faf1-4902-aa2b-2ad256dd8045"
+                ]
+              }
+            }
+          },
+          {
+            "id": "2201dde3-e9b7-4905-b189-4ad3351f5e4f",
+            "func": "MOVE_CARDS_BETWEEN_HOLDERS",
+            "args": {
+              "objects": {
+                "type": "query",
+                "queryWidgetTypes": [
+                  "card",
+                  "piece"
+                ],
+                "collections": [
+                  "5acfd685-5240-4cb6-845d-2462468e7270",
+                  "25bc05f3-0279-4f69-877a-403a73a44007"
+                ]
+              },
+              "to": {
+                "type": "literal",
+                "value": [
+                  "76e8cde2-b920-4457-a1f9-7730a034c3db"
+                ]
+              },
+              "quantity": {
+                "type": "literal",
+                "value": "all"
+              },
+              "moveFlip": {
+                "type": "literal",
+                "value": "faceDown"
+              }
+            }
+          },
+          {
+            "id": "0155f916-d886-4261-8c57-e46d8a9f00a2",
+            "func": "SHUFFLE_CARDS",
+            "args": {
+              "holders": {
+                "type": "literal",
+                "value": [
+                  "76e8cde2-b920-4457-a1f9-7730a034c3db"
+                ]
+              }
+            }
+          },
+          {
+            "id": "55fc2382-1caf-45c9-96da-061bf03cc568",
+            "func": "MOVE_CARDS_BETWEEN_HOLDERS",
+            "args": {
+              "objects": {
+                "type": "query",
+                "queryWidgetTypes": [
+                  "card",
+                  "piece"
+                ],
+                "collections": [
+                  "e413a7cf-1afd-4053-bf62-3d829b42e7c8"
+                ]
+              },
+              "quantity": {
+                "type": "literal",
+                "value": "all"
+              },
+              "to": {
+                "type": "literal",
+                "value": [
+                  "9e4ede25-abc7-4212-8f41-6a8fcfec0bff"
+                ]
+              }
+            }
+          },
+          {
+            "id": "910372e8-ce56-4033-8ea9-9c0b1109e334",
+            "func": "MOVE_CARDS_BETWEEN_HOLDERS",
+            "args": {
+              "objects": {
+                "type": "query",
+                "queryWidgetTypes": [
+                  "card",
+                  "piece"
+                ],
+                "collections": [
+                  "a3e74743-f848-4222-9af8-ac5067d24472"
+                ]
+              },
+              "to": {
+                "type": "literal",
+                "value": [
+                  "ab17c4b5-b268-4e7f-b351-d65c32dfe8bf",
+                  "ddc01578-2d79-477c-ae85-b59203833795"
+                ]
+              },
+              "quantity": {
+                "type": "literal",
+                "value": "all"
+              }
+            }
+          }
+        ]
+      },
+      "label": "Заново",
+      "id": "e3ce12bd-698e-4108-9ab8-50de56cbd0e7",
+      "x": 1466.7,
+      "draggingType": null,
+      "y": 286,
+      "z": 843114,
+      "dragging": null
+    },
+    {
+      "height": 152,
+      "z": 548264,
+      "type": "cardPile",
+      "spreadDirection": "up",
+      "mainOutlines": [
+        {
+          "size": 1,
+          "offset": 0,
+          "fill": {
+            "type": "color",
+            "color": "rgb(191,116,116)"
+          }
+        }
+      ],
+      "width": 152,
+      "x": 1070.1,
+      "draggingType": null,
+      "y": 538,
+      "layoutType": "spread",
+      "allowedDecks": [
+        "a3e74743-f848-4222-9af8-ac5067d24472",
+        "2e2fa71b-7cfa-4c83-ba0a-a7903217bb05",
+        "25bc05f3-0279-4f69-877a-403a73a44007"
+      ],
+      "id": "ddc01578-2d79-477c-ae85-b59203833795",
+      "dragging": null
+    },
+    {
+      "type": "seat",
+      "seatIndex": 1,
+      "id": "cc8613f0-8913-4a82-8f92-4814b37f0f7a",
+      "x": 1403.1,
+      "y": 914,
+      "z": 1049,
+      "seatedUser": null,
+      "seatInitials": null,
+      "seatLabel": null,
+      "seatColor": "red",
+      "draggingType": null,
+      "dragging": null
+    },
+    {
+      "type": "cardPile",
+      "spreadDirection": "up",
+      "layoutType": "spread",
+      "height": 152,
+      "x": 897.1,
+      "id": "f24d53b4-8caf-43f5-a513-0614c5483d3f",
+      "z": 548251,
+      "width": 152,
+      "y": 11.9,
+      "allowedDecks": [
+        "2e2fa71b-7cfa-4c83-ba0a-a7903217bb05",
+        "25bc05f3-0279-4f69-877a-403a73a44007",
+        "a3e74743-f848-4222-9af8-ac5067d24472"
+      ],
+      "dragging": null
+    },
+    {
+      "type": "cardPile",
+      "spreadDirection": "up",
+      "layoutType": "spread",
+      "height": 152,
+      "z": 548259,
+      "width": 152,
+      "draggingType": null,
+      "x": 727.4,
+      "y": 358.9,
+      "allowedDecks": [
+        "a3e74743-f848-4222-9af8-ac5067d24472",
+        "2e2fa71b-7cfa-4c83-ba0a-a7903217bb05",
+        "25bc05f3-0279-4f69-877a-403a73a44007"
+      ],
+      "id": "7ef5c94a-868c-4184-888b-57ab57b906e7",
+      "dragging": null
+    },
+    {
+      "type": "cardPile",
+      "spreadDirection": "up",
+      "layoutType": "spread",
+      "height": 152,
+      "x": 387.4,
+      "id": "2872bf6a-b4b4-4dea-bd26-8c30793b1878",
+      "z": 548268,
+      "width": 152,
+      "y": 538.6,
+      "allowedDecks": [
+        "a3e74743-f848-4222-9af8-ac5067d24472",
+        "2e2fa71b-7cfa-4c83-ba0a-a7903217bb05",
+        "25bc05f3-0279-4f69-877a-403a73a44007"
+      ],
+      "dragging": null
+    },
+    {
+      "layoutType": "spread",
+      "type": "cardPile",
+      "spreadDirection": "up",
+      "width": 152,
+      "height": 152,
+      "z": 548261,
+      "y": 360.7,
+      "x": 385.3,
+      "allowedDecks": [
+        "a3e74743-f848-4222-9af8-ac5067d24472",
+        "2e2fa71b-7cfa-4c83-ba0a-a7903217bb05",
+        "25bc05f3-0279-4f69-877a-403a73a44007"
+      ],
+      "id": "ee5c6e8a-f363-40cb-b67f-f841de869658",
+      "dragging": null
+    },
+    {
+      "spreadDirection": "up",
+      "type": "cardPile",
+      "height": 152,
+      "z": 548237,
+      "y": 182.8,
+      "width": 152,
+      "draggingType": null,
+      "x": 557.4,
+      "layoutType": "spread",
+      "allowedDecks": [
+        "a3e74743-f848-4222-9af8-ac5067d24472",
+        "2e2fa71b-7cfa-4c83-ba0a-a7903217bb05",
+        "25bc05f3-0279-4f69-877a-403a73a44007"
+      ],
+      "id": "9bfdf0ff-5385-4146-a3fb-4781e6b9065d",
+      "dragging": null
+    },
+    {
+      "type": "cardPile",
+      "spreadDirection": "up",
+      "layoutType": "spread",
+      "height": 152,
+      "x": 728.3,
+      "id": "5baca247-84fb-42dd-850c-f07f7ecf9ad2",
+      "z": 548252,
+      "width": 152,
+      "y": 9.8,
+      "allowedDecks": [
+        "2e2fa71b-7cfa-4c83-ba0a-a7903217bb05",
+        "25bc05f3-0279-4f69-877a-403a73a44007",
+        "a3e74743-f848-4222-9af8-ac5067d24472"
+      ],
+      "dragging": null
+    },
+    {
+      "type": "board",
+      "width": 1189.2,
+      "height": 872.8,
+      "y": 0,
+      "z": 2,
+      "aspectRatio": 1.3623978201634876,
+      "x": 208.6,
+      "draggingType": null,
+      "boardImage": "package://userassets/01f21874-0f9a-4e30-9e91-a112b2dbe05c.jpg",
+      "id": "55e56ed6-e53e-41a7-9674-58d58b05cd3b",
+      "dragging": null
+    },
+    {
+      "layoutType": "spread",
+      "spreadDirection": "up",
+      "type": "cardPile",
+      "width": 152,
+      "height": 152,
+      "y": 360.1,
+      "z": 548257,
+      "x": 1068,
+      "allowedDecks": [
+        "a3e74743-f848-4222-9af8-ac5067d24472",
+        "2e2fa71b-7cfa-4c83-ba0a-a7903217bb05",
+        "25bc05f3-0279-4f69-877a-403a73a44007"
+      ],
+      "id": "c2075769-d6e5-4f52-9df1-184f8634a0a8",
+      "dragging": null
+    },
+    {
+      "draggingType": null,
+      "id": "ab17c4b5-b268-4e7f-b351-d65c32dfe8bf",
+      "x": 385.6,
+      "type": "cardPile",
+      "spreadDirection": "up",
+      "width": 152,
+      "mainOutlines": [
+        {
+          "size": 1,
+          "offset": 0,
+          "fill": {
+            "type": "color",
+            "color": "rgb(149,190,232)"
+          }
+        }
+      ],
+      "height": 152,
+      "y": 183.7,
+      "z": 547678,
+      "layoutType": "spread",
+      "allowedDecks": [
+        "a3e74743-f848-4222-9af8-ac5067d24472",
+        "2e2fa71b-7cfa-4c83-ba0a-a7903217bb05",
+        "25bc05f3-0279-4f69-877a-403a73a44007"
+      ],
+      "dragging": null
+    },
+    {
+      "type": "cardPile",
+      "id": "a46dd0b1-e62f-42e0-ac05-3a6a909a72c8",
+      "x": 1419.5,
+      "y": 704,
+      "z": 548878,
+      "width": 152,
+      "height": 132,
+      "allowedDecks": null,
+      "hasShuffleButton": true,
+      "dragging": null
+    },
+    {
+      "layoutType": "spread",
+      "spreadDirection": "up",
+      "type": "cardPile",
+      "width": 152,
+      "height": 152,
+      "y": 708.6,
+      "z": 548273,
+      "x": 727.1,
+      "allowedDecks": [
+        "a3e74743-f848-4222-9af8-ac5067d24472",
+        "2e2fa71b-7cfa-4c83-ba0a-a7903217bb05",
+        "25bc05f3-0279-4f69-877a-403a73a44007"
+      ],
+      "id": "256efeeb-61a2-4616-8186-7c6b77b61059",
+      "dragging": null
+    }
+  ],
+  "card_prototypes": {
+    "e413a7cf-1afd-4053-bf62-3d829b42e7c8": {
+      "type": "card",
+      "deck": "e413a7cf-1afd-4053-bf62-3d829b42e7c8",
+      "parent": "9e4ede25-abc7-4212-8f41-6a8fcfec0bff",
+      "x": 1420.1,
+      "y": 70.3,
+      "z": 1489057,
+      "r": -1800,
+      "faceup": false,
+      "owner": null,
+      "layoutStackParent": null,
+      "draggingType": null,
+      "dragRotating": false,
+      "dragging": null
+    },
+    "2e2fa71b-7cfa-4c83-ba0a-a7903217bb05": {
+      "type": "card",
+      "deck": "2e2fa71b-7cfa-4c83-ba0a-a7903217bb05",
+      "parent": "7fc1bee7-faf1-4902-aa2b-2ad256dd8045",
+      "x": 40.2,
+      "y": 454,
+      "z": 1488823,
+      "owner": null,
+      "layoutStackParent": null,
+      "faceup": false,
+      "draggingType": null,
+      "dragging": null
+    },
+    "a3e74743-f848-4222-9af8-ac5067d24472": {
+      "type": "card",
+      "deck": "a3e74743-f848-4222-9af8-ac5067d24472",
+      "parent": "ddc01578-2d79-477c-ae85-b59203833795",
+      "x": 1076.1,
+      "y": 544,
+      "z": 1489063,
+      "owner": null,
+      "faceup": false,
+      "layoutStackParent": "d96ae8af-d2b2-48f0-bb48-820488d34014",
+      "draggingType": null,
+      "dragging": null
+    },
+    "25bc05f3-0279-4f69-877a-403a73a44007": {
+      "type": "card",
+      "deck": "25bc05f3-0279-4f69-877a-403a73a44007",
+      "parent": "76e8cde2-b920-4457-a1f9-7730a034c3db",
+      "x": 40,
+      "y": 673.1,
+      "z": 1489020,
+      "owner": null,
+      "layoutStackParent": null,
+      "faceup": false,
+      "draggingType": null,
+      "dragging": null
+    }
+  },
+  "base_positions": {
+    "type-0e598617-149b-4559-ae31-f414808feff4": {
+      "parent": "ddc01578-2d79-477c-ae85-b59203833795",
+      "x": 1076.1,
+      "y": 544
+    },
+    "type-37b0fe49-c5c5-4227-867d-c5ccba7c9aca": {
+      "parent": "ab17c4b5-b268-4e7f-b351-d65c32dfe8bf",
+      "x": 391.6,
+      "y": 189.7
+    }
+  }
+}

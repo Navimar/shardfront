@@ -18,8 +18,9 @@ func choose_action_variant(state: Dictionary, player_index: int) -> Dictionary:
 
 func choose_hand_play_action_variant(state: Dictionary, player_index: int) -> Dictionary:
 	var variants: Array = []
+	var supply_result: Dictionary = game.supply_logic.calculate_supply_result(state, player_index)
 	for hand_index in range(state.players[player_index].hand.size()):
-		variants.append_array(game._get_play_hand_variants_for_state(state, player_index, hand_index))
+		variants.append_array(game._get_play_hand_variants_for_state(state, player_index, hand_index, true, supply_result))
 	return _choose_best_variant(state, player_index, variants)
 
 
@@ -34,13 +35,14 @@ func _choose_best_variant(state: Dictionary, player_index: int, variants: Array)
 	var before_tempo: float = evaluate_win_tempo(state, player_index)
 	for variant in variants:
 		var candidate_state: Dictionary = game._duplicate_game_state(state)
-		var result: Dictionary = game._apply_action_variant_to_state(candidate_state, variant)
+		var result: Dictionary = game._apply_action_variant_to_state(candidate_state, variant, false)
 		if result.status != game.RESULT_OK:
 			continue
 		if _is_state_won_by_player(candidate_state, player_index):
 			return variant
-		var score: float = _score_candidate_state(candidate_state, result, player_index)
-		var tiebreak: float = _score_variant_tiebreak(before_tempo, candidate_state, variant, player_index)
+		var candidate_metrics: Dictionary = _score_candidate_state(candidate_state, result, player_index)
+		var score: float = float(candidate_metrics.score)
+		var tiebreak: float = _score_variant_tiebreak(before_tempo, float(candidate_metrics.own_tempo), variant)
 		if not has_best_variant or score > best_score + AI_SCORE_EPSILON or (abs(score - best_score) <= AI_SCORE_EPSILON and tiebreak > best_tiebreak):
 			has_best_variant = true
 			best_score = score
@@ -50,21 +52,37 @@ func _choose_best_variant(state: Dictionary, player_index: int, variants: Array)
 
 
 func evaluate_win_tempo(state: Dictionary, player_index: int) -> float:
-	var breakdown: Dictionary = get_tempo_breakdown(state, player_index)
+	var breakdown: Dictionary = _get_tempo_breakdown_with_context(state, player_index, {})
 	return float(breakdown.tempo)
 
 
 func get_tempo_breakdown(state: Dictionary, player_index: int) -> Dictionary:
+	return _get_tempo_breakdown_with_context(state, player_index, {})
+
+
+func _get_tempo_breakdown_with_context(
+	state: Dictionary,
+	player_index: int,
+	evaluation_context: Dictionary
+) -> Dictionary:
 	if (
 		int(state.current_player) == player_index
 		and int(state.minor_actions_spent) == 0
-		and _can_finish_with_hand_in_state(state, player_index)
+		and _can_finish_with_hand_in_state(state, player_index, evaluation_context)
 	):
 		return _make_tempo_breakdown(0.0, 0.0, 0.0, 0.0)
 
 	var opponent_index: int = game._opponent(player_index)
 	var target: Vector2i = state.players[opponent_index].base
-	var path_result: Dictionary = _get_path_tempo_result(state, player_index, target, true)
+	var path_result: Dictionary = _get_path_tempo_result(
+		state,
+		player_index,
+		target,
+		true,
+		Vector2i(-1, -1),
+		-1.0,
+		evaluation_context
+	)
 	var path_cost: float = float(path_result.cost)
 	if path_cost >= 99.0:
 		return _make_tempo_breakdown(99.0, 99.0, 0.0, 0.0)
@@ -91,27 +109,82 @@ func get_min_path_actions_to_supply_enemy_base(state: Dictionary, player_index: 
 	return float(result.cost)
 
 
-func _score_candidate_state(state: Dictionary, result: Dictionary, player_index: int) -> float:
-	var score: float = _score_tempo_race(state, player_index)
+func _score_candidate_state(state: Dictionary, result: Dictionary, player_index: int) -> Dictionary:
+	var opponent_response_metrics: Dictionary = _score_opponent_pending_cell_target(state, result, player_index)
+	if not opponent_response_metrics.is_empty():
+		return opponent_response_metrics
+
+	var evaluation_context: Dictionary = {}
+	var race_metrics: Dictionary = _get_tempo_race_metrics(state, player_index, evaluation_context)
+	var score: float = float(race_metrics.score)
+	var candidate_metrics: Dictionary = {
+		"score": score,
+		"own_tempo": float(race_metrics.own_tempo)
+	}
 	if bool(result.get("end_turn", false)):
-		return score
+		return candidate_metrics
 	if int(state.current_player) != player_index:
-		return score
+		return candidate_metrics
 	if int(state.minor_actions_spent) <= 0:
-		return score
+		return candidate_metrics
 
 	var opponent_index: int = game._opponent(player_index)
-	if not _can_finish_with_hand_in_state(state, opponent_index):
-		return score
+	if not _can_finish_with_hand_in_state(state, opponent_index, evaluation_context):
+		return candidate_metrics
 
 	var projected_state: Dictionary = game._duplicate_game_state(state)
-	projected_state.events = []
+	projected_state.erase("events")
 	game._apply_end_turn_rules_to_state(projected_state)
-	return min(score, _score_tempo_race(projected_state, player_index))
+	var projected_metrics: Dictionary = _get_tempo_race_metrics(projected_state, player_index, {})
+	candidate_metrics.score = min(score, float(projected_metrics.score))
+	return candidate_metrics
 
 
-func _score_variant_tiebreak(before_tempo: float, after_state: Dictionary, variant: Dictionary, player_index: int) -> float:
-	var after_tempo: float = evaluate_win_tempo(after_state, player_index)
+func _score_opponent_pending_cell_target(
+	state: Dictionary,
+	result: Dictionary,
+	player_index: int
+) -> Dictionary:
+	if not result.has("pending_target"):
+		return {}
+	var request: Dictionary = result.pending_target
+	if String(request.get("kind", "")) not in ["flip_own_top_down", "opolchenie_response"]:
+		return {}
+	var decision_player: int = int(request.get("decision_player", request.get("player_index", -1)))
+	if decision_player == player_index:
+		return {}
+	var is_option: bool = String(request.get("target_type", "cell")) == "option"
+	var target_cells: Array = game.target_logic.get_legal_target_choices(state, request) if is_option else game.target_logic.get_legal_target_cells(state, request)
+	if target_cells.is_empty():
+		return {}
+
+	var worst_metrics: Dictionary = {}
+	for target_cell in target_cells:
+		var response_state: Dictionary = game._duplicate_game_state(state)
+		response_state.erase("events")
+		var response_result: Dictionary = game.target_logic.apply_choice(response_state, request, target_cell) if is_option else game.target_logic.apply_target(response_state, request, target_cell)
+		response_result = game.target_logic.autofinish_pending_target_if_empty(response_state, response_result)
+		if response_result.status != game.RESULT_OK:
+			continue
+		if not game._result_has_pending_action(response_result):
+			game._apply_source_play_reactions_to_result_in_state(response_state, request, response_result)
+			game._check_base_capture_in_state(response_state, response_result)
+			if not game._result_has_pending_action(response_result) and not bool(response_state.game_over):
+				game._apply_end_turn_rules_to_state(response_state, response_result)
+		var response_metrics: Dictionary = _score_candidate_state(response_state, response_result, player_index)
+		if (
+			worst_metrics.is_empty()
+			or float(response_metrics.score) < float(worst_metrics.score) - AI_SCORE_EPSILON
+			or (
+				abs(float(response_metrics.score) - float(worst_metrics.score)) <= AI_SCORE_EPSILON
+				and float(response_metrics.own_tempo) > float(worst_metrics.own_tempo)
+			)
+		):
+			worst_metrics = response_metrics
+	return worst_metrics
+
+
+func _score_variant_tiebreak(before_tempo: float, after_tempo: float, variant: Dictionary) -> float:
 	var tempo_gain: float = before_tempo - after_tempo
 	return tempo_gain * 100.0 + _get_action_tiebreak_priority(variant)
 
@@ -128,21 +201,38 @@ func _get_action_tiebreak_priority(variant: Dictionary) -> float:
 
 
 func _score_tempo_race(state: Dictionary, player_index: int) -> float:
+	return float(_get_tempo_race_metrics(state, player_index, {}).score)
+
+
+func _get_tempo_race_metrics(
+	state: Dictionary,
+	player_index: int,
+	evaluation_context: Dictionary
+) -> Dictionary:
 	var opponent_index: int = game._opponent(player_index)
 	if bool(state.game_over):
+		var terminal_own_tempo: float = float(
+			_get_tempo_breakdown_with_context(state, player_index, evaluation_context).tempo
+		)
 		if _is_state_won_by_player(state, player_index):
-			return INF
-		return -INF
+			return {"score": INF, "own_tempo": terminal_own_tempo}
+		return {"score": -INF, "own_tempo": terminal_own_tempo}
 
-	var own_tempo: float = evaluate_win_tempo(state, player_index)
-	var opponent_tempo: float = evaluate_win_tempo(state, opponent_index)
+	var own_tempo: float = float(_get_tempo_breakdown_with_context(state, player_index, evaluation_context).tempo)
+	var opponent_tempo: float = float(_get_tempo_breakdown_with_context(state, opponent_index, evaluation_context).tempo)
+	var score: float
 	if own_tempo <= 0.0 and opponent_tempo <= 0.0:
-		return 0.0
-	if own_tempo <= 0.0:
-		return INF
-	if opponent_tempo <= 0.0:
-		return -INF
-	return opponent_tempo - own_tempo
+		score = 0.0
+	elif own_tempo <= 0.0:
+		score = INF
+	elif opponent_tempo <= 0.0:
+		score = -INF
+	else:
+		score = opponent_tempo - own_tempo
+	return {
+		"score": score,
+		"own_tempo": own_tempo
+	}
 
 
 func _is_state_won_by_player(state: Dictionary, player_index: int) -> bool:
@@ -176,7 +266,8 @@ func _get_path_tempo_result(
 	target: Vector2i,
 	target_is_enemy_base: bool,
 	override_cell: Vector2i = Vector2i(-1, -1),
-	override_cost: float = -1.0
+	override_cost: float = -1.0,
+	evaluation_context: Dictionary = {}
 ) -> Dictionary:
 	return _get_path_tempo_result_from_start(
 		state,
@@ -185,7 +276,8 @@ func _get_path_tempo_result(
 		target,
 		target_is_enemy_base,
 		override_cell,
-		override_cost
+		override_cost,
+		evaluation_context
 	)
 
 
@@ -196,7 +288,8 @@ func _get_path_tempo_result_from_start(
 	target: Vector2i,
 	target_is_enemy_base: bool,
 	override_cell: Vector2i = Vector2i(-1, -1),
-	override_cost: float = -1.0
+	override_cost: float = -1.0,
+	evaluation_context: Dictionary = {}
 ) -> Dictionary:
 	var distances: Dictionary = _get_tempo_distance_map_from_start(
 		state,
@@ -205,7 +298,8 @@ func _get_path_tempo_result_from_start(
 		target,
 		target_is_enemy_base,
 		override_cell,
-		override_cost
+		override_cost,
+		evaluation_context
 	)
 	var parents: Dictionary = distances.parents
 	var costs: Dictionary = distances.costs
@@ -227,16 +321,17 @@ func _get_tempo_distance_map_from_start(
 	target: Vector2i,
 	target_is_enemy_base: bool,
 	override_cell: Vector2i = Vector2i(-1, -1),
-	override_cost: float = -1.0
+	override_cost: float = -1.0,
+	evaluation_context: Dictionary = {}
 ) -> Dictionary:
 	var distances = {}
 	var parents = {}
 	var unvisited: Array = []
-	var supply_result: Dictionary = game.supply_logic.calculate_supply_result(state, player_index)
+	var supply_result: Dictionary = _get_supply_result_for_evaluation(state, player_index, evaluation_context)
 	var supply_edges: Dictionary = supply_result.edges
 	var supply_origins: Dictionary = supply_result.origins
 	var supplied_cells: Dictionary = supply_result.supplied
-	var threatened_cells: Dictionary = _get_opponent_supply_threat_cells(state, player_index)
+	var threatened_cells: Dictionary = _get_opponent_supply_threat_cells(state, player_index, evaluation_context)
 
 	distances[start] = 0.0
 	parents[start] = start
@@ -363,9 +458,13 @@ func _get_tempo_threat_penalty(state: Dictionary, player_index: int, cell: Vecto
 	return float(max(0, 5 - own_power))
 
 
-func _get_opponent_supply_threat_cells(state: Dictionary, player_index: int) -> Dictionary:
+func _get_opponent_supply_threat_cells(
+	state: Dictionary,
+	player_index: int,
+	evaluation_context: Dictionary = {}
+) -> Dictionary:
 	var opponent_index: int = game._opponent(player_index)
-	var opponent_supply_result: Dictionary = game.supply_logic.calculate_supply_result(state, opponent_index)
+	var opponent_supply_result: Dictionary = _get_supply_result_for_evaluation(state, opponent_index, evaluation_context)
 	var opponent_edges: Dictionary = opponent_supply_result.edges
 	var opponent_origins: Dictionary = opponent_supply_result.origins
 	var threatened_cells: Dictionary = {}
@@ -378,12 +477,33 @@ func _get_opponent_supply_threat_cells(state: Dictionary, player_index: int) -> 
 	return threatened_cells
 
 
-func _can_finish_with_hand_in_state(state: Dictionary, player_index: int) -> bool:
+func _get_supply_result_for_evaluation(
+	state: Dictionary,
+	player_index: int,
+	evaluation_context: Dictionary
+) -> Dictionary:
+	var supply_results: Dictionary = evaluation_context.get("supply_results", {})
+	if supply_results.has(player_index):
+		return supply_results[player_index]
+	var supply_result: Dictionary = game.supply_logic.calculate_supply_result(state, player_index)
+	supply_results[player_index] = supply_result
+	evaluation_context.supply_results = supply_results
+	return supply_result
+
+
+func _can_finish_with_hand_in_state(
+	state: Dictionary,
+	player_index: int,
+	evaluation_context: Dictionary = {}
+) -> bool:
+	if bool(state.players[player_index].get("in_end_turn", false)):
+		return false
 	var hand: Array = state.players[player_index].hand
 	var target: Vector2i = state.players[game._opponent(player_index)].base
+	var supply_result: Dictionary = _get_supply_result_for_evaluation(state, player_index, evaluation_context)
 	for hand_index in range(hand.size()):
 		var card: Dictionary = hand[hand_index].duplicate(true)
 		card.face_down = false
-		if game._can_play_card_in_state(state, card, target):
+		if game._can_play_card_in_state(state, card, target, supply_result):
 			return true
 	return false

@@ -39,6 +39,22 @@ func remove_finished_turn_restrictions(state: Dictionary, player_index: int) -> 
 	state.turn_restrictions = kept
 
 
+func remove_satisfied_forced_hand_play_restrictions(state: Dictionary, player_index: int, card_id: int) -> void:
+	if not state.has("turn_restrictions"):
+		return
+	var kept: Array = []
+	for restriction in state.turn_restrictions:
+		if int(restriction.get("player_index", -1)) != player_index:
+			kept.append(restriction)
+			continue
+		if String(restriction.get("kind", "")) != "only_hand_play":
+			kept.append(restriction)
+			continue
+		if int(restriction.get("forced_card_id", -1)) != card_id:
+			kept.append(restriction)
+	state.turn_restrictions = kept
+
+
 func can_draw_card(state: Dictionary, player_index: int) -> bool:
 	return not _has_restriction(state, player_index, "no_draw") and not _has_restriction(state, player_index, "only_hand_play")
 
@@ -50,7 +66,7 @@ func can_play_path(state: Dictionary, player_index: int) -> bool:
 func can_play_hand_card(state: Dictionary, player_index: int, card: Dictionary, cell: Vector2i) -> bool:
 	if not can_select_hand_card(state, player_index, card):
 		return false
-	if _has_restriction(state, player_index, "no_large_units") and int(card.unit.power) >= 5:
+	if _has_restriction(state, player_index, "no_large_units") and int(card.get("copied_power", card.unit.power)) >= 5:
 		return false
 	return true
 
@@ -67,7 +83,7 @@ func filter_turn_variants(state: Dictionary, player_index: int, variants: Array)
 		return variants
 	var filtered: Array = []
 	for variant in variants:
-		if String(variant.type) == game.ACTION_PLAY_HAND_CARD:
+		if String(variant.type) in [game.ACTION_PLAY_HAND_CARD, "tabletop_extra"]:
 			filtered.append(variant)
 	return filtered
 

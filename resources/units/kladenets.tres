@@ -9,6 +9,6 @@ id = "type-839e0202-8740-4861-b857-800cfc97da0c"
 name_key = "UNIT_KLADENETS_NAME"
 description_key = "UNIT_KLADENETS_DESCRIPTION"
 power = 1
-ability_symbols = "❗"
+ability_symbols = "➕"
 implementation_status = "implemented"
 portrait = ExtResource("2_portrait")

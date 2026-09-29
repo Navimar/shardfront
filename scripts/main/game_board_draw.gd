@@ -12,6 +12,9 @@ const ARROW_OUTLINE_COLOR: Color = Color(0.22, 0.03, 0.02, 1.0)
 const BARRIER_FRAME_COLOR: Color = Color(0.02, 0.015, 0.01)
 const BARRIER_SHINE_COLOR: Color = Color(1.0, 0.86, 0.48, 0.55)
 const CONTESTED_SUPPLY_CONTROL_COLOR: Color = Color(1.0, 0.78, 0.08)
+const SOLO_PLAN_COLOR: Color = Color(1.0, 0.57, 0.08, 1.0)
+const SOLO_PLAN_OUTLINE_COLOR: Color = Color(0.18, 0.04, 0.01, 0.95)
+const SOLO_PLAN_TEXT_COLOR: Color = Color(1.0, 0.97, 0.84, 1.0)
 
 var game: Control
 var displayed_supply_origin_cells: Dictionary = {}
@@ -44,9 +47,45 @@ func on_supply_line_layer_draw() -> void:
 func on_barrier_layer_draw() -> void:
 	var playable_cells: Dictionary = game._get_playable_cells_for_ui_pending_action()
 	_draw_playable_arrow_heads(playable_cells)
+	_draw_solo_plan()
 	_draw_barriers()
 	_draw_target_edges(game._get_playable_edges_for_ui_pending_action())
 	_draw_target_markers(playable_cells)
+
+
+func _draw_solo_plan() -> void:
+	if not game._is_solo_mode():
+		return
+	for entry in game.solo_logic.get_visible_plan():
+		var cell: Vector2i = entry.cell
+		var rect: Rect2 = _get_cell_rect_on_layer(cell, game.barrier_layer).grow(-6.0)
+		var outline_rect: Rect2 = rect.grow(2.0)
+		game.barrier_layer.draw_rect(outline_rect, SOLO_PLAN_OUTLINE_COLOR, false, 9.0, true)
+		game.barrier_layer.draw_rect(rect, SOLO_PLAN_COLOR, false, 5.0, true)
+
+		var badge_radius: float = 25.0
+		var badge_center: Vector2 = rect.position + Vector2(rect.size.x - badge_radius, badge_radius)
+		game.barrier_layer.draw_circle(badge_center, badge_radius + 4.0, SOLO_PLAN_OUTLINE_COLOR)
+		game.barrier_layer.draw_circle(badge_center, badge_radius, SOLO_PLAN_COLOR)
+		var plan_kind: String = String(entry.get("kind", game.solo_logic.PLAN_KIND_COMBAT))
+		var text: String = game._tr_text("UI_SOLO_PLAN_PATH_BADGE") if plan_kind == game.solo_logic.PLAN_KIND_PATH else str(int(entry.power))
+		var font_size: int = 30
+		var text_size: Vector2 = game.CardTitleFont.get_string_size(
+			text,
+			HORIZONTAL_ALIGNMENT_LEFT,
+			-1.0,
+			font_size
+		)
+		var text_position: Vector2 = badge_center + Vector2(-text_size.x * 0.5, text_size.y * 0.35)
+		game.barrier_layer.draw_string(
+			game.CardTitleFont,
+			text_position,
+			text,
+			HORIZONTAL_ALIGNMENT_LEFT,
+			-1.0,
+			font_size,
+			SOLO_PLAN_TEXT_COLOR
+		)
 
 
 func _draw_barriers() -> void:
@@ -99,35 +138,62 @@ func _draw_special_playable_cells(playable_cells: Dictionary) -> void:
 func _draw_board_grid_lines() -> void:
 	if game.board_grid == null:
 		return
+	if game.board_cells.is_empty():
+		return
 
-	var layer_position: Vector2 = game.supply_line_layer.get_global_rect().position
-	var board_rect: Rect2 = game.board_grid.get_global_rect()
-	var board_position: Vector2 = board_rect.position - layer_position
-	var board_size: Vector2 = board_rect.size
+	var grid_rect: Rect2 = _get_board_grid_line_rect_on_layer(game.supply_line_layer)
+	if grid_rect.size.x <= 0.0 or grid_rect.size.y <= 0.0:
+		return
 
 	for x in range(game.GRID_WIDTH + 1):
-		var line_x: float = board_position.x
-		if x == game.GRID_WIDTH:
-			line_x += board_size.x
-		elif x > 0:
-			line_x += float(x * game.CELL_SIZE) + (float(x) - 0.5) * float(game.CELL_GAP)
+		var line_x: float = _get_board_grid_line_x_on_layer(x, game.supply_line_layer, grid_rect)
 		_draw_sketch_grid_line(
-			Vector2(line_x, board_position.y),
-			Vector2(line_x, board_position.y + board_size.y),
+			Vector2(line_x, grid_rect.position.y),
+			Vector2(line_x, grid_rect.position.y + grid_rect.size.y),
 			x
 		)
 
 	for y in range(game.GRID_HEIGHT + 1):
-		var line_y: float = board_position.y
-		if y == game.GRID_HEIGHT:
-			line_y += board_size.y
-		elif y > 0:
-			line_y += float(y * game.CELL_SIZE) + (float(y) - 0.5) * float(game.CELL_GAP)
+		var line_y: float = _get_board_grid_line_y_on_layer(y, game.supply_line_layer, grid_rect)
 		_draw_sketch_grid_line(
-			Vector2(board_position.x, line_y),
-			Vector2(board_position.x + board_size.x, line_y),
+			Vector2(grid_rect.position.x, line_y),
+			Vector2(grid_rect.position.x + grid_rect.size.x, line_y),
 			100 + y
 		)
+
+
+func _get_board_grid_line_rect_on_layer(layer: Control) -> Rect2:
+	var first_rect: Rect2 = _get_cell_rect_on_layer(Vector2i(0, 0), layer)
+	var last_rect: Rect2 = _get_cell_rect_on_layer(Vector2i(game.GRID_WIDTH - 1, game.GRID_HEIGHT - 1), layer)
+	var half_gap: float = float(game.CELL_GAP) * 0.5
+	var position: Vector2 = Vector2(first_rect.position.x - half_gap, first_rect.position.y - half_gap)
+	var end_position: Vector2 = Vector2(
+		last_rect.position.x + last_rect.size.x + half_gap,
+		last_rect.position.y + last_rect.size.y + half_gap
+	)
+	return Rect2(position, end_position - position)
+
+
+func _get_board_grid_line_x_on_layer(column: int, layer: Control, grid_rect: Rect2) -> float:
+	if column <= 0:
+		return grid_rect.position.x
+	if column >= game.GRID_WIDTH:
+		return grid_rect.position.x + grid_rect.size.x
+
+	var left_rect: Rect2 = _get_cell_rect_on_layer(Vector2i(column - 1, 0), layer)
+	var right_rect: Rect2 = _get_cell_rect_on_layer(Vector2i(column, 0), layer)
+	return ((left_rect.position.x + left_rect.size.x) + right_rect.position.x) * 0.5
+
+
+func _get_board_grid_line_y_on_layer(row: int, layer: Control, grid_rect: Rect2) -> float:
+	if row <= 0:
+		return grid_rect.position.y
+	if row >= game.GRID_HEIGHT:
+		return grid_rect.position.y + grid_rect.size.y
+
+	var top_rect: Rect2 = _get_cell_rect_on_layer(Vector2i(0, row - 1), layer)
+	var bottom_rect: Rect2 = _get_cell_rect_on_layer(Vector2i(0, row), layer)
+	return ((top_rect.position.y + top_rect.size.y) + bottom_rect.position.y) * 0.5
 
 
 func _draw_sketch_grid_line(start: Vector2, end: Vector2, line_seed: int) -> void:

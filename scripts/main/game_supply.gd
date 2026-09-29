@@ -262,4 +262,4 @@ func _top_owner(state: Dictionary, cell: Vector2i) -> int:
 
 
 func _top_name_key(state: Dictionary, cell: Vector2i) -> String:
-	return board_query.top_name_key(state, cell)
+	return board_query.active_name_key(state, cell)

@@ -1,0 +1,1186 @@
+{
+  "schema_version": 1,
+  "id": "puti_raskola",
+  "title": "Пути Раскола",
+  "version": "v15",
+  "field": {
+    "columns": 7,
+    "rows": 5
+  },
+  "cards": [
+    {
+      "id": "type-17bd2743-b021-4882-a928-971d39a7732f",
+      "name": "Налетчик",
+      "strength": 1,
+      "trigger": "🃏",
+      "effect": "Разыграй еще одно существо",
+      "image": "assets/3855ead1-631e-450d-9581-b2a3ae69bb5d.jpeg",
+      "label": "Налетчик"
+    },
+    {
+      "id": "type-33edda09-feb1-4e30-81cf-592e14b21722",
+      "name": "Грибник",
+      "strength": 2,
+      "trigger": "🃏",
+      "effect": "Добери 2 карты",
+      "image": "assets/56b6a8c3-71f1-4ebe-8feb-c591a4790196.jpg",
+      "label": "Грибник"
+    },
+    {
+      "id": "type-5361ab06-5203-4d82-b7ba-5ad718a0518d",
+      "name": "Боевой Маг",
+      "strength": 1,
+      "trigger": "🃏",
+      "effect": "Сбрось любое существо соперника с соседней земли",
+      "image": "assets/00e39ed9-9aa1-4f66-951b-58fbc5e4d1fc.jpg",
+      "label": "манг.jpg"
+    },
+    {
+      "id": "type-459aa707-8da2-4422-aef8-c7a3d018a9c1",
+      "name": "Обоз",
+      "strength": 4,
+      "trigger": "❗",
+      "effect": "Является источником снабжения",
+      "image": "assets/5d924f7c-d634-46b2-b836-efd129d0ee82.jpg",
+      "label": "обоз.jpg"
+    },
+    {
+      "id": "type-e5dab949-34d8-424f-b359-040fef0fcb79",
+      "name": "Рыцарь",
+      "strength": 5,
+      "trigger": "🃏",
+      "effect": "Добери 1 карту",
+      "image": "assets/af4458bf-0e36-45a6-8f30-d280cc65d877.jpg",
+      "label": "рцыр.jpg"
+    },
+    {
+      "id": "type-711eafa5-f0ec-49d9-a133-ee83b75439e3",
+      "name": "Лучник",
+      "strength": 4,
+      "trigger": "🃏",
+      "effect": "Соперник сбрасывает случайную карту с руки",
+      "image": "assets/5da042d3-d8b8-4360-991e-68693a463f78.jpg",
+      "label": "лучник.jpg"
+    },
+    {
+      "id": "type-82a2e5fb-7745-41ee-85c5-e271f748551c",
+      "name": "Гриффон",
+      "strength": 5,
+      "trigger": "✋",
+      "effect": "Можно разыграть на любую землю независимо от снабжения. Но нельзя разыграть на базу соперника.",
+      "image": "assets/24cf9b68-c5ce-4476-a914-f847693fc7a7.jpg",
+      "label": "Гриффон"
+    },
+    {
+      "id": "type-0651038c-f08e-4a8e-ba04-45a6690338f4",
+      "name": "Фея",
+      "strength": 3,
+      "trigger": "⚔️",
+      "effect": "В атаке 15 силы",
+      "image": "assets/5bf4d295-2d67-458b-bbca-936cd9e26e06.jpg",
+      "label": "06ff30b8-68e6-46ff-82c6-39d454453931.png"
+    },
+    {
+      "id": "type-c61265af-49d0-423e-9d7b-01f89e26185a",
+      "name": "Алхимик",
+      "strength": 3,
+      "trigger": "🃏",
+      "effect": "Перетасуй стек существ на соседней земле по своему усмотрению",
+      "image": "assets/02992d4e-ad32-44a1-bc9a-c3b5cbf0e77d.jpg",
+      "label": "алхимик.jpg"
+    },
+    {
+      "id": "type-cea8ae85-4298-49f3-a9d5-25374df2b4e3",
+      "name": "Тролль",
+      "strength": 4,
+      "trigger": "🃏",
+      "effect": "Перемести всех существ под Троллем одним стеком в соседнюю землю",
+      "image": "assets/3e8a0fb4-be1b-4f91-a00f-3289a95a4653.jpg",
+      "label": "27eef3b0-209e-4710-9199-010d07d68610.png"
+    },
+    {
+      "id": "type-c23c8d40-1638-4feb-bb8e-9ca7acd9ff58",
+      "name": "Пугало",
+      "strength": 4,
+      "trigger": "🃏",
+      "effect": "Верни любое существо с соседней земли в руку владельца",
+      "image": "assets/7884a307-f008-4701-b0f1-2171fa37be9f.jpg",
+      "label": "Пугало"
+    },
+    {
+      "id": "type-dd1814a0-2297-4cf3-aa98-280697554575",
+      "name": "Призыватель",
+      "strength": 1,
+      "trigger": "🃏",
+      "effect": "Положи на соседнюю землю карту с верха колоды рубашкой вверх",
+      "image": "assets/40de55c5-7220-4a18-9eb1-aef550a9cb7e.jpg",
+      "label": "следопыт.jpg"
+    },
+    {
+      "id": "type-3076c447-3287-4179-b18a-5b2171f911c9",
+      "name": "Всадник",
+      "strength": 2,
+      "trigger": "🃏",
+      "effect": "Перемести любое существо из соседней земли в любую соседнюю с ним землю",
+      "image": "assets/e42e7a07-6054-4df0-ae8d-7ca1da02315a.jpg",
+      "label": "Всадник"
+    },
+    {
+      "id": "type-7d1f9f59-e674-4a64-8a20-db6155b9d436",
+      "name": "Кочевники",
+      "strength": 4,
+      "trigger": "🃏",
+      "effect": "Перемести свою Базу на любую землю, кроме Базы соперника и земель рядом с ней. Сбрось весь стек под Базой.",
+      "image": "assets/ca528d56-28d8-4850-98a6-3b9d28580751.jpg",
+      "label": "кочевинки.jpg"
+    },
+    {
+      "id": "type-d8f6cc9c-bb9a-4e13-a4db-cc7e2ed8a0b2",
+      "name": "Черепаха",
+      "strength": 6,
+      "trigger": "🃏",
+      "effect": "Подложи под черепаху существо с верха своей колоды рубашкой вверх",
+      "image": "assets/2e79c6a1-d40d-46fd-8203-7ded1f4f8220.jpg",
+      "label": "черепа.jpg"
+    },
+    {
+      "id": "type-d5daa3ea-25f5-4a63-a93d-08d7558513bf",
+      "name": "Стратег",
+      "strength": 3,
+      "trigger": "🃏",
+      "effect": "Посмотри верхнюю карту из колоды, возьми ее в руку или сбрось. Повторяй это пока не возьмешь карту, но не больше 10 раз.",
+      "image": "assets/5cf85077-359c-4e07-a453-9703b899578e.jpg",
+      "label": "стратег.jpg"
+    },
+    {
+      "id": "type-17d5e46e-fd71-49d3-8c6d-71ad1ca09e34",
+      "name": "Феникс",
+      "strength": 4,
+      "trigger": "☠️",
+      "effect": "Каждый раз, когда Феникс сбрасывается с поля он возвращается в руку",
+      "image": "assets/bb03f2f9-c7c7-4518-9d8c-039684952d3e.jpg",
+      "label": "феникс.jpg"
+    },
+    {
+      "id": "type-bada7d58-b32c-462b-a49b-d8f15d5ce05f",
+      "name": "Шар",
+      "strength": 5,
+      "trigger": "🃏",
+      "effect": "Перемести свое верхнее существо на любую свою или свободную землю",
+      "image": "assets/28db6f53-1dc9-416a-ba35-a705b3d16450.jpg",
+      "label": "шар.jpg"
+    },
+    {
+      "id": "type-e1fcd6c8-4ae9-46b4-999d-dae6027eca1a",
+      "name": "Трубадур",
+      "strength": 2,
+      "trigger": "🃏",
+      "effect": "Забери в руку любое количество своих верхних существ, кроме Трубадура",
+      "image": "assets/2331e740-b9fa-4e5a-acec-37766c2d8688.jpg",
+      "label": "трубадур.jpg"
+    },
+    {
+      "id": "type-f96378d8-1f38-436c-9f51-e073c93c5791",
+      "name": "Диверсант",
+      "strength": 3,
+      "trigger": "⏳",
+      "effect": "Соперник в ближайший ход разыгрывает случайное существо с руки, если возможно. Остальные действия ему недоступны.",
+      "image": "assets/fa82ff8b-8981-4a71-b17a-b3d1cb46f1df.jpg",
+      "label": "Диверсант"
+    },
+    {
+      "id": "type-b0646984-62f7-41bf-84cf-c4bf586a0303",
+      "name": "Гном",
+      "strength": 1,
+      "trigger": "✋",
+      "effect": "Залезает под низ любого снабжаемого вами стека. При переполнении стека уничтожает верхнее существо.",
+      "image": "assets/a9757b36-78e0-46a9-afec-06f70954aa5b.jpg",
+      "label": "гном.jpg"
+    },
+    {
+      "id": "type-743c48a1-a763-463c-8e62-a33bdea9487d",
+      "name": "Баллиста",
+      "strength": 4,
+      "trigger": "❗",
+      "effect": "Получи +9 силы при атаке соседних с Баллистой земель",
+      "image": "assets/bfbee154-fe97-4ec9-a40e-66a08b72a809.jpg",
+      "label": "балиста.jpg"
+    },
+    {
+      "id": "type-ffdb0f07-fdf4-49dd-8bac-1c1d08729fa5",
+      "name": "Приманка",
+      "strength": 4,
+      "trigger": "🃏",
+      "effect": "Стяни верхних существ соперника с соседних земель в стек с Приманкой в любом порядке. Приманка остается внизу.",
+      "image": "assets/a9281296-08ce-4534-9559-b38b20684cc1.jpg",
+      "label": "приманка.jpg"
+    },
+    {
+      "id": "type-d26b562e-c604-456a-9d21-a89f342e26ee",
+      "name": "Наместник",
+      "strength": 4,
+      "trigger": "🛡️",
+      "effect": "В защите прибавляет к своей силе силу накрытого существа",
+      "image": "assets/6ece5070-adb7-4ea4-a7cc-7b674d1f8f3e.jpg",
+      "label": "наместник.jpg"
+    },
+    {
+      "id": "type-b4286113-06bd-45f6-bdcc-6b93cc5f5037",
+      "name": "Зеркальный Голем",
+      "strength": 4,
+      "trigger": "❗",
+      "effect": "Повторяет способность накрытого существа (как 🃏, так и ❗)",
+      "image": "assets/e21f964e-5159-4ece-86e4-6787d1fa8a3f.jpg",
+      "label": "06c46ba2-e70a-452c-96ed-5866364caf9c.png"
+    },
+    {
+      "id": "type-ba339d1e-c2c5-471e-9ee4-ae8588d3b268",
+      "name": "Латник",
+      "strength": 5,
+      "trigger": "⏳",
+      "effect": "В ближайший ход соперник не может разыграть свое существо на землю с Латником",
+      "image": "assets/c7df6690-4c9c-45b9-be02-0a1298bc8482.jpg",
+      "label": "латник.jpg"
+    },
+    {
+      "id": "type-889b77b5-ec91-45fb-aa12-ca99c340cc75",
+      "name": "Магический Щит",
+      "strength": 3,
+      "trigger": "🛡️",
+      "effect": "+10 силы в защите, если снабжается",
+      "image": "assets/f97dd53c-73fe-4543-8ecc-7f33fbc3d30a.jpg",
+      "label": "барьер.jpg"
+    },
+    {
+      "id": "type-f7ab54ab-046b-4741-a300-a239da5e1b79",
+      "name": "Энт",
+      "strength": 6,
+      "trigger": "🃏",
+      "effect": "Верни накрытое Энтом существо в руку владельца",
+      "image": "assets/f37dde2e-1db9-4d3a-8768-3b332c315df4.jpg",
+      "label": ""
+    },
+    {
+      "id": "type-17b3a997-c90b-48f8-ad47-f74e56e5623c",
+      "name": "Дымец",
+      "strength": 6,
+      "trigger": "⏳",
+      "effect": "Соперник в ближайший ход не может тянуть карты",
+      "image": "assets/f0bea87f-50ae-41e2-b859-877358e88e35.jpg",
+      "label": "дым.jpg"
+    },
+    {
+      "id": "type-5b9602b9-5d0f-437d-b64d-de8ee1becf1a",
+      "name": "Гусеница",
+      "strength": 3,
+      "trigger": "🃏",
+      "effect": "Поменяй местами два верхних существа соперника или два своих верхних существа",
+      "image": "assets/577c3975-c641-4083-b95a-bd73d0052caf.jpg",
+      "label": "Гусеница"
+    },
+    {
+      "id": "type-6d92b349-49ee-412a-a854-5b6960e09b27",
+      "name": "Паук",
+      "strength": 5,
+      "trigger": "🪤",
+      "effect": "Если существо соперника накрывает Паука, то это существо переворачивается рубашкой вверх",
+      "image": "assets/174b1ac1-4418-4b1a-a965-5a51ed5aa61a.jpg",
+      "label": "паук.jpg"
+    },
+    {
+      "id": "type-febcb1df-00bb-45b4-b9f9-f27d82212183",
+      "name": "Волк",
+      "strength": 2,
+      "trigger": "🪤",
+      "effect": "Если Волка накрыли, то он разыгрывается в другую землю, получая в атаке силу равную базовой силе существа, которое его накрыло.",
+      "image": "assets/8dcc6bf1-b0b4-4607-a099-bb6e5d330732.jpg",
+      "label": "волк.jpg"
+    },
+    {
+      "id": "type-6f26b4c6-0ff6-45c7-8862-e1bbf4441c93",
+      "name": "Робот",
+      "strength": 4,
+      "trigger": "✋",
+      "effect": "Покажи сопернику любое существо из руки. Разыграй Робота используя силу и способность этого существа.",
+      "image": "assets/34671406-6b98-45ad-9425-30e264f2f2c0.jpg",
+      "label": "Робот"
+    },
+    {
+      "id": "type-0723c37f-0c19-4e09-a537-120ef8586483",
+      "name": "Мехрой",
+      "strength": 4,
+      "trigger": "⚔️",
+      "effect": "В атаке может накрыть карту с силой больше 4, но не может с силой меньше или равной 4",
+      "image": "assets/77b97b46-aa6d-4c76-a6b7-dc4ceca5d01d.jpg",
+      "label": "Мехрой"
+    },
+    {
+      "id": "type-934362ec-052f-4544-9970-9d26dd362c21",
+      "name": "Барон",
+      "strength": 4,
+      "trigger": "🃏",
+      "effect": "Возьми 2 карты. Сбрось 1 карту из руки.",
+      "image": "assets/3aafe2b1-a4fa-4e92-9885-105751dfda5a.jpg",
+      "label": "барон.jpg"
+    },
+    {
+      "id": "type-332fc425-c41d-472c-b474-21c55b5269b8",
+      "name": "Некромант",
+      "strength": 4,
+      "trigger": "🃏",
+      "effect": "Возьми свою карту из сброса в руку",
+      "image": "assets/f1e0c594-2411-4c61-97b9-e64e562fa0b1.jpg",
+      "label": "некромант.jpg"
+    },
+    {
+      "id": "type-f0af481f-54cb-4a14-9707-a2773bc60c5d",
+      "name": "Заклинатель",
+      "strength": 1,
+      "trigger": "🃏",
+      "effect": "Возьми и разыграй свое накрытое Заклинателем существо",
+      "image": "assets/4a0305af-8839-4ed8-be4d-21a509a0bcec.jpg",
+      "label": "заклин.jpg"
+    },
+    {
+      "id": "type-41716665-c9e9-493b-a681-39bbc99326ba",
+      "name": "Проглот",
+      "strength": 7,
+      "trigger": "🃏",
+      "effect": "Сбрось с поля свое верхнее существо, лежащее лицом вверх.",
+      "image": "assets/proglot.png",
+      "label": "проглот.png"
+    },
+    {
+      "id": "type-7924b905-2fa4-423b-b29b-87593ae5d5c4",
+      "name": "Яркий Лес",
+      "strength": 7,
+      "trigger": "❗",
+      "effect": "Продлевает снабжение соперника",
+      "image": "assets/aa2231eb-19e4-4638-801a-b54a087a74af.jpg",
+      "label": "лес.jpg"
+    },
+    {
+      "id": "type-8ad26c7d-ad61-475b-81b2-06b90f629e08",
+      "name": "Слизь",
+      "strength": 1,
+      "trigger": "🃏",
+      "effect": "Повтори 🃏 способность верхнего существа на поле",
+      "image": "assets/1ec699e8-27d5-4150-852f-366ca931a4bd.jpg",
+      "label": "слизь.jpg"
+    },
+    {
+      "id": "type-19d260cc-fc8f-4a0c-94ca-da9c0c76d384",
+      "name": "Болотник",
+      "strength": 5,
+      "trigger": "🃏",
+      "effect": "Переставь любой барьер в другое место. В конце ближайшего хода соперник может убрать этот барьер с поля.",
+      "image": "assets/b72aaeca-d29e-43e1-88dd-364f9508820f.jpg",
+      "label": "земля.jpg"
+    },
+    {
+      "id": "type-83ef554f-eb38-4282-abf0-f5b5c1257a6f",
+      "name": "Ополчение",
+      "strength": 6,
+      "trigger": "⚡",
+      "effect": "Вместо того чтобы проиграть сбрось Ополчение с руки и существо разыгранное на твою базу (способность этого существа отменяется)",
+      "image": "assets/45021f66-9908-424f-bd04-2bbc40882bac.jpg",
+      "label": "опол.jpg"
+    },
+    {
+      "id": "type-b7271c04-e48d-4873-9f0f-a02106e51fe2",
+      "name": "Споровик",
+      "strength": 1,
+      "trigger": "🃏",
+      "effect": "Сбрось с любого количества своих полных стеков верхнее существо. Сбрось верхнее существо с такого же количества полных стеков соперинка.",
+      "image": "assets/6e15b3b6-5eb2-4698-8fc1-6d0cad2724d3.jpg",
+      "label": "Споровик"
+    },
+    {
+      "id": "type-7d1a32ae-70ea-4403-9818-48bfd80f8ba3",
+      "name": "Картограф",
+      "strength": 1,
+      "trigger": "🃏",
+      "effect": "Передвинь любой барьер",
+      "image": "assets/fcd5af53-b1fe-43d1-9f63-fcafd5d9e3f9.jpg",
+      "label": "карт.jpg"
+    },
+    {
+      "id": "type-d561f84d-67b7-48f7-b535-72d3e229c2eb",
+      "name": "Леденец",
+      "strength": 5,
+      "trigger": "⏳",
+      "effect": "В ближайший ход соперник не может разыгрывать существ с базовой силой 5 и больше",
+      "image": "assets/4eb00204-ac14-4817-8ece-5df5039f8bbf.jpg",
+      "label": "7e9cc89f-f27d-4dcc-a337-e13f87dffb4a.png"
+    },
+    {
+      "id": "type-f1267ff8-3952-4715-a07c-578b0a5ea2c7",
+      "name": "Ворота",
+      "strength": 5,
+      "trigger": "❗",
+      "effect": "Находясь на поле (❗) и при розыгрыше (✋) Ворота передают и принимают снабжение сквозь барьеры рядом с собой",
+      "image": "assets/a0a98ae7-1785-4917-822c-7336bf796753.jpg",
+      "label": "бшн.jpeg"
+    },
+    {
+      "id": "type-78d09b54-b498-4775-a9a0-9eb426df11e1",
+      "name": "Мельник",
+      "strength": 4,
+      "trigger": "🃏",
+      "effect": "Сбрось любое количество карт и добери на одну больше, чем сбросил",
+      "image": "assets/ef43c6df-c355-403b-8e0a-b7ef8e67f0d8.jpg",
+      "label": "мел.jpg"
+    },
+    {
+      "id": "type-c1b2eede-13db-4396-b2ee-5bf340aabe8a",
+      "name": "Тоннель",
+      "strength": 2,
+      "trigger": "❗",
+      "effect": "Дополнительно проводит снабжение через одну клетку от себя по прямым (игнорирует барьеры и существ соперника)",
+      "image": "assets/9b1f0646-78a5-4bb0-938c-ebf47ba3c24a.jpg",
+      "label": "тоннель.jpg"
+    },
+    {
+      "id": "type-787c52b6-bb67-4879-a6ef-919d5df455c0",
+      "name": "Шаман",
+      "strength": 3,
+      "trigger": "🃏",
+      "effect": "Поменяй местами 2 Базы ИЛИ подвинь свою Базу на соседнюю землю, уничтожь раздавленный стек и оставь на старом месте карту с верха колоды рубашкой вверх",
+      "image": "assets/c274561b-1b55-4bd8-8681-6e6e265d24a8.jpg",
+      "label": "шаман.jpg"
+    },
+    {
+      "id": "type-8b4b1b25-6f91-4945-9900-76ff3b7d73e7",
+      "name": "Локомотив",
+      "strength": 4,
+      "trigger": "❗",
+      "effect": "Находясь на поле дополнительно принимает и передает снабжение наискосок. Барьеры этому не мешают.",
+      "image": "assets/33f885fb-9708-4f93-af08-6f011e1be9be.jpg",
+      "label": "локомотив.jpg"
+    },
+    {
+      "id": "type-1b6b4328-87c0-45b5-919f-edb561bd7a34",
+      "name": "Медбрат",
+      "strength": 4,
+      "trigger": "🃏",
+      "effect": "Верни в руку любое свое существо",
+      "image": "assets/2cc4052b-9301-4e29-b967-2f11541ab322.jpg",
+      "label": "костер.jpg"
+    },
+    {
+      "id": "type-20aef3d5-585c-4990-8a27-331312ec09b3",
+      "name": "Фокусник",
+      "strength": 1,
+      "trigger": "🃏",
+      "effect": "Поменяй местами свое верхнее существо с верхним существом соперника",
+      "image": "assets/33a8f5d0-dc52-4c42-8296-f72fbfe86f1b.jpg",
+      "label": "фокус.jpg"
+    },
+    {
+      "id": "type-7df46d29-8103-436c-8e32-ab2e3040ef4a",
+      "name": "Вихрь",
+      "strength": 2,
+      "trigger": "🃏",
+      "effect": "Перемести все стеки в землях рядом с Вихрем на любые земли рядом с Вихрем в желаемом порядке.",
+      "image": "assets/d64ae191-89c3-4c1f-8127-e61b6c603993.jpg",
+      "label": "вихрь.jpg"
+    },
+    {
+      "id": "type-38e0d505-08bd-44f4-9295-d02930f20133",
+      "name": "Маковое поле",
+      "strength": 1,
+      "trigger": "🪤",
+      "effect": "Сбрось любое существо с силой 3 и больше которое накроет маковое поле",
+      "image": "assets/5a28b1a1-30e5-40fb-a032-292b7e295f47.jpg",
+      "label": "мак.jpg"
+    },
+    {
+      "id": "type-80c924f6-1507-42c7-917f-d677c647297c",
+      "name": "Зараза",
+      "strength": 4,
+      "trigger": "🃏",
+      "effect": "Сбрось всех верхних существ соперника, у которых прервалось снабжение из-за розыгрыша Заразы",
+      "image": "assets/4dc074d3-03ae-4b97-aa39-b6fcf34b4dd8.jpg",
+      "label": "зараза.jpg"
+    },
+    {
+      "id": "type-6b695cdb-65a6-490f-bed9-813bf786e69d",
+      "name": "Леший",
+      "strength": 6,
+      "trigger": "🃏",
+      "effect": "Сбрось любое существо соперника не имеющее снабжения",
+      "image": "assets/35968585-7563-448a-8634-d64acde75336.jpg",
+      "label": "леша.jpg"
+    },
+    {
+      "id": "type-ee2b965e-537c-4248-8d4e-ac048bb8ba31",
+      "name": "Дух Бури",
+      "strength": 6,
+      "trigger": "🃏",
+      "effect": "Соперник переворачивает одно свое верхнее существо по своему выбору рубашкой вверх",
+      "image": "assets/f72edf34-987b-416e-9fc2-aa0cf32658d4.jpg",
+      "label": "буря.jpg"
+    },
+    {
+      "id": "type-c28039f2-4ec6-4312-9c4d-b96a86e3444d",
+      "name": "Таран",
+      "strength": 4,
+      "trigger": "🪤❗",
+      "effect": "🪤 Если оказался накрыт вашим существом, то перемещается на любую соседнюю землю. ❗ Сразу уничтожай все барьеры, оказавшиеся рядом с Тараном по любым причинам.",
+      "image": "assets/3bb02bc3-8b3d-4106-b7d4-37b0064209a4.jpg",
+      "label": "Таран"
+    },
+    {
+      "id": "type-839e0202-8740-4861-b857-800cfc97da0c",
+      "name": "Кладенец",
+      "strength": 1,
+      "trigger": "➕",
+      "effect": "Перед розыгрышем существа можешь перевернуть Кладенец на поле рубашкой вверх, чтобы получить +10 силы в атаке разыгрываемого существа",
+      "image": "assets/0ab2efcf-f9c5-418e-8057-4c9266424824.jpg",
+      "label": "мч.jpg"
+    },
+    {
+      "id": "type-be971dbf-9466-4a67-90c5-224d16a16c86",
+      "name": "Рандомаг",
+      "strength": 1,
+      "trigger": "🃏",
+      "effect": "Возьмите и разыграйте по обычным правилам верхнее существо из колоды",
+      "image": "assets/59197647-b406-499b-8580-e1aa034efdcc.jpg",
+      "label": "рандом.jpg"
+    },
+    {
+      "id": "type-0632708b-cd52-4941-ae44-7e9f4a770f1e",
+      "name": "Истукан",
+      "strength": 7,
+      "trigger": "❗",
+      "effect": "Не проводит снабжение. Сам Истукан снабжается.",
+      "image": "assets/dc272772-517c-4201-8ab8-1358e9041bbf.jpg",
+      "label": "Истукан"
+    },
+    {
+      "id": "type-c2e8e9b3-ea63-4d2f-93e9-103d054d0838",
+      "name": "Чародей",
+      "strength": 5,
+      "trigger": "✋",
+      "effect": "При розыгрыше Чародея можешь сбросить любую карту с руки, чтобы получить +10 силы в атаке",
+      "image": "assets/33d1ede5-ed38-4d1c-a751-b3824253dff9.jpg",
+      "label": "чародей.jpg"
+    },
+    {
+      "id": "type-4f1131ab-f488-436a-b5a5-7681a058e8aa",
+      "name": "Гондола",
+      "strength": 6,
+      "trigger": "✋➕",
+      "effect": "Можно разыграть только на пустую землю или своё верхнее существо. ✋ Вы можете разыграть Гондолу в конце своего хода в качестве дополнительного действия. ➕ Вы можете вернуть Гондолу в руку в любой момент своего хода.",
+      "image": "assets/0de7d78c-d0a6-4d86-975c-6157195fb5ec.jpg",
+      "label": "Гондола"
+    },
+    {
+      "id": "type-499a84f7-be65-41c2-828f-b6a84cda5f55",
+      "name": "Строитель",
+      "strength": 2,
+      "trigger": "🃏",
+      "effect": "Добавьте барьер в любом месте поля",
+      "image": "assets/402edeb8-dc69-4b28-a2a4-947230ed58b3.jpg",
+      "label": "строитель"
+    },
+    {
+      "id": "type-b10b8430-0312-4bb8-afa0-2428137d635a",
+      "name": "Варвар",
+      "strength": 5,
+      "trigger": "🃏",
+      "effect": "Сбрасывайте карты с верха колоды, пока не найдете существо с базовой силой 5 или больше. Возьмите его в руку.",
+      "image": "assets/5b9c55dd-d9fb-4469-b29f-d33c9e4a398f.jpg",
+      "label": "варвар.jpg"
+    },
+    {
+      "id": "type-1200db57-6cf2-492d-91f3-219b48a46c13",
+      "name": "Дровосек",
+      "strength": 4,
+      "trigger": "🃏",
+      "effect": "Вытяните 3 карты с верха колоды, две из них сбросьте",
+      "image": "assets/1050c745-56aa-4086-908e-fcbd78630f76.jpg",
+      "label": "Дровосек"
+    },
+    {
+      "id": "type-8e2189a7-0d96-42b7-a70e-0653ae8983b2",
+      "name": "Светлячок",
+      "strength": 3,
+      "trigger": "🃏",
+      "effect": "Переверните рубашкой вверх верхнее существо в любой снабжаемой вами земле",
+      "image": "assets/4ebef918-77f7-4b91-a212-f388245262ea.jpg",
+      "label": "висп.jpg"
+    },
+    {
+      "id": "type-f06f053b-bbc8-4534-a555-847b152cce6a",
+      "name": "Манопровод",
+      "strength": 4,
+      "trigger": "🛡️",
+      "effect": "Сила в защите равна 4 умножить на количество ваших верхних существ в соседних землях",
+      "image": "assets/d2aac0d7-3417-423b-8090-a3b34773a611.jpg",
+      "label": "мана.jpg"
+    },
+    {
+      "id": "type-5c964301-a380-4a38-9d9c-c78bf339953c",
+      "name": "Ассасин",
+      "strength": 6,
+      "trigger": "🃏",
+      "effect": "Назовите любое существо, если оно в руках соперника, то соперник должен его сбросить, иначе соперник показывает вам свою руку",
+      "image": "assets/06194a44-a731-4339-9fca-ae6715163469.jpg",
+      "label": ""
+    },
+    {
+      "id": "type-731c9a05-2e2c-4c53-a11d-bebeeb379776",
+      "name": "Крепость",
+      "strength": 4,
+      "trigger": "🃏",
+      "effect": "Поставь или удали барьер или ничего не меняй для каждой из четырех сторон вокруг Крепости",
+      "image": "assets/b0309a75-585b-4146-a55e-4cc63e100648.jpg",
+      "label": ""
+    },
+    {
+      "id": "type-feb04492-7916-4e0b-a537-5217e2bdf323",
+      "name": "Абберация",
+      "strength": 7,
+      "trigger": "🃏",
+      "effect": "Соперник добирает 2 карты",
+      "image": "assets/7b4ed6ba-4be9-450f-99ae-57da3e33e486.jpg",
+      "label": "пуддинг.jpg"
+    },
+    {
+      "id": "type-165160f2-401c-4f6f-9407-e6489ea7fd6b",
+      "name": "Путник",
+      "strength": 4,
+      "trigger": "🃏",
+      "effect": "Разыграй 2 карты с верха колоды рубашкой вверх",
+      "image": "assets/180a67f9-084e-44f4-9731-5fbed7d804e2.jpg",
+      "label": "путник.jpg"
+    },
+    {
+      "id": "type-5336b70a-9c80-4eab-9ddf-09b2e7338e4f",
+      "name": "Лич",
+      "strength": 4,
+      "trigger": "🃏",
+      "effect": "Переверни рубашкой вверх любое количество своих верхних существ. Добери столько карт, сколько существ перевернул.",
+      "image": "assets/4ca560cf-2bf7-4428-8f9d-2edb9db6d2e5.jpg",
+      "label": "лич.jpg"
+    },
+    {
+      "id": "type-53f68929-ac93-49ad-9840-a11338596be2",
+      "name": "Агитатор",
+      "strength": 6,
+      "trigger": "🃏",
+      "effect": "Переверните лицом вверх любое свое существо, лежащее рубашкой вверх",
+      "image": "assets/53d1bedb-54a0-4909-bf5a-7b11c18809d1.jpg",
+      "label": "агит.jpg"
+    },
+    {
+      "id": "type-8f64d3a1-ff66-4d3c-9651-1c71d76ff26f",
+      "name": "Хламовник",
+      "strength": 2,
+      "trigger": "✋",
+      "effect": "При розыгрыше Хламовника повтори силу и 🃏 способность любого существа в сбросе",
+      "image": "assets/b15b9efb-0732-4e44-843d-406592f4054b.jpg",
+      "label": "хламовник.jpg"
+    },
+    {
+      "id": "type-36ef0198-a5f7-42f2-80aa-8accb04b2f02",
+      "name": "Баюн",
+      "strength": 7,
+      "trigger": "🃏",
+      "effect": "Переверни рубашкой вверх всех верхних существ на поле, включая Баюна",
+      "image": "assets/8a81ee35-6079-428e-aaa7-86f6ea42e1ce.jpg",
+      "label": "баюн.jpg"
+    },
+    {
+      "id": "type-e4dc0afa-80e6-4ac8-9e35-655e7fbd64ce",
+      "name": "Башня",
+      "strength": 6,
+      "trigger": "🛡️",
+      "effect": "+1 сила в защите, если стоит рядом с Базой",
+      "image": "assets/3734b20e-c9da-4d2c-ab53-9a652690c9c6.jpg",
+      "label": "towwe.png"
+    },
+    {
+      "id": "type-686a1c75-fac5-4534-b432-124130da9f1f",
+      "name": "Мозгошмыг",
+      "strength": 5,
+      "trigger": "🃏",
+      "effect": "Соперник сбрасывает все карты с руки и берет такое же количество новых",
+      "image": "assets/0f8300f2-bd55-48b1-86d0-788f5c3a47d1.jpg",
+      "label": "towwe.jpg"
+    },
+    {
+      "id": "type-fed22e5e-9bea-4e83-937d-41ee04f48e5c",
+      "name": "Стена",
+      "strength": 7,
+      "trigger": "⚔️",
+      "effect": "В атаке сила 0",
+      "image": "assets/90760eec-eeab-40ca-9089-f5f16faf04a4.jpg",
+      "label": "стена.jpg"
+    },
+    {
+      "id": "type-5e73bb6b-4f43-4e1d-842a-a3328fd607fb",
+      "name": "Мина",
+      "strength": 3,
+      "trigger": "🪤",
+      "effect": "Сбрось любое существо которое накроет мину. Переверни после этого мину рубашкой вверх.",
+      "image": "assets/e3a4da71-7e0c-4320-8280-a3bc8e19b09d.jpg",
+      "label": "мниа.jpg"
+    },
+    {
+      "id": "type-1cdb3797-9600-4dc0-a8d0-f0e554719007",
+      "name": "Крыса",
+      "strength": 5,
+      "trigger": "🃏",
+      "effect": "Противник сбрасывает карту с руки на свой выбор",
+      "image": "assets/c8b8365b-6b62-46e9-9563-78686d263221.jpg",
+      "label": "крыса.jpg"
+    },
+    {
+      "id": "type-fd07169e-759e-4af0-9658-696bdb3343f1",
+      "name": "Автопоезд",
+      "strength": 4,
+      "trigger": "🃏",
+      "effect": "Можешь заменить любое свое существо на поле на другое с руки. Его способность не применяется",
+      "image": "assets/e443a3c4-35cb-408a-a28f-3c987dd0a470.jpg",
+      "label": "авто.jpg"
+    },
+    {
+      "id": "type-c84d2c05-79d1-4372-8409-0cecc6c841b1",
+      "name": "Скарабей",
+      "strength": 5,
+      "trigger": "🃏",
+      "effect": "Если розыгрыш скарабея вытесняет существо из стека, то оно не сбрасывается, а возвращается в руку владельцу",
+      "image": "assets/a7d648d9-f7d1-4bac-903b-205b7c1bf5e8.jpg",
+      "label": "информатор.jpg"
+    },
+    {
+      "id": "type-2224e256-86bc-476c-a2af-5724af598082",
+      "name": "Дракон",
+      "strength": 7,
+      "trigger": "🃏",
+      "effect": "Сбрось две карты со своей руки",
+      "image": "assets/37e58ead-9ab5-4bbf-8da8-604bfe90ae49.jpg",
+      "label": "экспорт.jpg"
+    },
+    {
+      "id": "type-81a0943c-0bfe-4d5a-a828-a57358ac812f",
+      "name": "Эвакуатор",
+      "strength": 5,
+      "trigger": "🃏",
+      "effect": "Забери в руку свое верхнее существо, положи вместо него верхнюю карту из колоды рубашкой вверх",
+      "image": "assets/7cdfff61-eb96-46cf-9159-689e41006347.jpg",
+      "label": "эвак.jpg"
+    },
+    {
+      "id": "type-d55d838b-5b53-4aff-b224-38da9ce397c9",
+      "name": "Лагерь",
+      "strength": 6,
+      "trigger": "❗",
+      "effect": "Ваш лимит карт на руке увеличен на 1",
+      "image": "assets/643b636a-c733-4322-8eb1-ce2d904c6f72.jpg",
+      "label": "лагерь.jpg"
+    },
+    {
+      "id": "type-9a175e80-b850-439b-a15f-0c251105d346",
+      "name": "Партизаны",
+      "strength": 4,
+      "trigger": "🃏",
+      "effect": "Сбрось все верхние карты соперника, лежащие рубашкой вверх, ИЛИ любое существо соперника с силой 2 или меньше",
+      "image": "assets/25f51d73-3341-469c-947c-f6ae0306a76b.jpg",
+      "label": "партизаны.jpg"
+    },
+    {
+      "id": "type-3aad6178-292d-4a3f-bad5-b6ec51318d59",
+      "name": "Подрывник",
+      "strength": 2,
+      "trigger": "🃏",
+      "effect": "Сбрось верхнее существо из каждого стека на землях рядом с Подрывником. Ваши существа тоже сбрасываются.",
+      "image": "assets/podryvnik.png",
+      "label": "подрывник.png"
+    }
+  ],
+  "player_deck": [
+    {
+      "card": "type-17bd2743-b021-4882-a928-971d39a7732f",
+      "count": 1
+    },
+    {
+      "card": "type-33edda09-feb1-4e30-81cf-592e14b21722",
+      "count": 1
+    },
+    {
+      "card": "type-5361ab06-5203-4d82-b7ba-5ad718a0518d",
+      "count": 1
+    },
+    {
+      "card": "type-459aa707-8da2-4422-aef8-c7a3d018a9c1",
+      "count": 1
+    },
+    {
+      "card": "type-e5dab949-34d8-424f-b359-040fef0fcb79",
+      "count": 1
+    },
+    {
+      "card": "type-711eafa5-f0ec-49d9-a133-ee83b75439e3",
+      "count": 1
+    },
+    {
+      "card": "type-82a2e5fb-7745-41ee-85c5-e271f748551c",
+      "count": 1
+    },
+    {
+      "card": "type-0651038c-f08e-4a8e-ba04-45a6690338f4",
+      "count": 1
+    },
+    {
+      "card": "type-c61265af-49d0-423e-9d7b-01f89e26185a",
+      "count": 1
+    },
+    {
+      "card": "type-cea8ae85-4298-49f3-a9d5-25374df2b4e3",
+      "count": 1
+    },
+    {
+      "card": "type-c23c8d40-1638-4feb-bb8e-9ca7acd9ff58",
+      "count": 1
+    },
+    {
+      "card": "type-dd1814a0-2297-4cf3-aa98-280697554575",
+      "count": 1
+    },
+    {
+      "card": "type-3076c447-3287-4179-b18a-5b2171f911c9",
+      "count": 1
+    },
+    {
+      "card": "type-7d1f9f59-e674-4a64-8a20-db6155b9d436",
+      "count": 1
+    },
+    {
+      "card": "type-d8f6cc9c-bb9a-4e13-a4db-cc7e2ed8a0b2",
+      "count": 1
+    },
+    {
+      "card": "type-d5daa3ea-25f5-4a63-a93d-08d7558513bf",
+      "count": 1
+    },
+    {
+      "card": "type-17d5e46e-fd71-49d3-8c6d-71ad1ca09e34",
+      "count": 1
+    },
+    {
+      "card": "type-bada7d58-b32c-462b-a49b-d8f15d5ce05f",
+      "count": 1
+    },
+    {
+      "card": "type-e1fcd6c8-4ae9-46b4-999d-dae6027eca1a",
+      "count": 1
+    },
+    {
+      "card": "type-f96378d8-1f38-436c-9f51-e073c93c5791",
+      "count": 1
+    },
+    {
+      "card": "type-b0646984-62f7-41bf-84cf-c4bf586a0303",
+      "count": 1
+    },
+    {
+      "card": "type-743c48a1-a763-463c-8e62-a33bdea9487d",
+      "count": 1
+    },
+    {
+      "card": "type-ffdb0f07-fdf4-49dd-8bac-1c1d08729fa5",
+      "count": 1
+    },
+    {
+      "card": "type-d26b562e-c604-456a-9d21-a89f342e26ee",
+      "count": 1
+    },
+    {
+      "card": "type-b4286113-06bd-45f6-bdcc-6b93cc5f5037",
+      "count": 1
+    },
+    {
+      "card": "type-ba339d1e-c2c5-471e-9ee4-ae8588d3b268",
+      "count": 1
+    },
+    {
+      "card": "type-889b77b5-ec91-45fb-aa12-ca99c340cc75",
+      "count": 1
+    },
+    {
+      "card": "type-f7ab54ab-046b-4741-a300-a239da5e1b79",
+      "count": 1
+    },
+    {
+      "card": "type-17b3a997-c90b-48f8-ad47-f74e56e5623c",
+      "count": 1
+    },
+    {
+      "card": "type-5b9602b9-5d0f-437d-b64d-de8ee1becf1a",
+      "count": 1
+    },
+    {
+      "card": "type-6d92b349-49ee-412a-a854-5b6960e09b27",
+      "count": 1
+    },
+    {
+      "card": "type-febcb1df-00bb-45b4-b9f9-f27d82212183",
+      "count": 1
+    },
+    {
+      "card": "type-6f26b4c6-0ff6-45c7-8862-e1bbf4441c93",
+      "count": 1
+    },
+    {
+      "card": "type-0723c37f-0c19-4e09-a537-120ef8586483",
+      "count": 1
+    },
+    {
+      "card": "type-934362ec-052f-4544-9970-9d26dd362c21",
+      "count": 1
+    },
+    {
+      "card": "type-332fc425-c41d-472c-b474-21c55b5269b8",
+      "count": 1
+    },
+    {
+      "card": "type-f0af481f-54cb-4a14-9707-a2773bc60c5d",
+      "count": 1
+    },
+    {
+      "card": "type-41716665-c9e9-493b-a681-39bbc99326ba",
+      "count": 1
+    },
+    {
+      "card": "type-7924b905-2fa4-423b-b29b-87593ae5d5c4",
+      "count": 1
+    },
+    {
+      "card": "type-8ad26c7d-ad61-475b-81b2-06b90f629e08",
+      "count": 1
+    },
+    {
+      "card": "type-19d260cc-fc8f-4a0c-94ca-da9c0c76d384",
+      "count": 1
+    },
+    {
+      "card": "type-83ef554f-eb38-4282-abf0-f5b5c1257a6f",
+      "count": 1
+    },
+    {
+      "card": "type-b7271c04-e48d-4873-9f0f-a02106e51fe2",
+      "count": 1
+    },
+    {
+      "card": "type-7d1a32ae-70ea-4403-9818-48bfd80f8ba3",
+      "count": 1
+    },
+    {
+      "card": "type-d561f84d-67b7-48f7-b535-72d3e229c2eb",
+      "count": 1
+    },
+    {
+      "card": "type-f1267ff8-3952-4715-a07c-578b0a5ea2c7",
+      "count": 1
+    },
+    {
+      "card": "type-78d09b54-b498-4775-a9a0-9eb426df11e1",
+      "count": 1
+    },
+    {
+      "card": "type-c1b2eede-13db-4396-b2ee-5bf340aabe8a",
+      "count": 1
+    },
+    {
+      "card": "type-787c52b6-bb67-4879-a6ef-919d5df455c0",
+      "count": 1
+    },
+    {
+      "card": "type-8b4b1b25-6f91-4945-9900-76ff3b7d73e7",
+      "count": 1
+    },
+    {
+      "card": "type-1b6b4328-87c0-45b5-919f-edb561bd7a34",
+      "count": 1
+    },
+    {
+      "card": "type-20aef3d5-585c-4990-8a27-331312ec09b3",
+      "count": 1
+    },
+    {
+      "card": "type-7df46d29-8103-436c-8e32-ab2e3040ef4a",
+      "count": 1
+    },
+    {
+      "card": "type-38e0d505-08bd-44f4-9295-d02930f20133",
+      "count": 1
+    },
+    {
+      "card": "type-80c924f6-1507-42c7-917f-d677c647297c",
+      "count": 1
+    },
+    {
+      "card": "type-6b695cdb-65a6-490f-bed9-813bf786e69d",
+      "count": 1
+    },
+    {
+      "card": "type-ee2b965e-537c-4248-8d4e-ac048bb8ba31",
+      "count": 1
+    },
+    {
+      "card": "type-c28039f2-4ec6-4312-9c4d-b96a86e3444d",
+      "count": 1
+    },
+    {
+      "card": "type-839e0202-8740-4861-b857-800cfc97da0c",
+      "count": 1
+    },
+    {
+      "card": "type-be971dbf-9466-4a67-90c5-224d16a16c86",
+      "count": 1
+    },
+    {
+      "card": "type-0632708b-cd52-4941-ae44-7e9f4a770f1e",
+      "count": 1
+    },
+    {
+      "card": "type-c2e8e9b3-ea63-4d2f-93e9-103d054d0838",
+      "count": 1
+    },
+    {
+      "card": "type-4f1131ab-f488-436a-b5a5-7681a058e8aa",
+      "count": 1
+    },
+    {
+      "card": "type-499a84f7-be65-41c2-828f-b6a84cda5f55",
+      "count": 1
+    },
+    {
+      "card": "type-b10b8430-0312-4bb8-afa0-2428137d635a",
+      "count": 1
+    },
+    {
+      "card": "type-1200db57-6cf2-492d-91f3-219b48a46c13",
+      "count": 1
+    },
+    {
+      "card": "type-8e2189a7-0d96-42b7-a70e-0653ae8983b2",
+      "count": 1
+    },
+    {
+      "card": "type-f06f053b-bbc8-4534-a555-847b152cce6a",
+      "count": 1
+    },
+    {
+      "card": "type-5c964301-a380-4a38-9d9c-c78bf339953c",
+      "count": 1
+    },
+    {
+      "card": "type-731c9a05-2e2c-4c53-a11d-bebeeb379776",
+      "count": 1
+    },
+    {
+      "card": "type-feb04492-7916-4e0b-a537-5217e2bdf323",
+      "count": 1
+    },
+    {
+      "card": "type-165160f2-401c-4f6f-9407-e6489ea7fd6b",
+      "count": 1
+    },
+    {
+      "card": "type-5336b70a-9c80-4eab-9ddf-09b2e7338e4f",
+      "count": 1
+    },
+    {
+      "card": "type-53f68929-ac93-49ad-9840-a11338596be2",
+      "count": 1
+    },
+    {
+      "card": "type-8f64d3a1-ff66-4d3c-9651-1c71d76ff26f",
+      "count": 1
+    },
+    {
+      "card": "type-36ef0198-a5f7-42f2-80aa-8accb04b2f02",
+      "count": 1
+    },
+    {
+      "card": "type-e4dc0afa-80e6-4ac8-9e35-655e7fbd64ce",
+      "count": 1
+    },
+    {
+      "card": "type-686a1c75-fac5-4534-b432-124130da9f1f",
+      "count": 1
+    },
+    {
+      "card": "type-fed22e5e-9bea-4e83-937d-41ee04f48e5c",
+      "count": 1
+    },
+    {
+      "card": "type-5e73bb6b-4f43-4e1d-842a-a3328fd607fb",
+      "count": 1
+    },
+    {
+      "card": "type-1cdb3797-9600-4dc0-a8d0-f0e554719007",
+      "count": 1
+    },
+    {
+      "card": "type-fd07169e-759e-4af0-9658-696bdb3343f1",
+      "count": 1
+    },
+    {
+      "card": "type-c84d2c05-79d1-4372-8409-0cecc6c841b1",
+      "count": 1
+    },
+    {
+      "card": "type-2224e256-86bc-476c-a2af-5724af598082",
+      "count": 1
+    },
+    {
+      "card": "type-81a0943c-0bfe-4d5a-a828-a57358ac812f",
+      "count": 1
+    },
+    {
+      "card": "type-d55d838b-5b53-4aff-b224-38da9ce397c9",
+      "count": 1
+    },
+    {
+      "card": "type-9a175e80-b850-439b-a15f-0c251105d346",
+      "count": 1
+    },
+    {
+      "card": "type-3aad6178-292d-4a3f-bad5-b6ec51318d59",
+      "count": 1
+    }
+  ],
+  "bases": [
+    {
+      "id": "type-37b0fe49-c5c5-4227-867d-c5ccba7c9aca",
+      "color": "red",
+      "image": "assets/277ece77-8f41-4a89-84e3-8bc066e5ac21.jpg",
+      "label": "base.jpg"
+    },
+    {
+      "id": "type-0e598617-149b-4559-ae31-f414808feff4",
+      "color": "blue",
+      "image": "assets/2bcd758a-0943-4fc7-a9d5-a8ac87f63be9.jpg",
+      "label": "bases.jpg"
+    }
+  ],
+  "barriers": {
+    "id": "type-0d01f500-36ff-4dc6-b7f6-6a2274db76df",
+    "count": 12,
+    "color": "rgb(196,191,36)"
+  },
+  "board": "assets/01f21874-0f9a-4e30-9e91-a112b2dbe05c.jpg",
+  "backs": {
+    "blue": "assets/f01992f6-f692-49b9-9f5c-9f2830fea8c1.jpeg",
+    "red": "assets/64ab1a8a-943c-4fac-b91c-265e92de075d.jpeg"
+  },
+  "description_textures": {
+    "blue": "assets/ec29a907-a011-48b6-a48b-59b3264015c1.jpg",
+    "red": "assets/98d825d7-6a74-49d3-9143-8941aebedd0b.jpg"
+  }
+}

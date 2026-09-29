@@ -9,6 +9,6 @@ id = "type-c28039f2-4ec6-4312-9c4d-b96a86e3444d"
 name_key = "UNIT_TARAN_NAME"
 description_key = "UNIT_TARAN_DESCRIPTION"
 power = 4
-ability_symbols = "❗"
+ability_symbols = "🪤❗"
 implementation_status = "implemented"
 portrait = ExtResource("2_portrait")
